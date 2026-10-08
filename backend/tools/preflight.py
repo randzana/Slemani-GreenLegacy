@@ -227,14 +227,16 @@ def check_server(url, cfg, rehearsal=False):
         return [(FAIL, "سێرڤەر", f"{url}: {type(exc).__name__}, is run.py running?")]
     healthy = health.status_code == 200 and health.headers.get("Content-Type") == "application/json"
     out = [(OK if healthy and health.json().get("ok") else FAIL, "سێرڤەر", f"GET /health {health.status_code}")]
-    if hoods.status_code != 200:
+    listed = (hoods.json() if hoods.status_code == 200 and hoods.headers.get("Content-Type") == "application/json"
+              else None)
+    if listed is None:
         out.append((FAIL, "داتابەیسی سێرڤەر", f"GET /neighbourhoods {hoods.status_code}: the server cannot read its "
                                                "database; restart it after source .env (DATABASE_URL)"))
-    elif not hoods.json():
+    elif not listed:
         out.append((FAIL, "داتابەیسی سێرڤەر", "the server's database has no neighbourhoods: python seed.py "
                                                "with the server's DATABASE_URL (wipes the database)"))
     else:
-        out.append((OK, "داتابەیسی سێرڤەر", f"GET /neighbourhoods 200, {len(hoods.json())} neighbourhoods"))
+        out.append((OK, "داتابەیسی سێرڤەر", f"GET /neighbourhoods 200, {len(listed)} neighbourhoods"))
     out.append((OK if dashboard.status_code == 200 and leaflet.status_code == 200 else FAIL, "داشبۆرد",
                 f"GET /dashboard {dashboard.status_code}, leaflet.js {leaflet.status_code}"))
     # the server may have been started with other variables than this terminal has
