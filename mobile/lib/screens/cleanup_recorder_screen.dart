@@ -103,7 +103,9 @@ class _CleanupRecorderScreenState extends State<CleanupRecorderScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text(S.illClean, style: TextStyle(fontWeight: FontWeight.bold)),
+        // the app theme gives AppBar titles and icons a dark colour, which wins over foregroundColor
+        title: const Text(S.illClean, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
