@@ -59,7 +59,8 @@ def check_database(url):
 
         columns = set(conn.execute("""SELECT table_name, column_name FROM information_schema.columns
                                       WHERE table_schema = current_schema()""").fetchall())
-        missing = [t for t in TABLES if not any(table == t for table, _ in columns)]
+        tables = {table for table, _ in columns}
+        missing = [t for t in TABLES if t not in tables]
         if missing:
             return out + [(FAIL, "خشتەکان", f"missing {', '.join(missing)}: python seed.py (wipes the database)")]
         out.append((OK, "خشتەکان", "all six tables"))
@@ -69,8 +70,9 @@ def check_database(url):
             out.append((FAIL, "ستوونە نوێکان", f"missing {names}: {migrate(NEWER_COLUMNS[c] for c in old)}"))
         else:
             out.append((OK, "ستوونە نوێکان", "reports.description, point_ledger.detail"))
-        shape = conn.execute("""SELECT type FROM geography_columns WHERE f_table_schema = current_schema()
-                                AND f_table_name = 'neighbourhoods' AND f_geography_column = 'boundary'""").fetchone()
+        shape = conn.execute("""SELECT type FROM geography_columns
+                                WHERE f_table_schema = current_schema() AND f_table_name = 'neighbourhoods'
+                                  AND f_geography_column = 'boundary'""").fetchone()
         if shape and shape[0] != "MultiPolygon":     # only tools/import_boundaries.py needs it
             out.append((WARN, "سنووری گەڕەکەکان", f"boundary is {shape[0]}: "
                                                    f"{migrate(['002_neighbourhood_boundaries.sql'])}"))
@@ -113,7 +115,7 @@ def check_detector(cfg, rehearsal=False, load=False):
     if not model.is_file():
         out.append((need, "فایلی مۆدێل", f"no file at {shown}: set MODEL_PATH or python tools/download_model.py"))
     elif model.name == "yolov8n.pt" and cfg["LITTER_CLASSES"] == "*":
-        out.append((FAIL, "فایلی مۆدێل", f"{shown} is the stock COCO model: with LITTER_CLASSES=* people count"))
+        out.append((need, "فایلی مۆدێل", f"{shown} is the stock COCO model: with LITTER_CLASSES=* people count"))
     elif model.name == "yolov8n.pt":
         out.append((WARN, "فایلی مۆدێل", f"{shown} is the stock COCO model (bottles, cups): the fallback, "
                                           "not the trash or Slemani model"))
@@ -156,6 +158,7 @@ def check_files():
 
 
 def check_settings(cfg, rehearsal=False):
+    # the default key is written in config.py, so only the environment can say it was replaced
     out = [(WARN, "کلیلی نهێنی", "SECRET_KEY is the default from the code: export SECRET_KEY=<random>")
            if not os.environ.get("SECRET_KEY") else (OK, "کلیلی نهێنی", "SECRET_KEY set")]
     if cfg["SIM_CAMERA"]:
