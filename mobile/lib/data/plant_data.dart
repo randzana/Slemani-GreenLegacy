@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../strings.dart';
+
 class PlantType {
   final String id;
   final String name;
@@ -27,93 +29,93 @@ class PlantType {
 final List<PlantType> kPlantTypes = [
   const PlantType(
     id: 'p1',
-    name: 'بەڕوو (Oak Tree)',
-    description: 'درەختی ڕەسەنی دارستانەکانی ئەزمەڕ و گۆیژە. بەرگەی گەرما و وشکەساڵی دەگرێت.',
+    name: S.plantOak,
+    description: S.plantOakAbout,
     points: 50,
-    difficulty: 'مامناوەند',
+    difficulty: S.difficultyMedium,
     icon: Icons.park_rounded,
     color: Color(0xFF2E7D32),
-    waterNeeded: 'کەمئاو',
+    waterNeeded: S.waterLow,
   ),
   const PlantType(
     id: 'p2',
-    name: 'سنەوبەر (Pine Tree)',
-    description: 'هەمیشە سەوز و خێرا لە گەشەکردندا. هەوای سلێمانی پاک و سازگار دەکات.',
+    name: S.plantPine,
+    description: S.plantPineAbout,
     points: 40,
-    difficulty: 'ئاسان',
+    difficulty: S.difficultyEasy,
     icon: Icons.nature_rounded,
     color: Color(0xFF00796B),
-    waterNeeded: 'مامناوەند',
+    waterNeeded: S.waterMedium,
   ),
   const PlantType(
     id: 'p3',
-    name: 'چنار (Plane Tree)',
-    description: 'درەختی هێمای سەرچناری سلێمانی. سێبەرێکی فراوان و بەهەیبەت دروست دەکات.',
+    name: S.plantPlane,
+    description: S.plantPlaneAbout,
     points: 45,
-    difficulty: 'قورس',
+    difficulty: S.difficultyHard,
     icon: Icons.forest_rounded,
     color: Color(0xFF1B5E20),
-    waterNeeded: 'ئاوی زۆر',
+    waterNeeded: S.waterHigh,
   ),
   const PlantType(
     id: 'p4',
-    name: 'زەیتوون (Olive Tree)',
-    description: 'هێمای ئاشتی و بەرەکەت. زۆر کەمئاوە و تەمەندرێژترین درەختی ناوچەکەیە.',
+    name: S.plantOlive,
+    description: S.plantOliveAbout,
     points: 45,
-    difficulty: 'ئاسان',
+    difficulty: S.difficultyEasy,
     icon: Icons.eco_rounded,
     color: Color(0xFF558B2F),
-    waterNeeded: 'کەمئاو',
+    waterNeeded: S.waterLow,
   ),
   const PlantType(
     id: 'p5',
-    name: 'هەنار (Pomegranate)',
-    description: 'میوەدار و گوڵدار بە گوڵی سووری گەش. گونجاوە بۆ باخچەی ماڵان و گەڕەکەکان.',
+    name: S.plantPomegranate,
+    description: S.plantPomegranateAbout,
     points: 35,
-    difficulty: 'مامناوەند',
+    difficulty: S.difficultyMedium,
     icon: Icons.apple_rounded,
     color: Color(0xFFC62828),
-    waterNeeded: 'مامناوەند',
+    waterNeeded: S.waterMedium,
   ),
   const PlantType(
     id: 'p6',
-    name: 'هەنجیر (Fig Tree)',
-    description: 'درەختی شیرین و پڕسێبەر. لە خاکە شاخاوییەکان زۆر بە باشی گەشە دەکات.',
+    name: S.plantFig,
+    description: S.plantFigAbout,
     points: 30,
-    difficulty: 'ئاسان',
+    difficulty: S.difficultyEasy,
     icon: Icons.spa_rounded,
     color: Color(0xFF43A047),
-    waterNeeded: 'مامناوەند',
+    waterNeeded: S.waterMedium,
   ),
   const PlantType(
     id: 'p7',
-    name: 'گوڵەباخ (Rose Bush)',
-    description: 'گوڵێکی بۆنخۆشی ڕەسەن کە جوانییەکی تایبەت دەبەخشێتە کۆڵان و گەڕەکەکان.',
+    name: S.plantRose,
+    description: S.plantRoseAbout,
     points: 20,
-    difficulty: 'مامناوەند',
+    difficulty: S.difficultyMedium,
     icon: Icons.local_florist_rounded,
     color: Color(0xFFD81B60),
-    waterNeeded: 'ئاوی زۆر',
+    waterNeeded: S.waterHigh,
   ),
   const PlantType(
     id: 'p8',
-    name: 'لاڤێندەر (Lavender)',
-    description: 'بۆنخۆش و سەرنجڕاکێش بۆ پەپوولە و هەنگ. زۆر کەمئاوە و سەوز دەمێنێتەوە.',
+    name: S.plantLavender,
+    description: S.plantLavenderAbout,
     points: 25,
-    difficulty: 'ئاسان',
+    difficulty: S.difficultyEasy,
     icon: Icons.grass_rounded,
     color: Color(0xFF8E24AA),
-    waterNeeded: 'کەمئاو',
+    waterNeeded: S.waterLow,
   ),
   const PlantType(
     id: 'p9',
-    name: 'نەعنا و ڕێحانە (Herbs)',
-    description: 'ڕووەکی سەوزی بەکەڵک و بۆندار. زوو گەشە دەکات و دەڕوێت.',
+    name: S.plantHerbs,
+    description: S.plantHerbsAbout,
     points: 15,
-    difficulty: 'ئاسان',
+    difficulty: S.difficultyEasy,
     icon: Icons.energy_savings_leaf_rounded,
     color: Color(0xFF00BFA5),
-    waterNeeded: 'ئاوی زۆر',
+    waterNeeded: S.waterHigh,
   ),
 ];
 
@@ -127,6 +129,9 @@ IconData plantIcon(Object? codePoint) {
   return Icons.park_rounded;
 }
 
+/// The garden lives only on this phone. Each plant's 'status' and 'level' are saved as their
+/// Kurdish text (S.plantHealthy, S.plantLevel1, ...) and compared on the next start, so those
+/// values in strings.dart must stay exactly as they are.
 class GardenManager extends ChangeNotifier {
   GardenManager._();
   static final GardenManager instance = GardenManager._();
@@ -158,30 +163,30 @@ class GardenManager extends ChangeNotifier {
     _myPlants = [
       {
         'id': '1',
-        'name': 'بەڕوو (Oak Tree)',
+        'name': S.plantOak,
         'typeId': 'p1',
-        'level': 'ئاستی ٣ (پێگەیشتوو)',
-        'status': 'تەندروستە',
+        'level': S.plantLevel3,
+        'status': S.plantHealthy,
         'iconCode': Icons.park_rounded.codePoint,
         'colorValue': const Color(0xFF2E7D32).toARGB32(),
         'plantedAt': DateTime.now().subtract(const Duration(days: 14)).toIso8601String(),
       },
       {
         'id': '2',
-        'name': 'چنار (Plane Tree)',
+        'name': S.plantPlane,
         'typeId': 'p3',
-        'level': 'ئاستی ٢ (لە گەشەدایە)',
-        'status': 'پێویستی بە ئاوە',
+        'level': S.plantLevel2,
+        'status': S.plantThirsty,
         'iconCode': Icons.forest_rounded.codePoint,
         'colorValue': const Color(0xFF1B5E20).toARGB32(),
         'plantedAt': DateTime.now().subtract(const Duration(days: 6)).toIso8601String(),
       },
       {
         'id': '3',
-        'name': 'گوڵەباخ (Rose Bush)',
+        'name': S.plantRose,
         'typeId': 'p7',
-        'level': 'ئاستی ١ (چەکەرەکردن)',
-        'status': 'تەندروستە',
+        'level': S.plantLevel1,
+        'status': S.plantHealthy,
         'iconCode': Icons.local_florist_rounded.codePoint,
         'colorValue': const Color(0xFFD81B60).toARGB32(),
         'plantedAt': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
@@ -202,8 +207,8 @@ class GardenManager extends ChangeNotifier {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'name': type.name,
       'typeId': type.id,
-      'level': 'ئاستی ١ (چەکەرەکردن)',
-      'status': 'تەندروستە',
+      'level': S.plantLevel1,
+      'status': S.plantHealthy,
       'iconCode': type.icon.codePoint,
       'colorValue': type.color.toARGB32(),
       'plantedAt': DateTime.now().toIso8601String(),
@@ -215,16 +220,16 @@ class GardenManager extends ChangeNotifier {
   Future<bool> waterPlant(int index) async {
     if (index < 0 || index >= _myPlants.length) return false;
     final plant = _myPlants[index];
-    final wasThirsty = plant['status'] == 'پێویستی بە ئاوە';
+    final wasThirsty = plant['status'] == S.plantThirsty;
 
-    plant['status'] = 'تەندروستە';
+    plant['status'] = S.plantHealthy;
     plant['lastWatered'] = DateTime.now().toIso8601String();
 
     // Small chance to level up when watered
-    if (plant['level'] == 'ئاستی ١ (چەکەرەکردن)') {
-      plant['level'] = 'ئاستی ٢ (لە گەشەدایە)';
-    } else if (plant['level'] == 'ئاستی ٢ (لە گەشەدایە)' && wasThirsty) {
-      plant['level'] = 'ئاستی ٣ (پێگەیشتوو)';
+    if (plant['level'] == S.plantLevel1) {
+      plant['level'] = S.plantLevel2;
+    } else if (plant['level'] == S.plantLevel2 && wasThirsty) {
+      plant['level'] = S.plantLevel3;
     }
 
     await _persist();

@@ -97,8 +97,8 @@ class _LeagueScreenState extends State<LeagueScreen> with SingleTickerProviderSt
                   labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   dividerColor: Colors.transparent,
                   tabs: const [
-                    Tab(text: 'گەڕەکەکان 🏘️'),
-                    Tab(text: 'هاوڵاتیانی نموونەیی 🌟'),
+                    Tab(text: S.hoodsTab),
+                    Tab(text: S.citizensTab),
                   ],
                 ),
               ),
@@ -130,7 +130,7 @@ class _LeagueScreenState extends State<LeagueScreen> with SingleTickerProviderSt
           children: [
             Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            Text('هیچ داتایەک بەردەست نییە', style: TextStyle(color: Colors.grey.shade600)),
+            Text(S.noData, style: TextStyle(color: Colors.grey.shade600)),
           ],
         ),
       );
@@ -149,9 +149,9 @@ class _LeagueScreenState extends State<LeagueScreen> with SingleTickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildPodium(items[1]['name']?.toString() ?? 'دووەم', S.digits(items[1]['points'] ?? 0), 2, _podiumColors[1]),
-                  _buildPodium(items[0]['name']?.toString() ?? 'یەکەم', S.digits(items[0]['points'] ?? 0), 1, _podiumColors[0]),
-                  _buildPodium(items[2]['name']?.toString() ?? 'سێیەم', S.digits(items[2]['points'] ?? 0), 3, _podiumColors[2]),
+                  _buildPodium(items[1]['name']?.toString() ?? S.second, S.digits(items[1]['points'] ?? 0), 2, _podiumColors[1]),
+                  _buildPodium(items[0]['name']?.toString() ?? S.first, S.digits(items[0]['points'] ?? 0), 1, _podiumColors[0]),
+                  _buildPodium(items[2]['name']?.toString() ?? S.third, S.digits(items[2]['points'] ?? 0), 3, _podiumColors[2]),
                 ],
               ),
             ),
@@ -175,7 +175,7 @@ class _LeagueScreenState extends State<LeagueScreen> with SingleTickerProviderSt
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isHood ? 'هەموو گەڕەکەکانی سلێمانی' : 'ڕیزبەندیی گشتی چالاکوانان',
+                  isHood ? S.allHoods : S.overallRanking,
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
@@ -244,7 +244,7 @@ class _LeagueScreenState extends State<LeagueScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$points خاڵ',
+                  '$points ${S.points}',
                   style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],

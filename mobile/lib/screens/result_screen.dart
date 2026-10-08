@@ -106,8 +106,7 @@ class ResultScreen extends StatelessWidget {
                           if (result['litter_before'] != null) ...[
                             _MetricRow(
                               title: S.litterFound,
-                              value:
-                                  '${S.digits(result['litter_before'])} ← ${result['litter_after'] == null ? '—' : S.digits(result['litter_after'])}',
+                              value: S.litterChange(result['litter_before'], result['litter_after']),
                               icon: Icons.delete_outline_rounded,
                               iconColor: Colors.blueGrey,
                             ),

@@ -15,12 +15,23 @@ class S {
   static const signUp = 'هەژماری نوێ';
   static const haveAccount = 'هەژمارم هەیە';
   static const noAccount = 'هەژمارم نییە';
+  static const welcomeBack = 'بەخێربێیتەوە بۆ گەشتی پاراستنی ژینگە';
+  static const joinUs = 'بەشداربە لە سەوزکردنی سلێمانی';
+  static const fillAllFields = 'تکایە هەموو خانەکان پڕبکەرەوە';
 
   // tabs
   static const map = 'نەخشە';
   static const league = 'لیگی گەڕەکەکان';
   static const profile = 'پرۆفایل';
   static const report = 'ڕاپۆرتی پاشماوە';
+
+  // home: app bar titles, bottom bar and the round report button
+  static const home = 'سەرەکی';
+  static const garden = 'باخچە';
+  static const gardenTitle = 'باخچەی دیجیتاڵی 🌱';
+  static const leagueTitle = 'لیگی گەڕەکەکان 🏆';
+  static const refreshMap = 'نوێکردنەوەی نەخشە';
+  static const reportButton = 'ڕاپۆرت';
 
   // map
   static const open = 'کراوە';
@@ -33,6 +44,40 @@ class S {
     'needs_review': needsReview,
     'clean': clean,
   };
+  // map filter chips (the open chip uses [open])
+  static const filterAll = 'هەموو';
+  static const filterInProgress = 'لەسەریەتی';
+  static const filterClean = 'پاک';
+  static String withCount(String label, Object n) => '$label (${digits(n)})';
+
+  // dashboard (home tab)
+  static const citizen = 'هاوڵاتی'; // shown when the server sends no name
+  static String hello(String name) => 'سڵاو، $name 👋';
+  static const letsGoGreen = 'با سلێمانی سەوز بکەین!';
+  static const totalGreenPoints = 'کۆی خاڵە سەوزەکان';
+  static String levelOf(String level) => 'ئاست: $level';
+  // eco levels by total points: under 200, 200+, 500+, 1000+
+  static const levelSeed = 'شینەوار (تۆو)';
+  static const levelGreenWarrior = 'شەڕڤانی سەوز 🌲';
+  static const levelEcoTeacher = 'مامۆستای ژینگە 🌿';
+  static const levelEarthGuardian = 'پارێزەری زەوی 🌍';
+  static const liveMap = 'نەخشەی ڕاستەوخۆی شار';
+  static const liveMapHint = 'شوێنە پیسەکان و پاککردنەوە ببینە';
+  static const openReports = 'ڕاپۆرتە کراوەکان';
+  static const cleanedSpots = 'پاککراوەکان';
+  static const ranking = 'پلەبەندی';
+  static const pendingTotal = 'خاڵی چاوەڕوانکراو';
+  static const myGarden = 'باخچەی دیجیتاڵیی من 🌱';
+  static String plantCount(Object n) => '${digits(n)} ڕووەک';
+  static const seeGarden = 'بینینی باخچە';
+  static const gardenEmpty = 'باخچەکەت بەتاڵە! دەست بکە بە ناشتنی یەکەم درەخت.';
+  static const plantFirst = 'ناشتن 🌱';
+  static const recentReports = 'دواین ڕاپۆرتەکانی پاشماوە';
+  static const wholeMap = 'هەموو نەخشە';
+  static const allClean = 'سلێمانی خاوێنە! هیچ پاشماوەیەک نییە.';
+  static String reportNo(Object id) => 'ڕاپۆرتی #${digits(id)}';
+  static String spotSummary(Object litter, Object dirtiness) =>
+      'پاشماوە: ${digits(litter)} دەنک • پیسی: ${digits(dirtiness)}/${digits(5)}';
 
   // report
   static const takePhoto = 'وێنە بگرە';
@@ -47,6 +92,8 @@ class S {
   static const distance = 'دووری';
   static const metres = 'مەتر';
   static const illClean = 'من پاکی دەکەمەوە';
+  static const pleaseWait = 'تکایە چاوەڕێبە...';
+  static const noValue = '—'; // distance or count not known yet
   static const instruction = 'ڕێنمایی';
   static const record = 'تۆمارکردن (٦ چرکە)';
   static const recording = 'تۆمار دەکرێت... ڕێنماییەکە جێبەجێ بکە';
@@ -60,6 +107,9 @@ class S {
   static const pointsNow = 'خاڵی ئێستا';
   static const pointsLater = 'خاڵ دوای ٢٤ کاتژمێر';
   static const backToMap = 'گەڕانەوە بۆ نەخشە';
+  // litter before ← after; the arrow points left because the screen reads right to left
+  static String litterChange(Object before, Object? after) =>
+      '${digits(before)} ← ${after == null ? noValue : digits(after)}';
 
   // league + profile
   static const neighbourhoods = 'گەڕەکەکان';
@@ -81,6 +131,33 @@ class S {
   static const trust = 'متمانە';
   static String rankOf(Object rank, Object total) => '${digits(rank)} لە ${digits(total)}';
 
+  // profile tab
+  static const slemani = 'سلێمانی'; // shown when the person has no neighbourhood
+  static const approvedPoints = 'پەسەندکراو';
+  static const waitingPoints = 'چاوەڕوانکراو';
+  static const records = 'تۆمارەکان';
+  static String hoodAndPhone(String hood, String phone) => '$hood • $phone';
+  static const badges = 'نیشانە بەدەستهاتووەکان 🎖️';
+  static const badgeReporter = 'ڕاپۆرتکەر';
+  static const badgeCleaner = 'پاککەرەوە';
+  static const badgeEcoWarrior = 'شەڕڤانی ژینگە';
+  static const badgeCityGuardian = 'پارێزەری شار';
+  static const pointsHistory = 'مێژووی خاڵەکان';
+  static String activities(Object n) => '${digits(n)} چالاکی';
+  static const noHistory = 'هیچ تۆمارێکی خاڵ بەردەست نییە';
+  static const logoutOfAccount = 'چوونەدەرەوە لە هەژمار';
+
+  // league tab
+  static const hoodsTab = 'گەڕەکەکان 🏘️';
+  static const citizensTab = 'هاوڵاتیانی نموونەیی 🌟';
+  static const noData = 'هیچ داتایەک بەردەست نییە';
+  // podium fallbacks when a name is missing
+  static const first = 'یەکەم';
+  static const second = 'دووەم';
+  static const third = 'سێیەم';
+  static const allHoods = 'هەموو گەڕەکەکانی سلێمانی';
+  static const overallRanking = 'ڕیزبەندیی گشتی چالاکوانان';
+
   // AI description of the spot
   static const aiDescription = 'وەسفی زیرەکیی دەستکرد';
 
@@ -101,6 +178,71 @@ class S {
   static const cancel = 'پاشگەزبوونەوە';
   static String confirmRedeem(String name, Object cost) => '«$name» بە ${digits(cost)} خاڵ وەردەگریت؟';
   static const statuses = {'pending': 'چاوەڕوان', 'released': 'ئازاد', 'revoked': 'هەڵوەشێنرایەوە'};
+
+  // digital garden tab (counts here use Western digits, as the screen always has)
+  static const gardenHeader = 'باخچەی سەوزی سلێمانی';
+  static String gardenPlants(int n) => '$n درەخت و ڕووەک';
+  static const newSeedling = 'نەمامی نوێ';
+  static String thirstyPlants(int n) => '$n ڕووەک پێویستیان بە ئاوپڕژێنە! ئاویان بدە بۆ بەدەستهێنانی خاڵ.';
+  static const yourPlants = 'درەختە چێنراوەکانی تۆ 🌱';
+  static String plantsAvailable(int n) => '$n بەردەستە';
+  static const plant = 'ڕووەک'; // fallback name of a saved plant
+  static const plantLevelFallback = 'ئاستی ١';
+  static const thirsty = 'تینووە';
+  static const waterIt = 'ئاو بدە 💧';
+  static const healthyBadge = 'تەندروستە 🌱';
+  static const plantNew = 'ڕوواندنی ڕووەکی نوێ';
+  static const ecoPoints = '+ خاڵی ژینگەیی';
+  static String watered(String name) => '$name بە سەرکەوتوویی ئاو درا! 💧 (+10 خاڵ بەدەستهات)';
+  static String alreadyWatered(String name) => '$name پێشتر ئاو دراوە و تەندروستە! 🌱';
+  static const removePlant = 'لابردنی ڕووەک';
+  static String confirmRemovePlant(String name) => 'ئایا دڵنیایت لە لابردنی $name لە باخچەکەتدا؟';
+  static const yesRemove = 'بەڵێ، لایببە';
+  static String plantRemoved(String name) => '$name لە باخچەکەت لابرا';
+
+  // plant selection
+  static const choosePlant = 'هەڵبژاردنی نەمام و ڕووەک 🌳';
+  static const allKinds = 'هەموو جۆرەکان 🌱';
+  static const bigTrees = 'درەختە گەورەکان 🌳';
+  static const fruitTrees = 'میوەدارەکان 🍎';
+  static const flowersAndHerbs = 'گوڵ و دەرمانەکان 🌸';
+  static String waterNeed(String need) => '💧 $need';
+  static const plantIt = 'بڕوێنە 🌱';
+  static String planted(String name, int points) => '$name بە سەرکەوتوویی ڕوواندرا! 🌱 (+$points خاڵ)';
+
+  // garden plant states. These exact values are saved on the phone (SharedPreferences) and compared
+  // when the garden loads again: changing one strands every plant saved with the old text.
+  static const plantHealthy = 'تەندروستە';
+  static const plantThirsty = 'پێویستی بە ئاوە';
+  static const plantLevel1 = 'ئاستی ١ (چەکەرەکردن)';
+  static const plantLevel2 = 'ئاستی ٢ (لە گەشەدایە)';
+  static const plantLevel3 = 'ئاستی ٣ (پێگەیشتوو)';
+
+  // plant catalogue (data/plant_data.dart): names, one-line descriptions, difficulty, water need
+  static const difficultyEasy = 'ئاسان';
+  static const difficultyMedium = 'مامناوەند';
+  static const difficultyHard = 'قورس';
+  static const waterLow = 'کەمئاو';
+  static const waterMedium = 'مامناوەند';
+  static const waterHigh = 'ئاوی زۆر';
+  static const plantOak = 'بەڕوو (Oak Tree)';
+  static const plantOakAbout = 'درەختی ڕەسەنی دارستانەکانی ئەزمەڕ و گۆیژە. بەرگەی گەرما و وشکەساڵی دەگرێت.';
+  static const plantPine = 'سنەوبەر (Pine Tree)';
+  static const plantPineAbout = 'هەمیشە سەوز و خێرا لە گەشەکردندا. هەوای سلێمانی پاک و سازگار دەکات.';
+  static const plantPlane = 'چنار (Plane Tree)';
+  static const plantPlaneAbout = 'درەختی هێمای سەرچناری سلێمانی. سێبەرێکی فراوان و بەهەیبەت دروست دەکات.';
+  static const plantOlive = 'زەیتوون (Olive Tree)';
+  static const plantOliveAbout = 'هێمای ئاشتی و بەرەکەت. زۆر کەمئاوە و تەمەندرێژترین درەختی ناوچەکەیە.';
+  static const plantPomegranate = 'هەنار (Pomegranate)';
+  static const plantPomegranateAbout = 'میوەدار و گوڵدار بە گوڵی سووری گەش. گونجاوە بۆ باخچەی ماڵان و گەڕەکەکان.';
+  static const plantFig = 'هەنجیر (Fig Tree)';
+  static const plantFigAbout = 'درەختی شیرین و پڕسێبەر. لە خاکە شاخاوییەکان زۆر بە باشی گەشە دەکات.';
+  static const plantRose = 'گوڵەباخ (Rose Bush)';
+  static const plantRoseAbout = 'گوڵێکی بۆنخۆشی ڕەسەن کە جوانییەکی تایبەت دەبەخشێتە کۆڵان و گەڕەکەکان.';
+  static const plantLavender = 'لاڤێندەر (Lavender)';
+  static const plantLavenderAbout = 'بۆنخۆش و سەرنجڕاکێش بۆ پەپوولە و هەنگ. زۆر کەمئاوە و سەوز دەمێنێتەوە.';
+  static const plantHerbs = 'نەعنا و ڕێحانە (Herbs)';
+  static const plantHerbsAbout = 'ڕووەکی سەوزی بەکەڵک و بۆندار. زوو گەشە دەکات و دەڕوێت.';
 
   // errors
   static const genericError = 'هەڵەیەک ڕوویدا؛ دووبارە هەوڵ بدەرەوە';

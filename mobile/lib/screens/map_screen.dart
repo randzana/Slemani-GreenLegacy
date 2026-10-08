@@ -126,19 +126,19 @@ class _MapScreenState extends State<MapScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildFilterChip('هەموو (${S.digits(_count('all'))})', 'all', Colors.grey.shade700),
+                      _buildFilterChip(S.withCount(S.filterAll, _count('all')), 'all', Colors.grey.shade700),
                       _buildFilterChip(
-                        'کراوە (${S.digits(_count('open'))})',
+                        S.withCount(S.open, _count('open')),
                         'open',
                         kStatusOpen,
                       ),
                       _buildFilterChip(
-                        'لەسەریەتی (${S.digits(_count('in_progress'))})',
+                        S.withCount(S.filterInProgress, _count('in_progress')),
                         'in_progress',
                         kStatusInProgress,
                       ),
                       _buildFilterChip(
-                        'پاک (${S.digits(_count('clean'))})',
+                        S.withCount(S.filterClean, _count('clean')),
                         'clean',
                         kStatusClean,
                       ),

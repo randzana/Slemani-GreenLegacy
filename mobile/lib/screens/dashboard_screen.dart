@@ -70,25 +70,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final textColor = isDark ? kTextDark : kTextLight;
     final cardColor = Theme.of(context).cardColor;
 
-    final name = _user?['name']?.toString() ?? 'هاوڵاتی';
+    final name = _user?['name']?.toString() ?? S.citizen;
     final points = (_user?['released'] as num?)?.toInt() ?? 0;
     final pending = (_user?['pending'] as num?)?.toInt() ?? 0;
     final totalPoints = points + pending;
 
     // Eco levels
-    String levelName = 'شینەوار (تۆو)';
+    String levelName = S.levelSeed;
     double progress = (totalPoints / 200).clamp(0.0, 1.0);
     int nextGoal = 200;
     if (totalPoints >= 1000) {
-      levelName = 'پارێزەری زەوی 🌍';
+      levelName = S.levelEarthGuardian;
       progress = 1.0;
       nextGoal = 1000;
     } else if (totalPoints >= 500) {
-      levelName = 'مامۆستای ژینگە 🌿';
+      levelName = S.levelEcoTeacher;
       progress = ((totalPoints - 500) / 500).clamp(0.0, 1.0);
       nextGoal = 1000;
     } else if (totalPoints >= 200) {
-      levelName = 'شەڕڤانی سەوز 🌲';
+      levelName = S.levelGreenWarrior;
       progress = ((totalPoints - 200) / 300).clamp(0.0, 1.0);
       nextGoal = 500;
     }
@@ -123,12 +123,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'سڵاو، $name 👋',
+                            S.hello(name),
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'با سلێمانی سەوز بکەین!',
+                            S.letsGoGreen,
                             style: TextStyle(
                               color: textColor,
                               fontSize: 22,
@@ -185,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'کۆی خاڵە سەوزەکان',
+                              S.totalGreenPoints,
                               style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                             Icon(Icons.eco_rounded, color: Colors.white70, size: 24),
@@ -193,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${S.digits(totalPoints)} خاڵ',
+                          '${S.digits(totalPoints)} ${S.points}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 32,
@@ -206,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'ئاست: $levelName',
+                              S.levelOf(levelName),
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                             Text(
@@ -276,12 +276,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'نەخشەی ڕاستەوخۆی شار',
+                                  S.liveMap,
                                   style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'شوێنە پیسەکان و پاککردنەوە ببینە',
+                                  S.liveMapHint,
                                   style: TextStyle(color: Colors.white70, fontSize: 12),
                                 ),
                               ],
@@ -299,7 +299,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _StatCard(
-                          title: 'ڕاپۆرتە کراوەکان',
+                          title: S.openReports,
                           value: S.digits(_reports.where((r) => r['status'] == 'open').length),
                           icon: Icons.delete_outline_rounded,
                           color: kStatusOpen,
@@ -309,7 +309,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _StatCard(
-                          title: 'پاککراوەکان',
+                          title: S.cleanedSpots,
                           value: S.digits(_reports.where((r) => r['status'] == 'clean').length),
                           icon: Icons.check_circle_outline_rounded,
                           color: kPrimaryGreen,
@@ -323,8 +323,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _StatCard(
-                          title: 'لیگی گەڕەکەکان',
-                          value: 'پلەبەندی',
+                          title: S.league,
+                          value: S.ranking,
                           icon: Icons.emoji_events_rounded,
                           color: Colors.amber.shade800,
                           onTap: widget.onOpenLeague,
@@ -333,7 +333,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _StatCard(
-                          title: 'خاڵی چاوەڕوانکراو',
+                          title: S.pendingTotal,
                           value: S.digits(pending),
                           icon: Icons.hourglass_top_rounded,
                           color: Colors.deepPurpleAccent,
@@ -354,7 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         children: [
                           const Text(
-                            'باخچەی دیجیتاڵیی من 🌱',
+                            S.myGarden,
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(width: 8),
@@ -367,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '${S.digits(GardenManager.instance.myPlants.length)} ڕووەک',
+                                S.plantCount(GardenManager.instance.myPlants.length),
                                 style: const TextStyle(
                                   color: kPrimaryGreen,
                                   fontSize: 11,
@@ -380,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       TextButton(
                         onPressed: widget.onOpenGarden,
-                        child: const Text('بینینی باخچە', style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
+                        child: const Text(S.seeGarden, style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -401,7 +401,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const Icon(Icons.eco_outlined, color: kPrimaryGreen, size: 28),
                               const SizedBox(width: 12),
                               const Expanded(
-                                child: Text('باخچەکەت بەتاڵە! دەست بکە بە ناشتنی یەکەم درەخت.'),
+                                child: Text(S.gardenEmpty),
                               ),
                               ElevatedButton(
                                 onPressed: widget.onOpenGarden,
@@ -412,7 +412,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
-                                child: const Text('ناشتن 🌱', style: TextStyle(fontSize: 12)),
+                                child: const Text(S.plantFirst, style: TextStyle(fontSize: 12)),
                               ),
                             ],
                           ),
@@ -428,7 +428,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             final p = plants[index];
                             final color = Color(p['colorValue'] as int? ?? kPrimaryGreen.toARGB32());
                             final icon = plantIcon(p['iconCode']);
-                            final needsWater = p['status'] == 'پێویستی بە ئاوە';
+                            final needsWater = p['status'] == S.plantThirsty;
 
                             return GestureDetector(
                               onTap: widget.onOpenGarden,
@@ -504,12 +504,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'دواین ڕاپۆرتەکانی پاشماوە',
+                        S.recentReports,
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       TextButton(
                         onPressed: widget.onOpenMap,
-                        child: const Text('هەموو نەخشە', style: TextStyle(color: kPrimaryGreen)),
+                        child: const Text(S.wholeMap, style: TextStyle(color: kPrimaryGreen)),
                       ),
                     ],
                   ),
@@ -527,7 +527,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Icon(Icons.park_rounded, size: 48, color: kPrimaryGreen),
                               SizedBox(height: 8),
-                              Text('سلێمانی خاوێنە! هیچ پاشماوەیەک نییە.'),
+                              Text(S.allClean),
                             ],
                           ),
                         ),
@@ -554,11 +554,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                             title: Text(
-                              'ڕاپۆرتی #${S.digits(spot['id'])}',
+                              S.reportNo(spot['id']),
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle: Text(
-                              'پاشماوە: ${S.digits(spot['litter_count'])} دەنک • پیسی: ${S.digits(spot['dirtiness'])}/${S.digits(5)}',
+                              S.spotSummary(spot['litter_count'], spot['dirtiness']),
                               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                             ),
                             trailing: Container(

@@ -55,9 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final titles = [
       S.appName,
       S.map,
-      'باخچەی دیجیتاڵی 🌱',
+      S.gardenTitle,
       S.profile,
-      'لیگی گەڕەکەکان 🏆',
+      S.leagueTitle,
     ];
 
     return Scaffold(
@@ -76,13 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_tab == 1)
             IconButton(
               icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'نوێکردنەوەی نەخشە',
+              tooltip: S.refreshMap,
               onPressed: () => _refresh.value++,
             )
           else if (_tab != 4)
             IconButton(
               icon: const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFB300)),
-              tooltip: 'لیگی گەڕەکەکان',
+              tooltip: S.league,
               onPressed: () => setState(() => _tab = 4),
             ),
         ],
@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Icon(Icons.qr_code_scanner_rounded, size: 28, color: Colors.white),
               Text(
-                'ڕاپۆرت',
+                S.reportButton,
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.white,
@@ -134,10 +134,10 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.dashboard_rounded, 'سەرەکی'),
+              _buildNavItem(0, Icons.dashboard_rounded, S.home),
               _buildNavItem(1, Icons.map_rounded, S.map),
               const SizedBox(width: 44), // space for center docked FAB
-              _buildNavItem(2, Icons.eco_rounded, 'باخچە'),
+              _buildNavItem(2, Icons.eco_rounded, S.garden),
               _buildNavItem(3, Icons.person_rounded, S.profile),
             ],
           ),

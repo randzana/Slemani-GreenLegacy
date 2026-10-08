@@ -19,10 +19,10 @@ class _PlantSelectionScreenState extends State<PlantSelectionScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final categories = [
-      {'id': 'all', 'label': 'هەموو جۆرەکان 🌱'},
-      {'id': 'tree', 'label': 'درەختە گەورەکان 🌳'},
-      {'id': 'fruit', 'label': 'میوەدارەکان 🍎'},
-      {'id': 'flower', 'label': 'گوڵ و دەرمانەکان 🌸'},
+      {'id': 'all', 'label': S.allKinds},
+      {'id': 'tree', 'label': S.bigTrees},
+      {'id': 'fruit', 'label': S.fruitTrees},
+      {'id': 'flower', 'label': S.flowersAndHerbs},
     ];
 
     final filteredPlants = kPlantTypes.where((p) {
@@ -39,7 +39,7 @@ class _PlantSelectionScreenState extends State<PlantSelectionScreen> {
     return Scaffold(
       backgroundColor: isDark ? kDarkSurface : kBackgroundLight,
       appBar: AppBar(
-        title: const Text('هەڵبژاردنی نەمام و ڕووەک 🌳', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(S.choosePlant, style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: Column(
@@ -170,7 +170,7 @@ class _PlantSelectionScreenState extends State<PlantSelectionScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '💧 ${plant.waterNeeded}',
+                                S.waterNeed(plant.waterNeeded),
                                 style: const TextStyle(
                                   color: Colors.blue,
                                   fontWeight: FontWeight.w600,
@@ -201,7 +201,7 @@ class _PlantSelectionScreenState extends State<PlantSelectionScreen> {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('${plant.name} بە سەرکەوتوویی ڕوواندرا! 🌱 (+${plant.points} خاڵ)'),
+                                    content: Text(S.planted(plant.name, plant.points)),
                                     backgroundColor: kPrimaryGreen,
                                     duration: const Duration(seconds: 2),
                                   ),
@@ -216,7 +216,7 @@ class _PlantSelectionScreenState extends State<PlantSelectionScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 minimumSize: Size.zero,
                               ),
-                              child: const Text('بڕوێنە 🌱', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              child: const Text(S.plantIt, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           ],
                         ),

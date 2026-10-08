@@ -55,7 +55,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final phone = _phone.text.trim();
     final pass = _password.text;
     if (phone.isEmpty || pass.isEmpty || (_signUp && _name.text.trim().isEmpty)) {
-      showError(context, 'تکایە هەموو خانەکان پڕبکەرەوە');
+      showError(context, S.fillAllFields);
       return;
     }
 
@@ -118,7 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _signUp ? 'بەشداربە لە سەوزکردنی سلێمانی' : 'بەخێربێیتەوە بۆ گەشتی پاراستنی ژینگە',
+                  _signUp ? S.joinUs : S.welcomeBack,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),

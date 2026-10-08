@@ -65,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ElevatedButton(
                   onPressed: _logout,
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                  child: const Text('چوونەدەرەوە'),
+                  child: const Text(S.logout),
                 ),
               ],
             );
@@ -75,9 +75,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           final me = snap.data!;
-          final name = me['name']?.toString() ?? 'هاوڵاتی';
+          final name = me['name']?.toString() ?? S.citizen;
           final phone = me['phone']?.toString() ?? '';
-          final hood = me['neighbourhood']?.toString() ?? 'سلێمانی';
+          final hood = me['neighbourhood']?.toString() ?? S.slemani;
           final released = (me['released'] as num?)?.toInt() ?? 0;
           final pending = (me['pending'] as num?)?.toInt() ?? 0;
           final history = List<Map<String, dynamic>>.from(me['history'] ?? []);
@@ -127,7 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '$hood • $phone',
+                    S.hoodAndPhone(hood, phone),
                     style: const TextStyle(
                       color: kPrimaryGreen,
                       fontSize: 13,
@@ -143,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: _buildStatBox(
                         context,
-                        title: 'پەسەندکراو',
+                        title: S.approvedPoints,
                         value: S.digits(released),
                         icon: Icons.check_circle_outline_rounded,
                         color: kPrimaryGreen,
@@ -153,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: _buildStatBox(
                         context,
-                        title: 'چاوەڕوانکراو',
+                        title: S.waitingPoints,
                         value: S.digits(pending),
                         icon: Icons.hourglass_top_rounded,
                         color: Colors.orange,
@@ -163,7 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: _buildStatBox(
                         context,
-                        title: 'تۆمارەکان',
+                        title: S.records,
                         value: S.digits(history.length),
                         icon: Icons.history_rounded,
                         color: const Color(0xFF1E88E5),
@@ -216,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'نیشانە بەدەستهاتووەکان 🎖️',
+                    S.badges,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -225,10 +225,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    _buildBadge('ڕاپۆرتکەر', Icons.photo_camera_rounded, Colors.teal, active: history.isNotEmpty),
-                    _buildBadge('پاککەرەوە', Icons.cleaning_services_rounded, Colors.green, active: history.any((h) => h['kind'] == 'cleanup')),
-                    _buildBadge('شەڕڤانی ژینگە', Icons.eco_rounded, Colors.orange, active: released >= 50),
-                    _buildBadge('پارێزەری شار', Icons.military_tech_rounded, Colors.purple, active: released >= 200),
+                    _buildBadge(S.badgeReporter, Icons.photo_camera_rounded, Colors.teal, active: history.isNotEmpty),
+                    _buildBadge(S.badgeCleaner, Icons.cleaning_services_rounded, Colors.green, active: history.any((h) => h['kind'] == 'cleanup')),
+                    _buildBadge(S.badgeEcoWarrior, Icons.eco_rounded, Colors.orange, active: released >= 50),
+                    _buildBadge(S.badgeCityGuardian, Icons.military_tech_rounded, Colors.purple, active: released >= 200),
                   ],
                 ),
                 const SizedBox(height: 28),
@@ -238,11 +238,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'مێژووی خاڵەکان',
+                      S.pointsHistory,
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '${S.digits(history.length)} چالاکی',
+                      S.activities(history.length),
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                     ),
                   ],
@@ -256,7 +256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Center(
                         child: Text(
-                          'هیچ تۆمارێکی خاڵ بەردەست نییە',
+                          S.noHistory,
                           style: TextStyle(color: Colors.grey.shade500),
                         ),
                       ),
@@ -293,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                           ),
                           trailing: Text(
-                            '${h['kind'] == 'redeem' ? '-' : '+'}${S.digits(h['amount'])} خاڵ',
+                            '${h['kind'] == 'redeem' ? '-' : '+'}${S.digits(h['amount'])} ${S.points}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -313,7 +313,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: _logout,
                     icon: const Icon(Icons.logout_rounded),
                     label: const Text(
-                      'چوونەدەرەوە لە هەژمار',
+                      S.logoutOfAccount,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(

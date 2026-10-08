@@ -73,7 +73,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          spot == null ? '' : 'ڕاپۆرتی #${S.digits(spot['id'])}',
+          spot == null ? '' : S.reportNo(spot['id']),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -181,7 +181,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                           ),
                           title: const Text(S.distance, style: TextStyle(fontWeight: FontWeight.w600)),
                           trailing: Text(
-                            _metres == null ? '—' : '${S.digits(_metres!.round())} ${S.metres}',
+                            _metres == null ? S.noValue : '${S.digits(_metres!.round())} ${S.metres}',
                             style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -207,7 +207,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                       ),
                       icon: const Icon(Icons.cleaning_services_rounded),
                       label: Text(
-                        _busy ? 'تکایە چاوەڕێبە...' : S.illClean,
+                        _busy ? S.pleaseWait : S.illClean,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),

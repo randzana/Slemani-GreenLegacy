@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/plant_data.dart';
+import '../strings.dart';
 import '../theme.dart';
 import 'plant_selection_screen.dart';
 
@@ -24,9 +25,7 @@ class _GardenScreenState extends State<GardenScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          earned
-              ? '$name بە سەرکەوتوویی ئاو درا! 💧 (+10 خاڵ بەدەستهات)'
-              : '$name پێشتر ئاو دراوە و تەندروستە! 🌱',
+          earned ? S.watered(name) : S.alreadyWatered(name),
         ),
         backgroundColor: earned ? kPrimaryGreen : Colors.teal,
         duration: const Duration(seconds: 2),
@@ -38,13 +37,13 @@ class _GardenScreenState extends State<GardenScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('لابردنی ڕووەک', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('ئایا دڵنیایت لە لابردنی $name لە باخچەکەتدا؟'),
+        title: const Text(S.removePlant, style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(S.confirmRemovePlant(name)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('پاشگەزبوونەوە', style: TextStyle(color: Colors.grey)),
+            child: const Text(S.cancel, style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -52,7 +51,7 @@ class _GardenScreenState extends State<GardenScreen> {
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('$name لە باخچەکەت لابرا'),
+                  content: Text(S.plantRemoved(name)),
                   backgroundColor: Colors.redAccent,
                   duration: const Duration(seconds: 2),
                 ),
@@ -63,7 +62,7 @@ class _GardenScreenState extends State<GardenScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('بەڵێ، لایببە'),
+            child: const Text(S.yesRemove),
           ),
         ],
       ),
@@ -78,7 +77,7 @@ class _GardenScreenState extends State<GardenScreen> {
       animation: GardenManager.instance,
       builder: (context, _) {
         final plants = GardenManager.instance.myPlants;
-        final thirstyCount = plants.where((p) => p['status'] == 'پێویستی بە ئاوە').length;
+        final thirstyCount = plants.where((p) => p['status'] == S.plantThirsty).length;
 
         return Scaffold(
           backgroundColor: isDark ? kDarkSurface : kBackgroundLight,
@@ -122,7 +121,7 @@ class _GardenScreenState extends State<GardenScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'باخچەی سەوزی سلێمانی',
+                                S.gardenHeader,
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 13,
@@ -131,7 +130,7 @@ class _GardenScreenState extends State<GardenScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${plants.length} درەخت و ڕووەک',
+                                S.gardenPlants(plants.length),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
@@ -148,7 +147,7 @@ class _GardenScreenState extends State<GardenScreen> {
                             );
                           },
                           icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('نەمامی نوێ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          label: const Text(S.newSeedling, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: kDarkGreen,
@@ -175,7 +174,7 @@ class _GardenScreenState extends State<GardenScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '$thirstyCount ڕووەک پێویستیان بە ئاوپڕژێنە! ئاویان بدە بۆ بەدەستهێنانی خاڵ.',
+                                S.thirstyPlants(thirstyCount),
                                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -194,7 +193,7 @@ class _GardenScreenState extends State<GardenScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'درەختە چێنراوەکانی تۆ 🌱',
+                    S.yourPlants,
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
@@ -202,7 +201,7 @@ class _GardenScreenState extends State<GardenScreen> {
                     ),
                   ),
                   Text(
-                    '${plants.length} بەردەستە',
+                    S.plantsAvailable(plants.length),
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? Colors.white60 : kTextSecondary,
@@ -245,10 +244,10 @@ class _GardenScreenState extends State<GardenScreen> {
     Map<String, dynamic> plant,
     bool isDark,
   ) {
-    final name = plant['name']?.toString() ?? 'ڕووەک';
-    final level = plant['level']?.toString() ?? 'ئاستی ١';
-    final status = plant['status']?.toString() ?? 'تەندروستە';
-    final needsWater = status == 'پێویستی بە ئاوە';
+    final name = plant['name']?.toString() ?? S.plant;
+    final level = plant['level']?.toString() ?? S.plantLevelFallback;
+    final status = plant['status']?.toString() ?? S.plantHealthy;
+    final needsWater = status == S.plantThirsty;
     final iconData = plantIcon(plant['iconCode']);
     final color = Color(plant['colorValue'] as int? ?? kPrimaryGreen.toARGB32());
 
@@ -298,7 +297,7 @@ class _GardenScreenState extends State<GardenScreen> {
                     children: [
                       Icon(Icons.water_drop_rounded, size: 12, color: Colors.orange),
                       SizedBox(width: 2),
-                      Text('تینووە', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text(S.thirsty, style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -349,7 +348,7 @@ class _GardenScreenState extends State<GardenScreen> {
                 size: 14,
               ),
               label: Text(
-                needsWater ? 'ئاو بدە 💧' : 'تەندروستە 🌱',
+                needsWater ? S.waterIt : S.healthyBadge,
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -396,7 +395,7 @@ class _GardenScreenState extends State<GardenScreen> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'ڕوواندنی ڕووەکی نوێ',
+              S.plantNew,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
@@ -405,7 +404,7 @@ class _GardenScreenState extends State<GardenScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '+ خاڵی ژینگەیی',
+              S.ecoPoints,
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.grey.shade500,
