@@ -87,4 +87,9 @@ def login():
 
 @bp.get("/neighbourhoods")
 def neighbourhoods():
+    """The list for signup. ?geo=1 adds each boundary as GeoJSON, null until tools/import_boundaries.py
+    has loaded one (6 decimals is about 10 cm, plenty for a map and a much smaller reply)."""
+    if request.args.get("geo") in ("1", "true"):
+        return jsonify(query("""SELECT id, name, ST_AsGeoJSON(boundary, 6)::json AS boundary
+                                FROM neighbourhoods ORDER BY name"""))
     return jsonify(query("SELECT id, name FROM neighbourhoods ORDER BY name"))

@@ -115,6 +115,30 @@ def stats():
         one=True))
 
 
+@bp.get("/admin/neighbourhoods")
+@staff_required
+def neighbourhood_league():
+    """The league and the map's areas: points by where people live (the /leaderboard rule), spots by
+    where they are. Spots count only inside a loaded boundary (tools/import_boundaries.py), so a
+    neighbourhood without one shows 0; 'open' means open or in_progress, as in /admin/stats."""
+    housekeeping()
+    return jsonify(query(
+        """SELECT n.id, n.name, ST_AsGeoJSON(n.boundary, 6)::json AS boundary,
+                  (SELECT count(*) FROM users u
+                   WHERE u.neighbourhood_id = n.id AND u.role = 'citizen') AS citizens,
+                  (SELECT COALESCE(SUM(p.amount), 0) FROM point_ledger p JOIN users u ON u.id = p.user_id
+                   WHERE u.neighbourhood_id = n.id AND p.status = 'released' AND p.kind <> 'redeem') AS points,
+                  s.open, s.cleaned, s.avg_dirtiness
+           FROM neighbourhoods n CROSS JOIN LATERAL (
+               SELECT count(*) FILTER (WHERE r.status IN ('open', 'in_progress')) AS open,
+                      count(*) FILTER (WHERE r.status = 'clean') AS cleaned,
+                      round(avg(r.dirtiness) FILTER (WHERE r.status IN ('open', 'in_progress')), 1)::float8
+                          AS avg_dirtiness
+               FROM reports r
+               WHERE n.boundary IS NOT NULL AND ST_Covers(n.boundary, r.location)) s
+           ORDER BY points DESC, n.name"""))
+
+
 @bp.get("/admin/redemptions")
 @staff_required
 def redemptions():

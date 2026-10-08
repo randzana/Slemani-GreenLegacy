@@ -8,8 +8,11 @@ DROP TABLE IF EXISTS point_ledger, cleanups, challenges, reports, users, neighbo
 CREATE TABLE neighbourhoods (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL UNIQUE,
-    boundary    GEOGRAPHY(POLYGON, 4326)          -- optional on day one
+    -- optional; loaded from a GeoJSON export by tools/import_boundaries.py. MULTIPOLYGON because
+    -- OSM areas often come in several parts (a single polygon is stored as a one-part multipolygon)
+    boundary    GEOGRAPHY(MULTIPOLYGON, 4326)
 );
+CREATE INDEX neighbourhoods_boundary_idx ON neighbourhoods USING GIST (boundary);
 
 CREATE TABLE users (
     id               SERIAL PRIMARY KEY,
