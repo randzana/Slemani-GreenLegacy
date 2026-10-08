@@ -1,3 +1,89 @@
+
+docs/
+├── README.md
+├── architecture/
+│   ├── overview.md
+│   ├── system-context.md
+│   ├── component-diagram.md
+│   ├── data-flow.md
+│   ├── security-architecture.md
+│   └── deployment-architecture.md
+├── requirements/
+│   ├── business-requirements.md
+│   ├── functional-requirements.md
+│   ├── non-functional-requirements.md
+│   └── user-stories.md
+├── setup/
+│   ├── local-development.md
+│   ├── environment-variables.md
+│   ├── prerequisites.md
+│   └── onboarding.md
+├── backend/
+│   ├── python-architecture.md
+│   ├── api-design.md
+│   ├── services.md
+│   ├── database-model.md
+│   └── jobs-and-scheduled-tasks.md
+├── frontend/
+│   ├── dart-app-architecture.md
+│   ├── ui-structure.md
+│   ├── state-management.md
+│   ├── navigation.md
+│   └── design-system.md
+├── web/
+│   ├── html-css-structure.md
+│   ├── static-assets-guide.md
+│   └── frontend-integration.md
+├── data/
+│   ├── schema.md
+│   ├── migrations.md
+│   ├── seed-data.md
+│   └── data-pipelines.md
+├── api/
+│   ├── overview.md
+│   ├── authentication.md
+│   ├── endpoints.md
+│   ├── request-response-examples.md
+│   └── error-handling.md
+├── testing/
+│   ├── testing-strategy.md
+│   ├── unit-tests.md
+│   ├── integration-tests.md
+│   ├── e2e-tests.md
+│   └── bug-reporting.md
+├── security/
+│   ├── overview.md
+│   ├── auth-and-authorization.md
+│   ├── secrets-management.md
+│   ├── vulnerability-management.md
+│   └── compliance.md
+├── operations/
+│   ├── deployment.md
+│   ├── monitoring.md
+│   ├── logging.md
+│   ├── backups.md
+│   └── troubleshooting.md
+├── contribution/
+│   ├── contributing.md
+│   ├── coding-standards.md
+│   ├── branching-strategy.md
+│   ├── pull-request-template.md
+│   └── release-process.md
+├── roadmap/
+│   ├── roadmap.md
+│   ├── milestones.md
+│   └── changelog.md
+├── templates/
+│   ├── issue-template.md
+│   ├── feature-request.md
+│   └── bug-report.md
+└── glossary.md
+
+
+
+
+
+
 # GreenLegacy Slemani — وەشانی ڕاهێنان
 
 > **⚠️ ئەم ڕیپۆیە تەنها بۆ ڕاهێنانە، نەک بۆ هاکاسۆنەکە.**
