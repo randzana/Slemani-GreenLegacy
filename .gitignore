@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# runtime data
+backend/uploads/
+backend/models/*.pt
+backend/qr_stickers.png
+*.log
+*.pid
+.env
+
+# Flutter
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/.metadata
+mobile/pubspec.lock
+mobile/android/
+mobile/ios/
+# boilerplate that `flutter create` (setup_android.py / setup_ios.py) adds
+mobile/.gitignore
+mobile/README.md
+mobile/test/widget_test.dart
+mobile/*.iml
+.idea/
+.vscode/
