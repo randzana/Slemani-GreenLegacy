@@ -20,17 +20,21 @@ from urllib.parse import urlparse
 
 import psycopg
 import requests
+from werkzeug.security import check_password_hash
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from app.config import Config  # noqa: E402
+from seed import DEFAULT_STAFF_PASSWORD  # noqa: E402
 
 OK, WARN, FAIL = "✓", "⚠", "✗"
 TABLES = ("neighbourhoods", "users", "reports", "challenges", "cleanups", "point_ledger")
 # Columns added after the first schema.sql, and the migration that adds them without losing data
 NEWER_COLUMNS = {("reports", "description"): "001_shop_tasks_description.sql",
                  ("reports", "description_source"): "001_shop_tasks_description.sql",
-                 ("point_ledger", "detail"): "001_shop_tasks_description.sql"}
+                 ("point_ledger", "detail"): "001_shop_tasks_description.sql",
+                 ("point_ledger", "honoured_at"): "003_voucher_honoured.sql"}
+STOCK_MODEL = "yolov8n.pt"
 MIN_FREE_MB, LOW_FREE_MB = 200, 1000    # a report photo plus an 8-frame video is a few MB
 
 
@@ -48,7 +52,8 @@ def check_database(url):
     try:
         conn = psycopg.connect(url, connect_timeout=5, autocommit=True)
     except psycopg.Error as exc:
-        hint = "" if "DATABASE_URL" in os.environ else " (DATABASE_URL is not set; the default uses port 5433)"
+        hint = "" if "DATABASE_URL" in os.environ else (" (DATABASE_URL is not set: source .env, or export it "
+                                                        "if your PostgreSQL uses another port or database)")
         return [(FAIL, "داتابەیس", f"cannot connect to {where}: {str(exc).strip().splitlines()[0]}{hint}")]
     with conn:
         out = [(OK, "داتابەیس", where)]
@@ -69,7 +74,7 @@ def check_database(url):
             names = ", ".join(".".join(col) for col in old)
             out.append((FAIL, "ستوونە نوێکان", f"missing {names}: {migrate(NEWER_COLUMNS[c] for c in old)}"))
         else:
-            out.append((OK, "ستوونە نوێکان", "reports.description, point_ledger.detail"))
+            out.append((OK, "ستوونە نوێکان", "reports.description, point_ledger.detail, point_ledger.honoured_at"))
         shape = conn.execute("""SELECT type FROM geography_columns
                                 WHERE f_table_schema = current_schema() AND f_table_name = 'neighbourhoods'
                                   AND f_geography_column = 'boundary'""").fetchone()
@@ -77,9 +82,17 @@ def check_database(url):
             out.append((WARN, "سنووری گەڕەکەکان", f"boundary is {shape[0]}: "
                                                    f"{migrate(['002_neighbourhood_boundaries.sql'])}"))
 
-        staff = [phone for (phone,) in conn.execute("SELECT phone FROM users WHERE role = 'staff' ORDER BY id")]
-        out.append((OK, "هەژماری شارەوانی", ", ".join(staff)) if staff else
+        staff = conn.execute("SELECT phone, password_hash FROM users WHERE role = 'staff' ORDER BY id").fetchall()
+        out.append((OK, "هەژماری شارەوانی", ", ".join(phone for phone, _ in staff)) if staff else
                    (FAIL, "هەژماری شارەوانی", "no staff account: python seed.py (wipes the database)"))
+        # seed.py's fallback is printed in the README: anyone who read it could approve cleanups on stage
+        public = [phone for phone, hashed in staff if check_password_hash(hashed, DEFAULT_STAFF_PASSWORD)]
+        if public:
+            out.append((WARN, "وشەی نهێنیی شارەوانی",
+                        f"{', '.join(public)} still has the public password {DEFAULT_STAFF_PASSWORD}: put "
+                        "STAFF_PASSWORD in .env (docs/DEMO.md), then python seed.py (wipes the database)"))
+        elif staff:
+            out.append((OK, "وشەی نهێنیی شارەوانی", "not the default"))
         hoods, with_area = conn.execute("SELECT count(*), count(boundary) FROM neighbourhoods").fetchone()
         out.append((OK, "گەڕەکەکان", f"{hoods} neighbourhoods, {with_area} with a boundary") if hoods else
                    (FAIL, "گەڕەکەکان", "none: python seed.py (wipes the database)"))
@@ -114,9 +127,9 @@ def check_detector(cfg, rehearsal=False, load=False):
     shown = model.resolve().relative_to(ROOT) if model.resolve().is_relative_to(ROOT) else model
     if not model.is_file():
         out.append((need, "فایلی مۆدێل", f"no file at {shown}: set MODEL_PATH or python tools/download_model.py"))
-    elif model.name == "yolov8n.pt" and cfg["LITTER_CLASSES"] == "*":
+    elif model.name == STOCK_MODEL and cfg["LITTER_CLASSES"] == "*":
         out.append((need, "فایلی مۆدێل", f"{shown} is the stock COCO model: with LITTER_CLASSES=* people count"))
-    elif model.name == "yolov8n.pt":
+    elif model.name == STOCK_MODEL:
         out.append((WARN, "فایلی مۆدێل", f"{shown} is the stock COCO model (bottles, cups): the fallback, "
                                           "not the trash or Slemani model"))
     else:
@@ -200,27 +213,47 @@ def check_network(port):
             (OK, "ناونیشان بۆ مۆبایلەکان", "  or  ".join(f"http://{ip}:{port}" for ip in ips))]
 
 
-def check_server(url, rehearsal=False):
-    """The running server: what the phones and the projector will actually talk to."""
+def check_server(url, cfg, rehearsal=False):
+    """The running server: what the phones and the projector will actually talk to. The checks above
+    read this terminal's settings; the server has its own, from the terminal it was started in."""
     url = url.rstrip("/")
     try:
         health = requests.get(f"{url}/health", timeout=5)
+        hoods = requests.get(f"{url}/neighbourhoods", timeout=5)      # /health does not touch the database
         dashboard = requests.get(f"{url}/dashboard", timeout=5)
         leaflet = requests.get(f"{url}/static/leaflet/leaflet.js", timeout=5)
         sim = requests.get(f"{url}/sim/report-photo", timeout=10)
     except requests.RequestException as exc:
         return [(FAIL, "سێرڤەر", f"{url}: {type(exc).__name__}, is run.py running?")]
     healthy = health.status_code == 200 and health.headers.get("Content-Type") == "application/json"
-    out = [(OK if healthy and health.json().get("ok") else FAIL, "سێرڤەر", f"GET /health {health.status_code}"),
-           (OK if dashboard.status_code == 200 and leaflet.status_code == 200 else FAIL, "داشبۆرد",
-            f"GET /dashboard {dashboard.status_code}, leaflet.js {leaflet.status_code}")]
+    out = [(OK if healthy and health.json().get("ok") else FAIL, "سێرڤەر", f"GET /health {health.status_code}")]
+    if hoods.status_code != 200:
+        out.append((FAIL, "داتابەیسی سێرڤەر", f"GET /neighbourhoods {hoods.status_code}: the server cannot read its "
+                                               "database; restart it after source .env (DATABASE_URL)"))
+    elif not hoods.json():
+        out.append((FAIL, "داتابەیسی سێرڤەر", "the server's database has no neighbourhoods: python seed.py "
+                                               "with the server's DATABASE_URL (wipes the database)"))
+    else:
+        out.append((OK, "داتابەیسی سێرڤەر", f"GET /neighbourhoods 200, {len(hoods.json())} neighbourhoods"))
+    out.append((OK if dashboard.status_code == 200 and leaflet.status_code == 200 else FAIL, "داشبۆرد",
+                f"GET /dashboard {dashboard.status_code}, leaflet.js {leaflet.status_code}"))
     # the server may have been started with other variables than this terminal has
     info = health.json() if healthy else {}
     if info.get("detector") == "colorblob":
         out.append((WARN if rehearsal else FAIL, "ناسەری سێرڤەر",
                     "the running server counts red paper (colorblob): restart it with the real model"))
     elif info.get("detector"):
-        out.append((OK, "ناسەری سێرڤەر", f"{info['detector']} · {info.get('model')}"))
+        out.append((OK, "ناسەری سێرڤەر", info["detector"]))
+    served, checked = info.get("model"), Path(cfg["MODEL_PATH"]).name
+    if served and served != checked:
+        # every model check above was about this terminal's MODEL_PATH, not the one on stage
+        out.append((FAIL, "مۆدێلی سێرڤەر", f"the running server uses {served}, this terminal checked {checked}: "
+                                            "start both from the same .env"))
+    elif served == STOCK_MODEL:
+        out.append((WARN, "مۆدێلی سێرڤەر", f"{served} is the stock COCO model (bottles, cups): the fallback, "
+                                            "not the trash or Slemani model"))
+    elif served:
+        out.append((OK, "مۆدێلی سێرڤەر", served))
     if sim.status_code == 200:
         out.append((WARN if rehearsal else FAIL, "کامێرای ساختە (سێرڤەر)",
                     "the running server serves /sim photos: restart it without colorblob/SIM_CAMERA"))
@@ -242,7 +275,7 @@ def main(argv=None):
               lambda: check_detector(cfg, args.rehearsal, args.model), check_files,
               lambda: check_settings(cfg, args.rehearsal), lambda: check_network(port)]
     if args.server:
-        checks.append(lambda: check_server(args.server, args.rehearsal))
+        checks.append(lambda: check_server(args.server, cfg, args.rehearsal))
     print("GreenLegacy preflight" + (" (rehearsal)" if args.rehearsal else ""))
     counts = {OK: 0, WARN: 0, FAIL: 0}
     for check in checks:
