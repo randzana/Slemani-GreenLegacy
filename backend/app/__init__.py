@@ -3,6 +3,8 @@
 One Flask process holds the API and loads the YOLOv8 model, so there is a single thing to run
 on a laptop. The municipality dashboard is served from /dashboard by the same process.
 """
+from pathlib import Path
+
 from flask import Flask, jsonify, send_from_directory
 
 from .ai.describe import make_describer
@@ -34,7 +36,10 @@ def create_app(overrides=None, detector=None, describer=None):
 
     @app.get("/health")
     def health():
-        return jsonify({"ok": True, "map_center": app.config["MAP_CENTER"]})
+        # what this running process actually uses, so tools/preflight.py --server can check it
+        return jsonify({"ok": True, "map_center": app.config["MAP_CENTER"],
+                        "detector": app.config["DETECTOR_KIND"],
+                        "model": Path(app.config["MODEL_PATH"]).name})
 
     @app.after_request
     def cors(response):   # the Flutter web build and the dashboard may run on other ports

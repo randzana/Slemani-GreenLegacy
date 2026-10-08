@@ -171,7 +171,7 @@ def get_report(report_id):
     housekeeping()
     row = query(f"SELECT {REPORT_COLUMNS} FROM reports r WHERE r.id = %s", (report_id,), one=True)
     if row is None:
-        return jsonify({"error": "not_found"}), 404
+        return error("not_found", 404)
     return jsonify(report_json(row))
 
 
@@ -211,6 +211,7 @@ def claim(report_id):
     )
     query("UPDATE reports SET status = 'in_progress' WHERE id = %s", (report_id,))
     challenge["expires_at"] = challenge["expires_at"].isoformat()
+    challenge["expires_in"] = cfg["CHALLENGE_MINUTES"] * 60   # seconds: phone and laptop clocks may differ
     return jsonify(challenge), 201
 
 
@@ -256,7 +257,7 @@ def cleanup(report_id):
     cfg = current_app.config
     report = query("SELECT * FROM reports WHERE id = %s", (report_id,), one=True)
     if report is None:
-        return jsonify({"error": "not_found"}), 404
+        return error("not_found", 404)
     lat, lon = _float(request.form, "lat"), _float(request.form, "lon")
     frames = request.files.getlist("frames")
     try:

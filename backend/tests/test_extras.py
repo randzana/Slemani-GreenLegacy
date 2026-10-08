@@ -7,6 +7,7 @@ import pytest
 from app import create_app
 from app.ai.describe import template_description
 from app.ai.detector import ColorBlobDetector
+from app.config import Config
 from conftest import STAFF, TEST_DB, Api
 from seed import seed
 from test_flow import FAR, NEAR, claimed, dirty_spot
@@ -201,3 +202,22 @@ def test_cleanup_task_counts_verified_cleanups_only(api, client):
     assert r.json["verdict"] == "review"
     tasks = {t["code"]: t for t in client.get("/tasks", headers=other).json["tasks"]}
     assert not tasks["cleanup"]["complete"]
+
+
+# ---------------------------------------------------------------- what the phone shows on errors
+
+def test_errors_carry_a_kurdish_message_and_claim_says_how_long(api, client):
+    r = client.get("/me", headers={"Authorization": "Bearer expired-or-garbage"})
+    assert r.status_code == 401 and r.json["error"] == "unauthorized" and r.json["message"] != "unauthorized"
+    citizen = api.signup()
+    r = client.get("/admin/stats", headers=citizen)
+    assert r.status_code == 403 and r.json["message"] != "forbidden"
+    r = client.get("/reports/999999", headers=citizen)
+    assert r.status_code == 404 and r.json["message"] != "not_found"
+
+    _rep, report, _scene = dirty_spot(api, seed=73)
+    challenge = api.claim(citizen, report["id"]).json
+    assert challenge["expires_in"] == Config.CHALLENGE_MINUTES * 60
+
+    health = client.get("/health").json
+    assert health["detector"] and health["model"].endswith(".pt")

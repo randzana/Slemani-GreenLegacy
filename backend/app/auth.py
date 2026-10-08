@@ -31,14 +31,14 @@ def login_required(fn):
     def wrapper(*args, **kwargs):
         header = request.headers.get("Authorization", "")
         if not header.startswith("Bearer "):
-            return jsonify({"error": "unauthorized"}), 401
+            return error("unauthorized", 401)
         try:
             payload = jwt.decode(header[7:], current_app.config["SECRET_KEY"], algorithms=["HS256"])
         except jwt.PyJWTError:
-            return jsonify({"error": "unauthorized"}), 401
+            return error("unauthorized", 401)
         user = query("SELECT * FROM users WHERE id = %s", (int(payload["sub"]),), one=True)
         if user is None:
-            return jsonify({"error": "unauthorized"}), 401
+            return error("unauthorized", 401)
         g.user = user
         return fn(*args, **kwargs)
     return wrapper
@@ -49,7 +49,7 @@ def staff_required(fn):
     @login_required
     def wrapper(*args, **kwargs):
         if g.user["role"] != "staff":
-            return jsonify({"error": "forbidden"}), 403
+            return error("forbidden", 403)
         return fn(*args, **kwargs)
     return wrapper
 

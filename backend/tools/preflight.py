@@ -215,6 +215,12 @@ def check_server(url, rehearsal=False):
            (OK if dashboard.status_code == 200 and leaflet.status_code == 200 else FAIL, "داشبۆرد",
             f"GET /dashboard {dashboard.status_code}, leaflet.js {leaflet.status_code}")]
     # the server may have been started with other variables than this terminal has
+    info = health.json() if healthy else {}
+    if info.get("detector") == "colorblob":
+        out.append((WARN if rehearsal else FAIL, "ناسەری سێرڤەر",
+                    "the running server counts red paper (colorblob): restart it with the real model"))
+    elif info.get("detector"):
+        out.append((OK, "ناسەری سێرڤەر", f"{info['detector']} · {info.get('model')}"))
     if sim.status_code == 200:
         out.append((WARN if rehearsal else FAIL, "کامێرای ساختە (سێرڤەر)",
                     "the running server serves /sim photos: restart it without colorblob/SIM_CAMERA"))

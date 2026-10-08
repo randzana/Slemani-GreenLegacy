@@ -264,19 +264,31 @@ function fitOnce() {
   fitted = true;
 }
 
+// Markers are kept by spot id and updated in place, so a popup someone opened on the projector
+// stays open through the 10-second refresh (rebuilding the layer closed it every time).
+const markers = new Map();
 async function loadMap() {
   const spots = await api('/reports');
   lastSpots = spots;
-  layer.clearLayers();
+  const seen = new Set();
   for (const s of spots) {
+    seen.add(s.id);
     const clean = s.status === 'clean';
-    L.circleMarker([s.lat, s.lon], {
-      radius: clean ? 7 : 6 + s.dirtiness * 2, weight: 2, color: '#fff',
-      fillColor: clean ? '#1E7A4A' : LEVEL_COLOURS[s.dirtiness - 1], fillOpacity: .9,
-    }).bindPopup(`<div dir="rtl"><img src="${esc(s.photo_url)}" style="width:180px;border-radius:8px"><br>
+    const style = { radius: clean ? 7 : 6 + s.dirtiness * 2, weight: 2, color: '#fff',
+                    fillColor: clean ? '#1E7A4A' : LEVEL_COLOURS[s.dirtiness - 1], fillOpacity: .9 };
+    const popup = `<div dir="rtl"><img src="${esc(s.photo_url)}" style="width:180px;border-radius:8px"><br>
       پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}
-      ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`)
-      .addTo(layer);
+      ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`;
+    const marker = markers.get(s.id);
+    if (marker) {
+      marker.setLatLng([s.lat, s.lon]).setStyle(style).setRadius(style.radius);
+      if (marker.getPopup().getContent() !== popup) marker.setPopupContent(popup);
+    } else {
+      markers.set(s.id, L.circleMarker([s.lat, s.lon], style).bindPopup(popup).addTo(layer));
+    }
+  }
+  for (const [id, marker] of markers) {
+    if (!seen.has(id)) { layer.removeLayer(marker); markers.delete(id); }
   }
 }
 

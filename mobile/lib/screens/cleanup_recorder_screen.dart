@@ -33,7 +33,10 @@ class _CleanupRecorderScreenState extends State<CleanupRecorderScreen> {
   int _taken = 0;
   bool _recording = false;
   bool _sending = false;
-  late final DateTime _deadline = DateTime.now().add(const Duration(minutes: 5));
+  // The server says how long the challenge lives (seconds), so a different CHALLENGE_MINUTES or a
+  // phone clock that disagrees with the laptop cannot make the countdown wrong.
+  late final DateTime _deadline = DateTime.now()
+      .add(Duration(seconds: (widget.challenge['expires_in'] as num?)?.toInt() ?? 300));
   Timer? _clock;
 
   @override
