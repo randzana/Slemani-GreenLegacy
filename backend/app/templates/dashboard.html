@@ -66,6 +66,32 @@
   .trust { font-size: 12px; border-radius: 999px; padding: 1px 8px; background: var(--paper-2); color: var(--soft); }
   .trust.low { background: #F6E1E1; color: var(--red); }
   .voucher { font-family: ui-monospace, Menlo, Consolas, monospace; direction: ltr; display: inline-block; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle;
+            border: 1.5px solid #184F95; margin-inline-end: 4px; }
+  .swatch.none { background: transparent; border-style: dashed; }
+  #area-legend { display: inline-flex; align-items: center; gap: 4px 16px; flex-wrap: wrap; }
+  #area-legend[hidden] { display: none; }
+  #area-legend .step { white-space: nowrap; }
+  #map .leaflet-interactive:focus:not(:focus-visible) { outline: none; }   /* no box around a clicked area */
+  .figures { background: none; border-radius: 0; margin-top: 4px; width: auto; }
+  .figures td { padding: 1px 0; border: 0; font-size: 13px; }
+  .figures td:last-child { padding-inline-start: 14px; font-weight: 600; }
+  .pts-cell { min-width: 130px; }
+  @media (max-width: 860px) { .pts-cell { min-width: 80px; } }
+  .league { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+  .league h2 { font-size: 16px; margin: 0 0 10px; }
+  @media (max-width: 860px) { .league { grid-template-columns: minmax(0, 1fr); } }
+  .bar { height: 5px; border-radius: 999px; background: var(--green); margin-top: 4px; }
+  .rank { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px;
+          border-radius: 50%; background: var(--paper-2); font-weight: 600; }
+  .rank.first { background: var(--forest); color: #fff; }
+  .people { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .people li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .people li:last-child { border-bottom: 0; }
+  .people .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .people .who small { color: var(--soft); margin-inline-start: 6px; }
+  .people .pts { font-weight: 800; white-space: nowrap; }
+  .note { color: var(--soft); font-size: 13px; margin: 8px 0 0; }
 </style>
 </head>
 <body>
@@ -96,6 +122,7 @@
     <button role="tab" aria-selected="false" data-tab="log">تۆماری پاککردنەوە</button>
     <button role="tab" aria-selected="false" data-tab="review">پشکنین<span class="badge" id="review-count">٠</span></button>
     <button role="tab" aria-selected="false" data-tab="vouchers">خەڵاتەکان</button>
+    <button role="tab" aria-selected="false" data-tab="league">لیگ</button>
   </nav>
 
   <section class="panel active" id="panel-map">
@@ -106,6 +133,12 @@
   <section class="panel" id="panel-log"><div id="log"></div></section>
   <section class="panel" id="panel-review"><div id="review"></div></section>
   <section class="panel" id="panel-vouchers"><div id="vouchers"></div></section>
+  <section class="panel" id="panel-league">
+    <div class="league">
+      <div><h2>لیگی گەڕەکەکان</h2><div id="league-hoods"></div></div>
+      <div><h2>باشترین هاوڵاتییان</h2><div id="league-people"></div></div>
+    </div>
+  </section>
 </main>
 
 <script src="/static/leaflet/leaflet.js"></script>
@@ -161,16 +194,79 @@ document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('cli
 const map = L.map('map').setView([35.5613, 45.4373], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+const areaLayer = L.featureGroup().addTo(map);   // neighbourhood boundaries, kept under the spots
 const layer = L.layerGroup().addTo(map);
 let fitted = false;
+let lastSpots = [];
+
+// Areas: one blue hue, light to dark, by open spots. Blue keeps them apart from the yellow-red spot
+// markers on top; fixed steps (not "share of the busiest area") so a colour means the same count every refresh.
+const AREA_COLOURS = ['#B7D3F6', '#86B6EF', '#5598E7', '#2A78D6', '#1C5CAB'];
+const AREA_STEPS = [1, 2, 4, 7, 11];            // the open-spot count where each colour starts
+const areaColour = open => AREA_COLOURS[AREA_STEPS.filter(s => open >= s).length - 1];
+const stepLabel = i => i === AREA_STEPS.length - 1 ? toKu(AREA_STEPS[i]) + '+'
+  : AREA_STEPS[i + 1] - 1 === AREA_STEPS[i] ? toKu(AREA_STEPS[i]) : `${toKu(AREA_STEPS[i])}–${toKu(AREA_STEPS[i + 1] - 1)}`;
+const decimal = n => toKu(n).replace('.', '٫');
+
 document.getElementById('legend').innerHTML =
   LEVEL_COLOURS.map((c, i) => `<span><span class="dot" style="background:${c}"></span>پیسی ${toKu(i + 1)}</span>`).join('') +
-  '<span><span class="dot" style="background:#1E7A4A"></span>پاککراوە</span>';
+  '<span><span class="dot" style="background:#1E7A4A"></span>پاککراوە</span>' +
+  `<span id="area-legend" hidden>گەڕەک بەپێی شوێنی کراوە:
+     <span class="step"><span class="swatch none"></span>${toKu(0)}</span>` +
+  AREA_COLOURS.map((c, i) => `<span class="step"><span class="swatch" style="background:${c}"></span>${stepLabel(i)}</span>`).join('') +
+  '</span>';
 
 const levelPill = level => `<span class="level" style="background:${LEVEL_COLOURS[level - 1]}">${toKu(level)}</span>`;
 
+const areaStyle = h => h.open > 0
+  ? { color: '#184F95', weight: 1.5, opacity: .9, fillColor: areaColour(h.open), fillOpacity: .45, dashArray: null }
+  : { color: '#184F95', weight: 1.5, opacity: .9, fillColor: '#184F95', fillOpacity: 0, dashArray: '5 5' };
+
+// one figure per line: a "·" separator next to the Kurdish zero "٠" reads as two zeros
+const areaPopup = h => `<div dir="rtl"><strong>${esc(h.name)}</strong>
+  <table class="figures"><tr><td>خاڵ</td><td>${toKu(h.points)}</td></tr>
+    <tr><td>هاوڵاتی</td><td>${toKu(h.citizens)}</td></tr>
+    <tr><td>شوێنی کراوە</td><td>${toKu(h.open)}</td></tr>
+    <tr><td>پاککراوە</td><td>${toKu(h.cleaned)}</td></tr>${h.avg_dirtiness == null ? ''
+      : `<tr><td title="تێکڕای پلەی پیسیی شوێنە کراوەکان">تێکڕای پیسی</td><td>${decimal(h.avg_dirtiness)}</td></tr>`}</table></div>`;
+
+// id -> {key, layer}. A boundary is rebuilt only when its shape changes, so an open popup survives the refresh.
+const areas = new Map();
+
+function drawAreas(hoods) {
+  const keep = new Set();
+  for (const h of hoods) {
+    if (!h.boundary) continue;
+    const key = JSON.stringify(h.boundary);
+    let area = areas.get(h.id);
+    if (!area || area.key !== key) {
+      if (area) areaLayer.removeLayer(area.layer);
+      area = { key, layer: L.geoJSON(h.boundary).bindPopup('').bindTooltip('', { sticky: true }) };
+      areas.set(h.id, area);
+      areaLayer.addLayer(area.layer);
+    }
+    area.layer.setStyle(areaStyle(h)).setPopupContent(areaPopup(h)).setTooltipContent(esc(h.name));
+    area.layer.bringToBack();                  // spot markers stay on top and clickable
+    keep.add(h.id);
+  }
+  for (const [id, area] of areas) {
+    if (!keep.has(id)) { areaLayer.removeLayer(area.layer); areas.delete(id); }
+  }
+  document.getElementById('area-legend').hidden = !areas.size;
+}
+
+// first load only: zoom to the spots, or to the neighbourhoods while there are no spots yet
+function fitOnce() {
+  if (fitted) return;
+  if (lastSpots.length) map.fitBounds(lastSpots.map(s => [s.lat, s.lon]), { maxZoom: 16, padding: [40, 40] });
+  else if (areas.size) map.fitBounds(areaLayer.getBounds(), { padding: [20, 20] });
+  else return;
+  fitted = true;
+}
+
 async function loadMap() {
   const spots = await api('/reports');
+  lastSpots = spots;
   layer.clearLayers();
   for (const s of spots) {
     const clean = s.status === 'clean';
@@ -181,10 +277,6 @@ async function loadMap() {
       پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}
       ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`)
       .addTo(layer);
-  }
-  if (!fitted && spots.length) {
-    map.fitBounds(spots.map(s => [s.lat, s.lon]), { maxZoom: 16, padding: [40, 40] });
-    fitted = true;
   }
 }
 
@@ -259,6 +351,48 @@ async function loadVouchers() {
     : '<div class="empty">هێشتا کەس خەڵاتی وەرنەگرتووە</div>';
 }
 
+// ---- league: neighbourhoods by points (the app's /leaderboard rule), spots counted inside each boundary
+const rankOf = (rows, i) => 1 + rows.filter(r => r.points > rows[i].points).length;   // equal points, equal rank
+
+function renderLeague(hoods) {
+  const box = document.getElementById('league-hoods');
+  if (!hoods.length) { box.innerHTML = '<div class="empty">هیچ گەڕەکێک تۆمار نەکراوە</div>'; return; }
+  const top = Math.max(0, ...hoods.map(h => h.points));
+  // without a boundary the spot counts are unknown, not zero
+  const count = (h, n) => h.boundary ? toKu(n) : '<span class="muted" title="سنووری ئەم گەڕەکە بارنەکراوە">—</span>';
+  box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>ڕیز</th><th>گەڕەک</th><th>خاڵ</th><th>هاوڵاتی</th>
+    <th>شوێنی کراوە</th><th>پاککراوە</th></tr></thead><tbody>` +
+    hoods.map((h, i) => {
+      const rank = rankOf(hoods, i);
+      return `<tr><td><span class="rank ${rank === 1 && h.points > 0 ? 'first' : ''}">${toKu(rank)}</span></td>
+        <td>${esc(h.name)}</td>
+        <td class="pts-cell"><strong>${toKu(h.points)}</strong>${h.points > 0
+          ? `<div class="bar" style="width:${(100 * h.points / top).toFixed(1)}%"></div>` : ''}</td>
+        <td>${toKu(h.citizens)}</td><td>${count(h, h.open)}</td><td>${count(h, h.cleaned)}</td></tr>`;
+    }).join('') +
+    '</tbody></table></div>' +
+    (hoods.some(h => !h.boundary)
+      ? '<p class="note">شوێنەکان بەپێی سنووری گەڕەک دەژمێردرێن؛ «—» واتە سنووری ئەو گەڕەکە هێشتا بارنەکراوە.</p>' : '');
+}
+
+async function loadHoods() {
+  const hoods = await api('/admin/neighbourhoods');
+  drawAreas(hoods);
+  renderLeague(hoods);
+}
+
+async function loadPeople() {
+  const people = (await api('/leaderboard')).citizens.filter(p => p.points > 0);
+  document.getElementById('league-people').innerHTML = people.length
+    ? '<ol class="people">' + people.map((p, i) => {
+        const rank = rankOf(people, i);
+        return `<li><span class="rank ${rank === 1 ? 'first' : ''}">${toKu(rank)}</span>
+          <span class="who">${esc(p.name)}${p.neighbourhood ? `<small>${esc(p.neighbourhood)}</small>` : ''}</span>
+          <span class="pts">${toKu(p.points)} خاڵ</span></li>`;
+      }).join('') + '</ol>'
+    : '<div class="empty">هێشتا هیچ هاوڵاتییەک خاڵی وەرنەگرتووە</div>';
+}
+
 // ---- totals
 async function loadStats() {
   const s = await api('/admin/stats');
@@ -270,7 +404,11 @@ async function loadStats() {
 
 async function refresh() {
   if (!token) { showLogin(); return; }
-  try { await Promise.all([loadStats(), loadMap(), loadPriority(), loadLog(), loadReview(), loadVouchers()]); }
+  try {
+    await Promise.all([loadStats(), loadMap(), loadHoods(), loadPeople(), loadPriority(), loadLog(),
+                       loadReview(), loadVouchers()]);
+    fitOnce();
+  }
   catch (e) { /* the login form opens on auth errors */ }
 }
 
