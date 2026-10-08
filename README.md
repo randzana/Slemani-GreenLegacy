@@ -23,17 +23,22 @@ backend/                 Flask API + YOLOv8 + PostgreSQL/PostGIS (یەک پرۆ�
     ai/describe.py       وەسفی کوردیی وێنەی ڕاپۆرت (قاڵب بێ ئینتەرنێت؛ Claude بە ئارەزوو)
     simulator.py         کامێرای ساختە بۆ سیمولەیتەر (تەنها لەگەڵ colorblob)
     strings.py           هەموو دەقە کوردییەکان
-    templates/dashboard.html   داشبۆردی شارەوانی (نەخشە، ئەولەویەت، تۆمار، پشکنین)
+    templates/dashboard.html   داشبۆردی شارەوانی (نەخشە، ئەولەویەت، تۆمار، پشکنین، خەڵات، لیگ)
   schema.sql             شەش خشتە
   migrations/            بۆ داتابەیسێکی کۆن بێ سڕینەوەی داتا
-  tests/                 ٣٤ تاقیکردنەوە بەسەر PostGIS ی ڕاستەقینەدا
+  tests/                 تاقیکردنەوەکان بەسەر PostGIS ی ڕاستەقینەدا (python -m pytest tests -q)
   tools/rehearse.py      هەموو خولەکە لەسەر سێرڤەرێکی کاراوە تاقی دەکاتەوە
   tools/make_qr_stickers.py  ستیکەری QR بۆ زبڵدانەکان چاپ دەکات
   tools/download_model.py    yolov8n یان مۆدێلی گشتیی پاشماوە (--trash) دادەبەزێنێت
   tools/train.py         دابەشکردنی وێنەکان و ڕاهێنانی مۆدێل لەسەر وێنەی سلێمانی (Colab/Kaggle)
   tools/evaluate.py      هەڵسەنگاندنی مۆدێل لەسەر ٥٠ وێنەی تاقیکردنەوە + پێشنیاری پلەکانی پیسی
   tools/fraud_bench.py   ٢٠ هەوڵی ڕاستەقینە و فێڵ بە زنجیرەی سەلماندندا؛ خشتە بۆ سلایدەکان
-mobile/                  ئەپی Flutter ی هاوڵاتی (کوردی، ڕاست بۆ چەپ)
+  tools/import_boundaries.py  سنووری گەڕەکەکان لە GeoJSON ەوە بار دەکات
+  tools/preflight.py     پشکنینی پێش شانۆ (✓/⚠/✗)
+  notebooks/finetune_colab.ipynb  ڕاهێنانی مۆدێل لەسەر Colab
+mobile/                  ئەپی Flutter ی هاوڵاتی (کوردی، ڕاست بۆ چەپ؛ هەموو دەقەکان لە lib/strings.dart)
+docs/DEMO.md             ڕێنمایی ڕۆژی دیمۆ: ئامادەکاری، سیناریۆی سەر شانۆ، چارەسەری کێشەکان
+docs/VERIFICATION.md     زنجیرەی سەلماندن، ئەنجامی تاقیکردنەوەی فێڵ و سنوورەکانی
 ```
 
 ## ١. سێرڤەر (لاپتۆپ)
@@ -75,8 +80,12 @@ python run.py                         # http://0.0.0.0:5000
 ⚠️ بنەڕەتی `DATABASE_URL` لە `app/config.py` پۆرتی `5433` ە، بەڵام فەرمانەکانی سەرەوە و تاقیکردنەوەکان `5432` بەکاردێنن.
 ئەگەر PostgreSQL ەکەت لەسەر 5432 ە: `export DATABASE_URL=postgresql://gl:gl@localhost:5432/greenlegacy`
 
-داتابەیسێکی کۆنت هەیە و ناتەوێت بیسڕیتەوە؟ لە جیاتی `seed.py`:
-`psql "$DATABASE_URL" -f migrations/001_shop_tasks_description.sql`
+داتابەیسێکی کۆنت هەیە و ناتەوێت بیسڕیتەوە؟ لە جیاتی `seed.py`، بە ڕیز:
+```bash
+psql "$DATABASE_URL" -f migrations/001_shop_tasks_description.sql
+psql "$DATABASE_URL" -f migrations/002_neighbourhood_boundaries.sql
+```
+`python tools/preflight.py` پێت دەڵێت کامیان ماوە.
 
 ## ٢. تاقیکردنەوەکان
 
@@ -125,6 +134,10 @@ cd mobile && python3 setup_ios.py && flutter pub get && flutter run   # پەنج
 یان ڕێگە نادات بگاتە سێرڤەر. لە شاشەی چوونەژوورەوە: `http://localhost:5000` (ئیمولەیتەری ئەندرۆید: `http://10.0.2.2:5000`).
 ڕاپۆرت بکە، پاشان بە هەژمارێکی تر پاکی بکەرەوە: فریمەکان هەمان شوێنن بێ پاشماوە و بە ڕێنماییەکە، بۆیە دەسەلمێنرێت.
 
+هەموو دەقە کوردییەکانی ئەپ لە `mobile/lib/strings.dart` (کلاسی `S`) دان، بە پێی شاشە ڕیزکراون؛ بۆ چاککردنی کوردییەکە تەنها
+ئەو فایلە بگۆڕە. ئاگاداری: `S.plantHealthy`، `S.plantThirsty` و `S.plantLevel1`–`3` لەسەر مۆبایل هەڵدەگیرێن و بەراورد دەکرێن؛
+گۆڕینیان ڕووەکە هەڵگیراوەکان تێکدەدات. خاڵەکانی باخچەی دیجیتاڵی تەنها نووسینن لەسەر شاشە و ناچنە ledger ی سێرڤەر.
+
 ⚠️ `flutter analyze` بێ هەڵە تێدەپەڕێت، و شاشە نوێکان (ئەرکی ڕۆژانە، فرۆشگا، ڕیزبەندی، وەسف) لە build ی web دا
 بینراون، بەڵام ئەپەکە هێشتا لەسەر مۆبایلی ڕاستەقینە تاقی نەکراوەتەوە.
 
@@ -142,6 +155,7 @@ cd mobile && python3 setup_ios.py && flutter pub get && flutter run   # پەنج
 cd backend
 python tools/download_model.py --trash          # turhancan97/yolov8-segment-trash-detection (MIT)
 MODEL_PATH=models/yolov8m-seg.pt LITTER_CLASSES=* python run.py
+python tools/download_model.py --stock yolov8s.pt   # بنەمای ڕاهێنان ئەگەر لەیبڵەکان چوارگۆشە (box) بن
 
 # ئێوارەی ڕۆژی یەکەم: وێنەکانی سلێمانی بە YOLO format هەناردە بکە (Label Studio / CVAT / Roboflow)
 python tools/train.py split --images export/images --labels export/labels \
@@ -155,7 +169,18 @@ python tools/evaluate.py datasets/slemani/test --model models/yolov8m-seg.pt --m
 python tools/evaluate.py datasets/slemani/test --model models/slemani.pt --suggest-bands
 ```
 
-`--base` دەبێت لەگەڵ جۆری لەیبڵەکان بگونجێت: polygon ← مۆدێلی `-seg`؛ box ← `yolov8s.pt`.
+لەسەر Colab: `backend/notebooks/finetune_colab.ipynb` بکەرەوە (Runtime ← Change runtime type ← T4 GPU) و خانەکان بە ڕیز
+کار پێبکە: zip ی هەناردەی YOLO لە Drive وەردەگرێت، دابەشی دەکات (٥٠ وێنەی تاقیکردنەوە هەرگیز بۆ ڕاهێنان بەکارناهێنرێن)،
+ڕادەهێنێت، بەراوردی دەکات و `slemani.pt` دادەبەزێنێت.
+
+- `--base` دەبێت لەگەڵ جۆری لەیبڵەکان بگونجێت: box ← `yolov8s.pt`؛ polygon ← مۆدێلی پاشماوە (`-seg`). `train.py` جۆری مۆدێلەکە
+  دەخوێنێتەوە و ئەگەر نەگونجا بە ڕوونی دەوەستێت.
+- سێرڤەر دەستپێناکات ئەگەر فایلی `MODEL_PATH` بوونی نەبێت (پێشتر ultralytics بە بێدەنگی مۆدێلی COCO ی هاوناوی دادەبەزاند و
+  مرۆڤی وەک پاشماوە دەژمارد)، یان ئەگەر هیچ ناوێکی `LITTER_CLASSES` لە پۆلەکانی مۆدێلەکەدا نەبێت.
+- `LITTER_CLASSES=*` تەنها لەگەڵ مۆدێلی پاشماوە؛ لەگەڵ `yolov8n.pt` ی ئاسایی مرۆڤ و پاسیش دەژمێرێت.
+- تەنها mAP سەیر مەکە: خشتەی `evaluate.py` (دۆزینەوە لە وێنەی پیس، پاشماوەی ناڕاست لە وێنەی پاک، هەڵەی ژماردن) ڕاستییەکە دەڵێت.
+- YOLOv8n لەسەر CPU ی ٤ هەستەیی: نزیکەی ٠٫٠٤–٠٫١٦ چرکە بۆ هەر وێنەیەک (پێوانە لەسەر وێنەی نموونە، نەک سلێمانی).
+
 ناوی مۆدێلەکە و TACO (CC BY 4.0) لە سلایدەکاندا بهێنن.
 
 ## ٧. تاقیکردنەوەی فێڵ (fraud bench)
@@ -191,7 +216,40 @@ SAME_PLACE_MIN_INLIERS=15 python tools/fraud_bench.py --from-db --rerun   # ڕێ
   ڕستەکە دەگۆڕێت (ئەپ چاوەڕێ ناکات؛ ئەگەر ئینتەرنێت نەبوو قاڵبەکە دەمێنێتەوە). وێنەکان دەچنە دەرەوەی لاپتۆپ،
   بۆیە تەنها کاتێک بیکەنەوە کە ئەمە ڕێککەوتراوە.
 
-## ٩. چی فێربوون (لەم ڕاهێنانەدا دۆزرانەوە)
+## ٩. سنووری گەڕەکەکان و لیگ
+
+سنووری ڕاستەقینەی گەڕەکەکانی سلێمانی لەم ڕیپۆیەدا نییە و نابێت لە خۆمانەوە دروستیان بکەین. لەسەر لاپتۆپێک کە ئینتەرنێتی هەیە
+فایلێکی GeoJSON ئامادە بکەن: لە overpass-turbo.eu (نموونەی query لە سەرەتای `tools/import_boundaries.py` دایە) ← Export ← GeoJSON،
+یان لە geojson.io ناوچەکان بکێشن و بۆ هەر یەکێکیان `name` بنووسن، ڕێک وەک ناوی گەڕەکەکە لە `seed.py`. زۆر گەڕەک لە OSM
+تەنها خاڵێکە و دەبێت بە دەست بکێشرێت.
+
+```bash
+python tools/import_boundaries.py slemani.geojson --dry-run           # سەرەتا تەنها پوختەکە ببینە
+python tools/import_boundaries.py slemani.geojson                     # پاشان پاشەکەوتی بکە
+python tools/import_boundaries.py slemani.geojson --add-missing       # گەڕەکی نوێش زیاد بکە
+```
+
+ناو بەم ڕیزبەندییە دەخوێنرێتەوە: `name:ckb`، `name:ku`، `name` (`--name-prop`). خاڵ و هێڵ ڕەت دەکرێنەوە، ناوە نەدۆزراوەکان
+چاپ دەکرێن و چەند پارچەیەک بە هەمان ناو یەک دەخرێن.
+
+- `GET /neighbourhoods?geo=1` سنوورەکان بە GeoJSON دەگەڕێنێتەوە؛ بێ `geo` وەک پێشوو تەنها `id` و `name`.
+- `GET /admin/neighbourhoods` (تەنها شارەوانی): خاڵ، ژمارەی هاوڵاتی، شوێنی کراوە و پاککراوە لەناو هەر سنوورێکدا.
+- داشبۆرد: سنوورەکان لەژێر شوێنەکان بە شین (شوێنی کراوەی زیاتر = تۆختر)؛ تابی «لیگ» گەڕەکەکان و باشترین هاوڵاتییان.
+
+## ١٠. پێش چوونە سەر شانۆ
+
+```bash
+cd backend
+python tools/preflight.py --model --server http://localhost:5000          # ڕۆژی دیمۆ: دەبێت 0 ✗ بێت
+DETECTOR_KIND=colorblob python tools/preflight.py --rehearsal --server http://localhost:5000   # ڕاهێنان
+```
+
+هەر پشکنینێک یەک هێڵە: ✓ باشە، ⚠ سەیری بکە، ✗ پێش دیمۆ چاکی بکە (exit code 1): داتابەیس و migration ەکان، هەژماری شارەوانی،
+گەڕەکەکان، فۆڵدەری وێنە، ناسەر و مۆدێل (`--model` باری دەکات و کاتەکەی دەپێوێت)، Leaflet، ستیکەری QR، `SECRET_KEY`، `SIM_CAMERA`،
+وەسفی Claude، IP ی لاپتۆپ و ئەو ناونیشانەی لە مۆبایل دەنووسرێت؛ بە `--server` سێرڤەری کاراوەش (کام ناسەر بەکاردێنێت و ئایا `/sim`
+کراوەیە). هەموو هەنگاوەکانی ڕۆژی دیمۆ و سیناریۆی سەر شانۆ: `docs/DEMO.md`.
+
+## ١١. چی فێربوون (لەم ڕاهێنانەدا دۆزرانەوە)
 
 - وێنەی «دوا»ی هەمان شوێن زۆر لە وێنەی «پێش» دەچێت؛ پشکنینی دووبارە دەبێت وێنەکانی هەمان ڕاپۆرت لاببات.
 - ستیکەری QR ی هەمان زبڵدان لە هەموو پاککردنەوەیەکدا یەکسانە؛ تەنها فریمەکانی شوێنەکە بۆ دووبارە بپشکنن.
