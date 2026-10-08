@@ -26,9 +26,15 @@ class Api {
   String? token;
   Map<String, dynamic>? user;
 
+  /// Set by main.dart: the server no longer accepts the saved token (expired, or the database was
+  /// re-seeded), so the person goes back to the login screen with the server's message.
+  void Function(String message)? onSignedOut;
+
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     baseUrl = prefs.getString('baseUrl') ?? S.serverHint;
+    // Only the first build's hotspot default is replaced. Anything else was typed and worked,
+    // including the old localhost:5001 default, which is right on a Mac where AirPlay holds 5000.
     if (baseUrl == 'http://192.168.43.1:5000') {
       baseUrl = S.serverHint;
       await prefs.setString('baseUrl', baseUrl);
@@ -65,8 +71,19 @@ class Api {
       body = null;
     }
     if (res.statusCode >= 400 && !(allowError && body is Map && body.containsKey('verdict'))) {
-      final message = body is Map ? (body['message'] ?? S.genericError) : S.genericError;
-      throw ApiException(message.toString(), body is Map ? body['error']?.toString() : null);
+      final message = (body is Map ? (body['message'] ?? S.genericError) : S.genericError).toString();
+      final code = body is Map ? body['error']?.toString() : null;
+      // Sign out once, and only for the token this request carried: the screens loading together
+      // all get the same 401, and a slow answer for an old token must not log out a fresh login.
+      if (res.statusCode == 401 &&
+          code == 'unauthorized' &&
+          token != null &&
+          res.request?.headers['Authorization'] == 'Bearer $token') {
+        _saveToken(null);
+        user = null;
+        onSignedOut?.call(message);
+      }
+      throw ApiException(message, code);
     }
     return body;
   }

@@ -145,11 +145,41 @@ class _RewardsScreenState extends State<RewardsScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         title: Text(v['name'].toString()),
-                        subtitle: Text('-${S.digits(v['cost'])} ${S.points}'),
+                        subtitle: Row(
+                          children: [
+                            Text('-${S.digits(v['cost'])} ${S.points}'),
+                            // the municipality marked it given out: the code cannot be used again
+                            if (v['honoured'] == true) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: kTextSecondary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_rounded, size: 14, color: kTextSecondary),
+                                    SizedBox(width: 3),
+                                    Text(S.voucherUsed,
+                                        style: TextStyle(
+                                            color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         trailing: SelectableText(
                           v['voucher'].toString(),
                           textDirection: TextDirection.ltr,
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: 1),
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                            color: v['honoured'] == true ? kTextSecondary : null,
+                          ),
                         ),
                       ),
                     ),

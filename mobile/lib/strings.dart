@@ -4,9 +4,13 @@ class S {
 
   // auth
   static const server = 'ناونیشانی سێرڤەر';
-  static const serverHint = 'http://localhost:5001';
-  static const serverHelp =
-      'مۆبایل: IP ی لاپتۆپ · سیمولەیتەری iOS: http://localhost:5001 · ئیمولەیتەری ئەندرۆید: http://10.0.2.2:5001';
+  // run.py listens on 5000 and moves to 5001 only when 5000 is taken (macOS AirPlay)
+  static const serverHint = 'http://localhost:5000';
+  // one hint per line: a narrow phone otherwise breaks the addresses after "http://"
+  static const serverHelp = 'مۆبایل: IP ی لاپتۆپ\n'
+      'سیمولەیتەری iOS: http://localhost:5000\n'
+      'ئیمولەیتەری ئەندرۆید: http://10.0.2.2:5000\n'
+      'پۆرتی 5000 گیرابوو (macOS)؟ 5001 بەکاربهێنە';
   static const name = 'ناو';
   static const phone = 'ژمارەی مۆبایل';
   static const password = 'وشەی نهێنی (لانیکەم ٦ پیت)';
@@ -175,6 +179,7 @@ class S {
   static const notEnough = 'خاڵت بەس نییە';
   static const myVouchers = 'کۆدەکانم';
   static const voucherHint = 'ئەم کۆدە بە شارەوانی یان هاوبەشەکە پیشان بدە';
+  static const voucherUsed = 'بەکارهاتووە'; // the municipality or partner already honoured it
   static const cancel = 'پاشگەزبوونەوە';
   static String confirmRedeem(String name, Object cost) => '«$name» بە ${digits(cost)} خاڵ وەردەگریت؟';
   static const statuses = {'pending': 'چاوەڕوان', 'released': 'ئازاد', 'revoked': 'هەڵوەشێنرایەوە'};

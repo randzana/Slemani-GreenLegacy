@@ -71,7 +71,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cardColor = Theme.of(context).cardColor;
 
     final name = _user?['name']?.toString() ?? S.citizen;
-    final points = (_user?['released'] as num?)?.toInt() ?? 0;
+    // Everything ever earned, not the spendable balance: buying in the shop must not lower the
+    // total or the level (an older server without "earned" falls back to the balance).
+    final points = ((_user?['earned'] ?? _user?['released']) as num?)?.toInt() ?? 0;
     final pending = (_user?['pending'] as num?)?.toInt() ?? 0;
     final totalPoints = points + pending;
 

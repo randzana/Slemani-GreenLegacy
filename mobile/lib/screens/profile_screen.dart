@@ -78,7 +78,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final name = me['name']?.toString() ?? S.citizen;
           final phone = me['phone']?.toString() ?? '';
           final hood = me['neighbourhood']?.toString() ?? S.slemani;
-          final released = (me['released'] as num?)?.toInt() ?? 0;
+          final released = (me['released'] as num?)?.toInt() ?? 0; // spendable in the shop
+          // badges follow everything ever earned, so spending points never takes one away
+          final earned = (me['earned'] as num?)?.toInt() ?? released;
           final pending = (me['pending'] as num?)?.toInt() ?? 0;
           final history = List<Map<String, dynamic>>.from(me['history'] ?? []);
           final rank = me['rank'];
@@ -202,7 +204,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const Icon(Icons.card_giftcard_rounded, color: kPrimaryGreen),
                         title: const Text(S.shop, style: TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: const Text(S.shopHint),
-                        trailing: const Icon(Icons.chevron_left_rounded),
+                        // chevron_right is mirrored in right-to-left, so it points forward (left)
+                        trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () => Navigator.of(context)
                             .push(MaterialPageRoute(builder: (_) => const RewardsScreen()))
                             .then((_) => _reload()),
@@ -227,8 +230,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     _buildBadge(S.badgeReporter, Icons.photo_camera_rounded, Colors.teal, active: history.isNotEmpty),
                     _buildBadge(S.badgeCleaner, Icons.cleaning_services_rounded, Colors.green, active: history.any((h) => h['kind'] == 'cleanup')),
-                    _buildBadge(S.badgeEcoWarrior, Icons.eco_rounded, Colors.orange, active: released >= 50),
-                    _buildBadge(S.badgeCityGuardian, Icons.military_tech_rounded, Colors.purple, active: released >= 200),
+                    _buildBadge(S.badgeEcoWarrior, Icons.eco_rounded, Colors.orange, active: earned >= 50),
+                    _buildBadge(S.badgeCityGuardian, Icons.military_tech_rounded, Colors.purple, active: earned >= 200),
                   ],
                 ),
                 const SizedBox(height: 28),

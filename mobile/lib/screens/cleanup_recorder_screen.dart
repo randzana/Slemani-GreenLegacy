@@ -97,8 +97,10 @@ class _CleanupRecorderScreenState extends State<CleanupRecorderScreen> {
   Widget build(BuildContext context) {
     final left = _deadline.difference(DateTime.now());
     final expired = left.isNegative;
-    final mm = S.digits(left.inMinutes.clamp(0, 99));
-    final ss = S.digits((left.inSeconds % 60).clamp(0, 59).toString().padLeft(2, '0'));
+    // Stop at 0:00: Dart's % is never negative, so -5 s would read 0:55 and count down again.
+    final shown = expired ? Duration.zero : left;
+    final mm = S.digits(shown.inMinutes.clamp(0, 99));
+    final ss = S.digits((shown.inSeconds % 60).toString().padLeft(2, '0'));
 
     return Scaffold(
       backgroundColor: Colors.black,

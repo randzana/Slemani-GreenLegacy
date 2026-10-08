@@ -7,7 +7,10 @@ import '../theme.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  const AuthScreen({super.key, this.notice});
+
+  /// Why the person was sent back here (the server's message when a saved login stopped working).
+  final String? notice;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -15,6 +18,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _server = TextEditingController(text: Api.instance.baseUrl);
+  final _serverFocus = FocusNode();
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
@@ -22,7 +26,9 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _busy = false;
   bool _obscurePassword = true;
   List<Map<String, dynamic>> _hoods = [];
+  String? _hoodsUrl; // the address the neighbourhood list was last asked from
   int? _hood;
+  late String? _notice = widget.notice;
 
   @override
   void initState() {
@@ -30,11 +36,17 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_server.text.isEmpty) {
       _server.text = S.serverHint;
     }
+    // Neighbourhoods load when the person leaves the address field (submitting it does that too),
+    // not on every keystroke: half a typed address is one failed request and error per character.
+    _serverFocus.addListener(() {
+      if (!_serverFocus.hasFocus && _signUp && _server.text != _hoodsUrl) _loadHoods();
+    });
   }
 
   @override
   void dispose() {
     _server.dispose();
+    _serverFocus.dispose();
     _name.dispose();
     _phone.dispose();
     _password.dispose();
@@ -42,12 +54,22 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _loadHoods() async {
+    final url = _server.text;
+    _hoodsUrl = url;
     try {
-      await Api.instance.setBaseUrl(_server.text);
+      await Api.instance.setBaseUrl(url);
       final hoods = await Api.instance.neighbourhoods();
-      if (mounted) setState(() => _hoods = hoods);
+      // The address changed while this was loading: the answer (or the error) is for an old one.
+      if (!mounted || _server.text != url) return;
+      setState(() {
+        _hoods = hoods;
+        // another server can have other neighbourhoods; the dropdown needs its value in the list
+        if (!hoods.any((h) => h['id'] == _hood)) _hood = null;
+      });
     } catch (e) {
-      if (mounted) showError(context, e);
+      if (!mounted || _server.text != url) return;
+      _hoodsUrl = null; // leaving the field again retries, e.g. once the server is started
+      showError(context, e);
     }
   }
 
@@ -59,7 +81,10 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _notice = null;
+    });
     try {
       await Api.instance.setBaseUrl(_server.text);
       if (_signUp) {
@@ -124,6 +149,29 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 32),
 
+                // Why the person is here again (their saved login stopped working)
+                if (_notice != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: Colors.orange),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(_notice!, style: TextStyle(color: textColor, fontSize: 14)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Form Fields Card Container
                 Card(
                   elevation: 3,
@@ -136,15 +184,13 @@ class _AuthScreenState extends State<AuthScreen> {
                         // Server URL
                         TextField(
                           controller: _server,
+                          focusNode: _serverFocus,
                           keyboardType: TextInputType.url,
                           textDirection: TextDirection.ltr,
-                          onChanged: (_) {
-                            if (_signUp) _loadHoods();
-                          },
                           decoration: InputDecoration(
                             labelText: S.server,
                             helperText: S.serverHelp,
-                            helperMaxLines: 2,
+                            helperMaxLines: 4,
                             prefixIcon: const Icon(Icons.dns_outlined, color: kPrimaryGreen),
                             suffixIcon: IconButton(
                               icon: const Icon(Icons.refresh_rounded, color: kPrimaryGreen),
