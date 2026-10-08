@@ -92,6 +92,9 @@
   .people .who small { color: var(--soft); margin-inline-start: 6px; }
   .people .pts { font-weight: 800; white-space: nowrap; }
   .note { color: var(--soft); font-size: 13px; margin: 8px 0 0; }
+  #voucher-note { margin: 0 0 10px; min-height: 1.4em; font-size: 14px; }
+  #voucher-note.bad { color: var(--red); font-weight: 600; }
+  button.small { padding: 4px 12px; }
 </style>
 </head>
 <body>
@@ -132,7 +135,7 @@
   <section class="panel" id="panel-priority"><div id="priority"></div></section>
   <section class="panel" id="panel-log"><div id="log"></div></section>
   <section class="panel" id="panel-review"><div id="review"></div></section>
-  <section class="panel" id="panel-vouchers"><div id="vouchers"></div></section>
+  <section class="panel" id="panel-vouchers"><p class="note" id="voucher-note" role="status"></p><div id="vouchers"></div></section>
   <section class="panel" id="panel-league">
     <div class="league">
       <div><h2>لیگی گەڕەکەکان</h2><div id="league-hoods"></div></div>
@@ -198,6 +201,7 @@ const areaLayer = L.featureGroup().addTo(map);   // neighbourhood boundaries, ke
 const layer = L.layerGroup().addTo(map);
 let fitted = false;
 let lastSpots = [];
+let spotsLoaded = false;
 
 // Areas: one blue hue, light to dark, by open spots. Blue keeps them apart from the yellow-red spot
 // markers on top; fixed steps (not "share of the busiest area") so a colour means the same count every refresh.
@@ -255,11 +259,13 @@ function drawAreas(hoods) {
   document.getElementById('area-legend').hidden = !areas.size;
 }
 
-// first load only: zoom to the spots, or to the neighbourhoods while there are no spots yet
+// first load only: zoom to the spots, or to the neighbourhoods while there are no spots yet. Called by
+// loadMap and loadHoods themselves, so one failing panel (e.g. vouchers on an old database) cannot stop it;
+// the areas wait until the spots have loaded, because spots win when there are any.
 function fitOnce() {
   if (fitted) return;
   if (lastSpots.length) map.fitBounds(lastSpots.map(s => [s.lat, s.lon]), { maxZoom: 16, padding: [40, 40] });
-  else if (areas.size) map.fitBounds(areaLayer.getBounds(), { padding: [20, 20] });
+  else if (spotsLoaded && areas.size) map.fitBounds(areaLayer.getBounds(), { padding: [20, 20] });
   else return;
   fitted = true;
 }
@@ -270,6 +276,7 @@ const markers = new Map();
 async function loadMap() {
   const spots = await api('/reports');
   lastSpots = spots;
+  spotsLoaded = true;
   const seen = new Set();
   for (const s of spots) {
     seen.add(s.id);
@@ -290,6 +297,7 @@ async function loadMap() {
   for (const [id, marker] of markers) {
     if (!seen.has(id)) { layer.removeLayer(marker); markers.delete(id); }
   }
+  fitOnce();
 }
 
 // ---- priority list: dirtiest and oldest first
@@ -350,18 +358,40 @@ document.getElementById('review').addEventListener('click', async e => {
   refresh();
 });
 
-// ---- points shop vouchers, so staff can honour and check them
+// ---- points shop vouchers: staff check the code, then mark the reward as handed over. A voucher works
+// once, so the same code (or a screenshot of it) shown again is refused.
+const stamp = iso => `<span class="voucher">${esc(new Date(iso).toLocaleString('en-GB'))}</span>`;
+
 async function loadVouchers() {
   const rows = await api('/admin/redemptions');
   document.getElementById('vouchers').innerHTML = rows.length
     ? `<div class="table-wrap"><table><thead><tr><th>کۆد</th><th>خەڵات</th><th>خاڵ</th><th>هاوڵاتی</th>
-        <th>مۆبایل</th><th>کات</th></tr></thead><tbody>` +
+        <th>مۆبایل</th><th>کات</th><th>ڕادەستکردن</th></tr></thead><tbody>` +
       rows.map(r => `<tr><td><span class="voucher">${esc(r.voucher)}</span></td><td>${esc(r.reward_name)}</td>
         <td>${toKu(r.cost)}</td><td>${esc(r.name)}</td><td><span class="voucher">${esc(r.phone)}</span></td>
-        <td><span class="voucher">${esc(new Date(r.created_at).toLocaleString('en-GB'))}</span></td></tr>`).join('') +
+        <td>${stamp(r.created_at)}</td>
+        <td>${r.honoured_at ? `<span class="verdict verified">ڕادەستکرا</span> ${stamp(r.honoured_at)}`
+          : `<button class="primary small" data-honour="${esc(r.id)}" data-voucher="${esc(r.voucher)}">ڕادەستکردن</button>`}</td>
+        </tr>`).join('') +
       '</tbody></table></div>'
     : '<div class="empty">هێشتا کەس خەڵاتی وەرنەگرتووە</div>';
 }
+
+document.getElementById('vouchers').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-honour]');
+  if (!btn) return;
+  btn.disabled = true;                      // a double tap sends one request
+  const note = document.getElementById('voucher-note');
+  let data;
+  try {
+    data = await api(`/admin/redemptions/${btn.dataset.honour}/honour`, { method: 'POST' });
+  } catch (err) { btn.disabled = false; return; }   // the login form opens on auth errors
+  // 409 voucher_used: already handed over, e.g. from another screen; the server's message says so
+  note.innerHTML = `<span class="voucher">${esc(btn.dataset.voucher)}</span> — ` +
+    esc(data.ok ? 'خەڵاتەکە ڕادەستکرا' : (data.message || data.error));
+  note.classList.toggle('bad', !data.ok);
+  loadVouchers().catch(() => {});
+});
 
 // ---- league: neighbourhoods by points (the app's /leaderboard rule), spots counted inside each boundary
 const rankOf = (rows, i) => 1 + rows.filter(r => r.points > rows[i].points).length;   // equal points, equal rank
@@ -390,6 +420,7 @@ function renderLeague(hoods) {
 async function loadHoods() {
   const hoods = await api('/admin/neighbourhoods');
   drawAreas(hoods);
+  fitOnce();
   renderLeague(hoods);
 }
 
@@ -419,7 +450,6 @@ async function refresh() {
   try {
     await Promise.all([loadStats(), loadMap(), loadHoods(), loadPeople(), loadPriority(), loadLog(),
                        loadReview(), loadVouchers()]);
-    fitOnce();
   }
   catch (e) { /* the login form opens on auth errors */ }
 }

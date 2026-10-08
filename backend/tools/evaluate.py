@@ -26,7 +26,8 @@ from app.config import Config  # noqa: E402
 
 def read_labels(folder):
     rows = []
-    with open(Path(folder) / "labels.csv", newline="", encoding="utf-8") as f:
+    # utf-8-sig: Excel saves a CSV with a byte-order mark, which would rename the first column "﻿file"
+    with open(Path(folder) / "labels.csv", newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             count = row.get("count", "").strip()
             level = row.get("level", "").strip()

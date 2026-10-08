@@ -1,7 +1,23 @@
-"""Fine-tune the litter model on our own Slemani photos (day one evening, on Colab or Kaggle GPU).
+r"""Fine-tune the litter model on our own Slemani photos (day one evening, on Colab or Kaggle GPU).
 
-1. Annotate the 300-500 photos in any tool that exports YOLO format (Label Studio, CVAT, Roboflow):
-   a folder of images, a folder of .txt labels with the same names, and classes.txt.
+1. Annotate the 300-500 photos and export them in YOLO format. split reads this layout, which is
+   exactly what Label Studio's "YOLO with images" export gives:
+       export/images/       the photos
+       export/labels/       one .txt per photo with the same name (a clean photo: no file, or an empty one)
+       export/classes.txt   one class name per line, in class-id order
+   Other tools export a different layout; copy it into this one first (finetune_colab.ipynb does it for you):
+   - Roboflow (YOLOv8): train/, valid/ and test/, each with images/ and labels/, and the names in data.yaml.
+     Put all three together; split makes its own held-out test set:
+         mkdir -p export/images export/labels
+         cp roboflow/*/images/* export/images/ && cp roboflow/*/labels/* export/labels/
+         python -c "import yaml; n = yaml.safe_load(open('roboflow/data.yaml'))['names']; \
+             print('\n'.join(n[k] for k in sorted(n)) if isinstance(n, dict) else '\n'.join(n))" \
+             > export/classes.txt
+   - CVAT (YOLO 1.1, exported with "Save images"): obj.names, and obj_train_data/ with photos and .txt
+     files side by side:
+         mkdir -p export/images export/labels && cp cvat/obj.names export/classes.txt
+         find cvat/obj_train_data -type f -name '*.txt' -exec cp {} export/labels/ \;
+         find cvat/obj_train_data -type f ! -name '*.txt' -exec cp {} export/images/ \;
 2. Split them. The --test photos are never trained on; they are the 50 for tools/evaluate.py:
        python tools/train.py split --images export/images --labels export/labels \
            --classes export/classes.txt --out datasets/slemani --test 50
@@ -86,8 +102,10 @@ def split(args):
             lines = (out / "test" / "labels" / f"{img.stem}.txt").read_text().splitlines()
             w.writerow([f"images/{img.name}", sum(1 for line in lines if line.strip()), ""])
 
+    # No 'path:' line: ultralytics then reads train/val/test relative to this file's folder, so the split
+    # still works after it is zipped and moved to Colab or Kaggle (an absolute path would point back here).
     quote = lambda text: json.dumps(str(text), ensure_ascii=False)   # noqa: E731  (a JSON string is valid YAML)
-    yaml = [f"path: {quote(out.resolve())}", "train: train/images", "val: val/images", "test: test/images",
+    yaml = ["train: train/images", "val: val/images", "test: test/images",
             "names:"] + [f"  {i}: {quote(name)}" for i, name in enumerate(names)]
     (out / "data.yaml").write_text("\n".join(yaml) + "\n", encoding="utf-8")
     print(f"train {len(parts['train'])}, val {len(parts['val'])}, test {len(parts['test'])} "
