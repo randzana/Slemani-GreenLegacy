@@ -6,7 +6,7 @@ from flask import Blueprint, current_app, g, jsonify, request
 
 from . import points
 from .ai.describe import describe_later, template_description
-from .ai.hashing import phash_int
+from .ai.hashing import is_flat, phash_int
 from .ai.scoring import dirtiness as score_dirtiness
 from .ai.verify import analyse_cleanup, qr_flags_for
 from .auth import error, login_required, public_user
@@ -37,27 +37,38 @@ def _float(form, key):
         return None
 
 
-def find_repeat(hashes, own_report_id=None):
-    """Return True if any hash is within HASH_MAX_DISTANCE bits of a stored photo or frame.
+def find_repeat(hashes, lon, lat, own_report_id=None):
+    """Compare pHashes with every stored photo and frame (within HASH_MAX_DISTANCE bits).
 
+    'far'  - a match was taken more than CLEANUP_RADIUS_M away: media reused for another spot.
+    'near' - every match is from this same place. Not fraud by itself: a second person confirming
+             a pile from the same corner, or a corner that got dirty again, honestly looks the same.
+             The caller pays no instant points for it / sends the cleanup to a person.
+    None   - no match.
     For a cleanup, the spot's own photos and earlier attempts are skipped: an honest after-video
     of the same place can look very close to its before photo. Reusing that photo still fails
     later, because the litter is still in it.
     """
-    limit = current_app.config["HASH_MAX_DISTANCE"]
+    cfg = current_app.config
     own = own_report_id if own_report_id is not None else -1
     row = query(
         """WITH stored AS (
-               SELECT photo_hash AS h FROM reports
+               SELECT photo_hash AS h, location FROM reports
                 WHERE id <> %(own)s AND (confirms_report_id IS NULL OR confirms_report_id <> %(own)s)
                UNION ALL
-               SELECT unnest(frame_hashes) FROM cleanups WHERE report_id <> %(own)s)
-           SELECT 1 FROM stored, unnest(%(new)s::bigint[]) AS new(h)
-           WHERE bit_count((stored.h # new.h)::bit(64)) <= %(limit)s LIMIT 1""",
-        {"own": own, "new": list(hashes), "limit": limit},
+               SELECT unnest(c.frame_hashes), r.location
+                 FROM cleanups c JOIN reports r ON r.id = c.report_id WHERE c.report_id <> %(own)s)
+           SELECT bool_or(NOT ST_DWithin(stored.location, ST_MakePoint(%(lon)s, %(lat)s)::geography,
+                                         %(radius)s)) AS far
+           FROM stored, unnest(%(new)s::bigint[]) AS new(h)
+           WHERE bit_count((stored.h # new.h)::bit(64)) <= %(limit)s""",
+        {"own": own, "new": list(hashes), "limit": cfg["HASH_MAX_DISTANCE"], "lon": lon, "lat": lat,
+         "radius": cfg["CLEANUP_RADIUS_M"]},
         one=True,
     )
-    return row is not None
+    if row is None or row["far"] is None:
+        return None
+    return "far" if row["far"] else "near"
 
 
 def _hashes_or_none(names):
@@ -86,8 +97,12 @@ def create_report():
     if hashes is None:
         return error("unreadable_image", 400)
     photo_hash = hashes[0]
-    if find_repeat([photo_hash]):
+    repeat = find_repeat([photo_hash], lon, lat)
+    if repeat == "far":
         return error("reused_media", 409)
+    # The same place photographed again: fine, but it could also be the first photo sent again from
+    # a second account, so it earns no confirmation points and releases nobody's held points.
+    similar = repeat == "near"
 
     found = current_app.detector.detect(path_of(name))
     if found.count == 0:
@@ -118,12 +133,12 @@ def create_report():
             common + (nearby["id"],),
         )
         earned = 0
-        if not already and points.under_daily_cap(g.user["id"]):
+        if not already and not similar and points.under_daily_cap(g.user["id"]):
             points.award_confirmation(g.user["id"], nearby["id"])
             earned = cfg["CONFIRMATION_POINTS"]
-        if not already:
+        if not already and not similar:
             points.adjust_trust(nearby["reporter_id"], "report_confirmed")
-        points.release_report_points(nearby["id"])   # a second person saw it: the first report was real
+            points.release_report_points(nearby["id"])   # a second person saw it: the first report was real
         return jsonify({"kind": "confirmation", "report": report_json(nearby),
                         "points_pending": earned, "message": reason("confirmed")}), 200
 
@@ -198,21 +213,30 @@ def claim(report_id):
         if active:
             return error("not_open", 409)
 
-    # one live challenge per person per spot: older unused ones stop working
-    query("UPDATE challenges SET used = true WHERE report_id = %s AND user_id = %s AND NOT used",
-          (report_id, g.user["id"]))
-    code = random.choice(list(INSTRUCTIONS))
+    # Claiming again while a challenge is live returns that same challenge: a fresh random instruction
+    # on every tap would let a video made in advance simply wait for the instruction it matches.
+    columns = """id, instruction, instruction_text, expires_at,
+                 GREATEST(0, EXTRACT(EPOCH FROM expires_at - now()))::int AS expires_in"""
     challenge = query(
-        """INSERT INTO challenges (user_id, report_id, instruction, instruction_text, expires_at)
-           VALUES (%s, %s, %s, %s, now() + make_interval(mins => %s))
-           RETURNING id, instruction, instruction_text, expires_at""",
-        (g.user["id"], report_id, code, INSTRUCTIONS[code], cfg["CHALLENGE_MINUTES"]),
-        one=True,
-    )
+        f"""SELECT {columns} FROM challenges WHERE report_id = %s AND user_id = %s AND NOT used
+            AND expires_at > now() ORDER BY id DESC LIMIT 1""", (report_id, g.user["id"]), one=True)
+    status = 200
+    if challenge is None:
+        # one live challenge per person per spot: older unused (expired) ones stop working
+        query("UPDATE challenges SET used = true WHERE report_id = %s AND user_id = %s AND NOT used",
+              (report_id, g.user["id"]))
+        code = random.choice(list(INSTRUCTIONS))
+        challenge = query(
+            f"""INSERT INTO challenges (user_id, report_id, instruction, instruction_text, expires_at)
+                VALUES (%s, %s, %s, %s, now() + make_interval(mins => %s))
+                RETURNING {columns}""",
+            (g.user["id"], report_id, code, INSTRUCTIONS[code], cfg["CHALLENGE_MINUTES"]),
+            one=True,
+        )
+        status = 201
     query("UPDATE reports SET status = 'in_progress' WHERE id = %s", (report_id,))
-    challenge["expires_at"] = challenge["expires_at"].isoformat()
-    challenge["expires_in"] = cfg["CHALLENGE_MINUTES"] * 60   # seconds: phone and laptop clocks may differ
-    return jsonify(challenge), 201
+    challenge["expires_at"] = challenge["expires_at"].isoformat()   # expires_in: seconds, as clocks may differ
+    return jsonify(challenge), status
 
 
 def _finish(report, cleanup_fields, verdict, code, status=200):
@@ -301,8 +325,10 @@ def cleanup(report_id):
     # 3. repeat check against stored photos and frames of other spots. Only frames of the spot
     #    itself count: the bin's QR sticker looks the same in every honest cleanup at that bin.
     qr_flags = qr_flags_for([path_of(n) for n in names], cfg["QR_PREFIX"])
-    scene_hashes = [h for h, is_qr in zip(hashes, qr_flags) if not is_qr]
-    if scene_hashes and find_repeat(scene_hashes, own_report_id=report_id):
+    # Featureless frames (lens covered, plain wall) all hash alike, so they are left out too.
+    scene_hashes = [h for h, is_qr, n in zip(hashes, qr_flags, names) if not is_qr and not is_flat(path_of(n))]
+    repeat = find_repeat(scene_hashes, lon, lat, own_report_id=report_id) if scene_hashes else None
+    if repeat == "far":
         return _finish(report, fields, "rejected", "reused_media")
     fields["frame_hashes"] = scene_hashes
 
@@ -313,9 +339,14 @@ def cleanup(report_id):
     fields["after"], fields["similarity"] = result.litter_after, result.similarity
     if result.best_frame is not None:
         fields["after_frame"] = names[result.best_frame]
-    current_app.logger.info("cleanup report=%s verdict=%s details=%s",
-                            report_id, result.verdict, result.details)
-    return _finish(report, fields, result.verdict, result.reason_code)
+    verdict, code = result.verdict, result.reason_code
+    if repeat == "near" and verdict == "verified":
+        # frames very like an earlier cleanup of this same corner: maybe honest (it got dirty again),
+        # maybe that old video sent again, so a person decides and no trust is lost meanwhile
+        verdict, code = "review", "similar_to_earlier"
+    current_app.logger.info("cleanup report=%s verdict=%s repeat=%s details=%s",
+                            report_id, verdict, repeat, result.details)
+    return _finish(report, fields, verdict, code)
 
 
 # ---------------------------------------------------------------- leaderboard + me

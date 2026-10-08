@@ -1,6 +1,7 @@
 """Points shop, daily tasks, ranks, trust score and the Kurdish photo description."""
 import time
 
+import numpy as np
 import psycopg
 import pytest
 
@@ -221,3 +222,55 @@ def test_errors_carry_a_kurdish_message_and_claim_says_how_long(api, client):
 
     health = client.get("/health").json
     assert health["detector"] and health["model"].endswith(".pt")
+
+
+# ---------------------------------------------------------------- the same place, honestly, twice
+
+def test_same_angle_confirmation_is_accepted_without_points(api):
+    reporter, report, scene = dirty_spot(api, seed=74)
+    confirmer = api.signup()
+    same_photo_again = synthetic.with_litter(scene, 6, 74)          # what a second account resending it sees
+    r = api.report(confirmer, same_photo_again, *NEAR)
+    assert r.status_code == 200 and r.json["kind"] == "confirmation"
+    assert r.json["points_pending"] == 0
+    assert api.me(reporter)["released"] == 0                        # nobody's held points were freed by it
+    assert api.me(reporter)["trust_level"] == 0
+
+
+def test_claiming_again_keeps_the_same_instruction(api):
+    _rep, report, _scene = dirty_spot(api, seed=75)
+    cleaner = api.signup()
+    first = api.claim(cleaner, report["id"])
+    again = api.claim(cleaner, report["id"])
+    assert first.status_code == 201 and again.status_code == 200
+    assert again.json["id"] == first.json["id"] and again.json["instruction"] == first.json["instruction"]
+    assert 0 < again.json["expires_in"] <= first.json["expires_in"]
+
+
+def test_a_corner_that_gets_dirty_again_goes_to_review_not_fraud(api):
+    _rep, report, scene = dirty_spot(api, seed=76)
+    cleaner, challenge = claimed(api, report["id"])
+    frames = synthetic.cleanup_frames(scene, challenge["instruction"])
+    assert api.cleanup(cleaner, report["id"], challenge["id"], frames).json["verdict"] == "verified"
+
+    # a week later the same corner is dirty again and someone reports it
+    again = api.signup()
+    r = api.report(again, synthetic.with_litter(scene, 5, 300))
+    assert r.status_code == 201, r.json
+    second = r.json["report"]
+    challenge2 = api.claim(cleaner, second["id"]).json
+    r = api.cleanup(cleaner, second["id"], challenge2["id"],
+                    synthetic.cleanup_frames(scene, challenge2["instruction"]))
+    assert r.json["verdict"] == "review" and r.json["reason_code"] == "similar_to_earlier"
+    assert api.me(cleaner)["trust_level"] == 1                      # the honest cleaner is not punished
+
+
+def test_black_frames_do_not_make_an_honest_cleanup_look_reused(api):
+    black = np.zeros((synthetic.H, synthetic.W, 3), dtype=np.uint8)
+    for seed, at in ((77, synthetic_spot(77)), (78, FAR)):
+        _rep, report, scene = dirty_spot(api, seed=seed, at=at)
+        cleaner, challenge = claimed(api, report["id"])
+        frames = synthetic.cleanup_frames(scene, challenge["instruction"])
+        frames = frames[:-1] + [black] if challenge["instruction"] == "qr_first" else [black] + frames[1:]
+        r = api.cleanup(cleaner, report["id"], challenge["id"], frames, *at)
+        assert r.json["verdict"] == "verified", r.json
