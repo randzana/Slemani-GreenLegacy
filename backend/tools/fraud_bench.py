@@ -8,7 +8,11 @@ Prints a markdown table for the slides.
 Synthetic mode uses red rectangles as litter (ColorBlobDetector), like the automated tests. For the
 "20 fake videos" on day two, make the attempts with the real app against the real server, then run
 --from-db to get the table; --rerun shows the effect of a changed setting (e.g. SAME_PLACE_MIN_INLIERS)
-on the same stored frames without filming again.
+on the same stored frames without filming again. --rerun repeats the image checks (steps 4-8) only:
+an attempt rejected as reused media (step 3, the repeat check) is shown as not re-run.
+
+To try --rerun on the synthetic attempts, keep their files: --uploads DIR, then --from-db --rerun with
+DATABASE_URL=<the test database> UPLOAD_DIR=DIR DETECTOR_KIND=colorblob.
 """
 import argparse
 import io
@@ -223,7 +227,7 @@ SCENARIOS = [
 ]
 
 
-def synthetic_bench(database_url, force):
+def synthetic_bench(database_url, force, uploads=None):
     from app import create_app
     from app.ai.detector import ColorBlobDetector
     from app.strings import reason
@@ -233,8 +237,8 @@ def synthetic_bench(database_url, force):
         raise SystemExit(f"refusing to wipe {database_url}: it does not look like a test database "
                          "(set TEST_DATABASE_URL, or pass --force)")
     seed(database_url)
-    with tempfile.TemporaryDirectory() as uploads:
-        app = create_app({"DATABASE_URL": database_url, "UPLOAD_DIR": uploads, "TESTING": True,
+    with tempfile.TemporaryDirectory() as temporary:
+        app = create_app({"DATABASE_URL": database_url, "UPLOAD_DIR": uploads or temporary, "TESTING": True,
                           "DESCRIBE_WITH_CLAUDE": False}, detector=ColorBlobDetector())
         bench = Bench(app.test_client(), database_url)
         rows = []
@@ -287,7 +291,7 @@ def from_db(database_url, hours, rerun):
     print(f"\n| # | when | cleaner | verdict | reason | litter before → after | ORB inliers |"
           + (" now |" if rerun else ""))
     print("|---|---|---|---|---|---|---|" + ("---|" if rerun else ""))
-    changed = 0
+    changed = not_rerun = 0
     for r in rows:
         frames = r["frame_paths"] if isinstance(r["frame_paths"], list) else json.loads(r["frame_paths"] or "[]")
         after = "—" if r["litter_count_after"] is None else r["litter_count_after"]
@@ -297,14 +301,23 @@ def from_db(database_url, hours, rerun):
         if rerun:
             now = "—"
             paths = [uploads / f for f in frames]
-            if not all(p.exists() for p in paths + [uploads / r["photo_path"]]):
+            if r["reason_code"] == "reused_media":
+                # stopped by the repeat check against everything stored before it (step 3), before any
+                # image check: running steps 4-8 on its frames would invent a verdict it never had
+                now = "not re-run (repeat check)"
+                not_rerun += 1
+            elif not all(p.exists() for p in paths + [uploads / r["photo_path"]]):
                 now = "files missing (check UPLOAD_DIR)"
             elif len(frames) >= cfg["MIN_FRAMES"] and r["instruction"]:
                 result = analyse_cleanup(uploads / r["photo_path"], r["litter_count"], paths,
                                          [phash_int(p) for p in paths], r["instruction"], detector, cfg,
                                          qr_flags=qr_flags_for(paths, cfg["QR_PREFIX"]))
-                now = f"{result.verdict} ({result.reason_code})"
-                changed += result.verdict != r["verdict"] and r["reason_code"] not in (
+                verdict, code = result.verdict, result.reason_code
+                if r["reason_code"] == "similar_to_earlier" and verdict == "verified":
+                    # the rule of routes.cleanup: frames like an earlier cleanup of the same corner go to a person
+                    verdict, code = "review", "similar_to_earlier"
+                now = f"{verdict} ({code})"
+                changed += verdict != r["verdict"] and r["reason_code"] not in (
                     "approved_by_staff", "rejected_by_staff")
             line += f" {now} |"
         print(line)
@@ -313,7 +326,8 @@ def from_db(database_url, hours, rerun):
     print(f"\n{len(rows)} attempts: " + ", ".join(f"{v} {n}" for v, n in by_verdict.most_common()))
     print("reasons: " + ", ".join(f"{c} {n}" for c, n in by_reason.most_common()))
     if rerun:
-        print(f"verdicts that change with today's settings: {changed}")
+        print(f"verdicts that change with today's settings: {changed}"
+              + (f" (not re-run: {not_rerun} rejected by the repeat check)" if not_rerun else ""))
     return True
 
 
@@ -323,11 +337,13 @@ def main():
     parser.add_argument("--hours", type=int, default=48, help="with --from-db: how far back")
     parser.add_argument("--rerun", action="store_true", help="with --from-db: run the image checks again")
     parser.add_argument("--force", action="store_true", help="allow wiping a database without 'test' in its name")
+    parser.add_argument("--uploads", help="synthetic mode: keep the photos and frames in this folder "
+                                          "(default: a temporary one, deleted afterwards)")
     args = parser.parse_args()
     if args.from_db:
         ok = from_db(Config.DATABASE_URL, args.hours, args.rerun)
     else:
-        ok = synthetic_bench(TEST_DB, args.force)
+        ok = synthetic_bench(TEST_DB, args.force, args.uploads)
     sys.exit(0 if ok else 1)
 
 
