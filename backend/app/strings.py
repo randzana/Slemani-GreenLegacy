@@ -40,6 +40,7 @@ REASONS = {
     "task_not_done": "ئەم ئەرکە هێشتا تەواو نەبووە",
     "task_already_claimed": "خەڵاتی ئەم ئەرکەت ئەمڕۆ وەرگرتووە",
     "task_claimed": "دەستخۆش! خاڵی ئەرکەکە دوای ٢٤ کاتژمێر ئازاد دەبێت",
+    "voucher_used": "ئەم کۆدە پێشتر بەکارهاتووە یان بوونی نییە",
 }
 
 # Points shop: names and one-line descriptions (costs are in config.REWARDS)

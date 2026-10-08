@@ -15,7 +15,7 @@ def _float(name, default):
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "practice-only-secret-change-me-before-any-pilot")
-    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://gl:gl@localhost:5433/greenlegacy")
+    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://gl:gl@localhost:5432/greenlegacy")
     UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(BASE_DIR / "uploads"))
     JWT_DAYS = _int("JWT_DAYS", 7)
 

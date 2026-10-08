@@ -105,7 +105,9 @@ def balance(user_id):
         """SELECT
              COALESCE(SUM(amount) FILTER (WHERE status = 'released' AND kind <> 'redeem'), 0)
            - COALESCE(SUM(amount) FILTER (WHERE status = 'released' AND kind = 'redeem'), 0) AS released,
-             COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0) AS pending
+             COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0) AS pending,
+             -- everything ever earned (spending does not lower levels, badges or the league)
+             COALESCE(SUM(amount) FILTER (WHERE status = 'released' AND kind <> 'redeem'), 0) AS earned
            FROM point_ledger WHERE user_id = %s""",
         (user_id,),
         one=True,

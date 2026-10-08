@@ -19,14 +19,15 @@ bp = Blueprint("rewards", __name__)
 
 def _vouchers(user_id):
     rows = query(
-        """SELECT amount, detail, created_at FROM point_ledger
+        """SELECT amount, detail, created_at, honoured_at FROM point_ledger
            WHERE user_id = %s AND kind = 'redeem' ORDER BY created_at DESC LIMIT 20""",
         (user_id,))
     out = []
     for r in rows:
         code, _, voucher = (r["detail"] or "").partition(":")
         out.append({"reward": code, "name": REWARDS.get(code, (code,))[0], "cost": r["amount"],
-                    "voucher": voucher, "created_at": r["created_at"].isoformat()})
+                    "voucher": voucher, "created_at": r["created_at"].isoformat(),
+                    "honoured": r["honoured_at"] is not None})
     return out
 
 

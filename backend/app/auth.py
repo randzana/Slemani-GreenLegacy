@@ -21,6 +21,7 @@ def make_token(user):
     payload = {
         "sub": str(user["id"]),
         "role": user["role"],
+        "iat": dt.datetime.now(dt.timezone.utc),
         "exp": dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=current_app.config["JWT_DAYS"]),
     }
     return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
@@ -37,7 +38,9 @@ def login_required(fn):
         except jwt.PyJWTError:
             return error("unauthorized", 401)
         user = query("SELECT * FROM users WHERE id = %s", (int(payload["sub"]),), one=True)
-        if user is None:
+        # After a re-seed the same id belongs to someone else: a token issued before this account
+        # existed must not log in as them (2 s of slack for the clock and the rounding of iat).
+        if user is None or payload.get("iat", 0) + 2 < user["created_at"].timestamp():
             return error("unauthorized", 401)
         g.user = user
         return fn(*args, **kwargs)

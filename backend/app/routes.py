@@ -197,7 +197,9 @@ def get_report(report_id):
 def claim(report_id):
     housekeeping()
     cfg = current_app.config
-    report = query("SELECT * FROM reports WHERE id = %s", (report_id,), one=True)
+    # The row lock makes claims of one spot take turns: two taps (or two people) at the same moment
+    # must not both find "no live challenge" and each get one.
+    report = query("SELECT * FROM reports WHERE id = %s FOR UPDATE", (report_id,), one=True)
     if report is None or report["status"] not in ("open", "in_progress"):
         return error("not_open", 409)
     if report["reporter_id"] == g.user["id"]:
@@ -225,7 +227,11 @@ def claim(report_id):
         # one live challenge per person per spot: older unused (expired) ones stop working
         query("UPDATE challenges SET used = true WHERE report_id = %s AND user_id = %s AND NOT used",
               (report_id, g.user["id"]))
-        code = random.choice(list(INSTRUCTIONS))
+        # the same person keeps the same instruction for this spot, so using up a challenge on purpose
+        # (an empty cleanup) and claiming again cannot draw a different one either
+        prev = query("SELECT instruction FROM challenges WHERE report_id = %s AND user_id = %s "
+                     "ORDER BY id DESC LIMIT 1", (report_id, g.user["id"]), one=True)
+        code = prev["instruction"] if prev else random.choice(list(INSTRUCTIONS))
         challenge = query(
             f"""INSERT INTO challenges (user_id, report_id, instruction, instruction_text, expires_at)
                 VALUES (%s, %s, %s, %s, now() + make_interval(mins => %s))
@@ -265,9 +271,11 @@ def _finish(report, cleanup_fields, verdict, code, status=200):
         query("UPDATE reports SET status = 'needs_review' WHERE id = %s", (report["id"],))
         awarded = points.award_cleanup(g.user["id"], report["id"], cleanup["id"], report["dirtiness"], False)
     elif cleanup_fields["challenge_id"] is not None:
-        # only the person holding a valid claim can hand the spot back; a stranger's bad
-        # request must not reopen someone else's claim
-        query("UPDATE reports SET status = 'open' WHERE id = %s AND status = 'in_progress'", (report["id"],))
+        # only the person holding a valid claim can hand the spot back; a stranger's bad request, or
+        # a late upload with an expired challenge, must not reopen a claim someone else holds now
+        query("""UPDATE reports r SET status = 'open' WHERE r.id = %s AND r.status = 'in_progress'
+                 AND NOT EXISTS (SELECT 1 FROM challenges c WHERE c.report_id = r.id
+                                 AND NOT c.used AND c.expires_at > now())""", (report["id"],))
     return jsonify({"cleanup_id": cleanup["id"], "verdict": verdict, "reason_code": code,
                     "message": reason(code), "points_now": awarded["now"],
                     "points_pending": awarded["pending"],
@@ -279,7 +287,8 @@ def _finish(report, cleanup_fields, verdict, code, status=200):
 @login_required
 def cleanup(report_id):
     cfg = current_app.config
-    report = query("SELECT * FROM reports WHERE id = %s", (report_id,), one=True)
+    # locked for the whole check: a second cleanup of the same spot waits, then finds it already done
+    report = query("SELECT * FROM reports WHERE id = %s FOR UPDATE", (report_id,), one=True)
     if report is None:
         return error("not_found", 404)
     lat, lon = _float(request.form, "lat"), _float(request.form, "lon")
@@ -294,16 +303,21 @@ def cleanup(report_id):
               "frame_hashes": [],
               "before": report["litter_count"], "after": None, "similarity": None}
 
-    # 1. challenge: exists, belongs to this user and report, unused, under 5 minutes old
-    challenge = query("SELECT *, expires_at <= now() AS expired FROM challenges WHERE id = %s",
-                      (challenge_id,), one=True) if challenge_id else None
-    if challenge is None or challenge["user_id"] != g.user["id"] or challenge["report_id"] != report_id \
-            or challenge["used"]:
+    # 1. challenge: exists, belongs to this user and report, unused, under 5 minutes old. It is used up
+    #    in the same statement, so the same challenge sent twice at once is only ever paid once.
+    challenge = query(
+        """UPDATE challenges SET used = true
+           WHERE id = %s AND user_id = %s AND report_id = %s AND NOT used
+           RETURNING id, instruction, expires_at <= now() AS expired""",
+        (challenge_id, g.user["id"], report_id), one=True) if challenge_id else None
+    if challenge is None:
         return _finish(report, fields, "rejected", "challenge_invalid", 400)
     fields["challenge_id"] = challenge["id"]
-    query("UPDATE challenges SET used = true WHERE id = %s", (challenge["id"],))
     if challenge["expired"]:
         return _finish(report, fields, "rejected", "challenge_expired", 400)
+    if report["status"] != "in_progress":
+        # cleaned or sent to review meanwhile (e.g. the same upload sent twice): nothing left to pay
+        return error("not_open", 409)
 
     if len(frames) < cfg["MIN_FRAMES"] or lat is None or lon is None:
         return _finish(report, fields, "rejected", "too_few_frames", 400)

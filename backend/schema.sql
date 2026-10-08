@@ -87,6 +87,7 @@ CREATE TABLE point_ledger (
     cleanup_id  INTEGER REFERENCES cleanups(id),
     release_at  TIMESTAMPTZ,                       -- NULL = waits for an event (confirmation, review)
     detail      TEXT,                              -- task: 'task:<code>:<day>'; redeem: reward code + voucher
+    honoured_at TIMESTAMPTZ,                       -- redeem: when staff handed the reward over (once)
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX point_ledger_user_idx ON point_ledger (user_id);

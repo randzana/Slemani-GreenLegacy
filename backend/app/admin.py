@@ -144,12 +144,25 @@ def neighbourhood_league():
 def redemptions():
     """Vouchers from the points shop, newest first, so staff can honour and check them."""
     rows = query(
-        """SELECT p.id, p.amount AS cost, p.detail, p.created_at, u.name, u.phone
+        """SELECT p.id, p.amount AS cost, p.detail, p.created_at, p.honoured_at, u.name, u.phone
            FROM point_ledger p JOIN users u ON u.id = p.user_id
            WHERE p.kind = 'redeem' ORDER BY p.created_at DESC LIMIT 200""")
     out = []
     for r in rows:
         code, _, voucher = (r.pop("detail") or "").partition(":")
         out.append({**r, "reward": code, "reward_name": REWARDS.get(code, (code,))[0],
-                    "voucher": voucher, "created_at": r["created_at"].isoformat()})
+                    "voucher": voucher, "created_at": r["created_at"].isoformat(),
+                    "honoured_at": r["honoured_at"].isoformat() if r["honoured_at"] else None})
     return jsonify(out)
+
+
+@bp.post("/admin/redemptions/<int:redemption_id>/honour")
+@staff_required
+def honour(redemption_id):
+    """Staff hand the reward over: a voucher works once, so a screenshot cannot be used again."""
+    row = query("""UPDATE point_ledger SET honoured_at = now()
+                   WHERE id = %s AND kind = 'redeem' AND honoured_at IS NULL RETURNING honoured_at""",
+                (redemption_id,), one=True)
+    if row is None:
+        return jsonify({"error": "voucher_used", "message": reason("voucher_used")}), 409
+    return jsonify({"ok": True, "honoured_at": row["honoured_at"].isoformat()})
