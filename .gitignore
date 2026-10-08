@@ -8,6 +8,10 @@ venv/
 # runtime data
 backend/uploads/
 backend/models/*.pt
+backend/models/*.part
+# tools/train.py output (training runs) and annotation splits; ultralytics also puts datasets here
+backend/runs/
+backend/datasets/
 backend/qr_stickers.png
 *.log
 *.pid

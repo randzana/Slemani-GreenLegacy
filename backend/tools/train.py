@@ -8,14 +8,17 @@
 3. Train (on the GPU machine; `pip install ultralytics` first):
        python tools/train.py train --data datasets/slemani/data.yaml --base models/yolov8m-seg.pt
    The best weights are copied to models/slemani.pt and scored on the held-out test photos.
+   backend/notebooks/finetune_colab.ipynb runs steps 2-4 on a free Colab GPU.
 4. Compare with the general model before switching (keep the general one if it is not better):
        python tools/evaluate.py datasets/slemani/test --model models/yolov8m-seg.pt --model models/slemani.pt
 
-The base model must match the labels: polygon labels -> a segmentation model (*-seg.pt, like the
-Hugging Face trash model); box labels -> a detection model (yolov8n.pt / yolov8s.pt).
+The base model must fit the labels: box labels need a detection model (python tools/download_model.py
+--stock yolov8s.pt, then --base models/yolov8s.pt). Polygon labels suit the Hugging Face trash model
+(a segmentation model); with a detection model they are trained as boxes.
 """
 import argparse
 import csv
+import json
 import random
 import shutil
 import sys
@@ -35,6 +38,12 @@ def label_kind(label_dir):
     return "boxes"
 
 
+def is_clean(labels, img):
+    """No label file, or an empty one: a photo with no litter."""
+    txt = Path(labels) / f"{img.stem}.txt"
+    return not txt.exists() or not txt.read_text().strip()
+
+
 def split(args):
     images = sorted(p for p in Path(args.images).iterdir() if p.suffix.lower() in IMAGE_TYPES)
     labels = Path(args.labels)
@@ -43,11 +52,22 @@ def split(args):
     names = [n.strip() for n in Path(args.classes).read_text(encoding="utf-8").splitlines() if n.strip()]
     rng = random.Random(args.seed)
     rng.shuffle(images)
-    test, rest = images[:args.test], images[args.test:]
+    # The held-out photos get their share of clean ones: they show whether the model invents
+    # litter (free points), and a plain shuffle can leave none of them in the test set.
+    clean = {p for p in images if is_clean(labels, p)}
+    n_clean = min(len(clean), args.test, max(1 if clean else 0, round(args.test * len(clean) / len(images))))
+    test = ([p for p in images if p in clean][:n_clean]
+            + [p for p in images if p not in clean][:args.test - n_clean])
+    held = set(test)
+    rest = [p for p in images if p not in held]
+    if len(rest) < 2:
+        raise SystemExit(f"only {len(rest)} photos left for training after --test {args.test}")
     n_val = max(1, round(len(rest) * args.val))
     parts = {"test": test, "val": rest[:n_val], "train": rest[n_val:]}
 
     out = Path(args.out)
+    if any((out / part).exists() for part in parts):     # old files would leak test photos into training
+        raise SystemExit(f"{out} already holds a split: delete it or choose another --out")
     for part, files in parts.items():
         (out / part / "images").mkdir(parents=True, exist_ok=True)
         (out / part / "labels").mkdir(parents=True, exist_ok=True)
@@ -66,12 +86,25 @@ def split(args):
             lines = (out / "test" / "labels" / f"{img.stem}.txt").read_text().splitlines()
             w.writerow([f"images/{img.name}", sum(1 for line in lines if line.strip()), ""])
 
-    yaml = [f"path: {out.resolve()}", "train: train/images", "val: val/images", "test: test/images",
-            "names:"] + [f"  {i}: {name}" for i, name in enumerate(names)]
+    quote = lambda text: json.dumps(str(text), ensure_ascii=False)   # noqa: E731  (a JSON string is valid YAML)
+    yaml = [f"path: {quote(out.resolve())}", "train: train/images", "val: val/images", "test: test/images",
+            "names:"] + [f"  {i}: {quote(name)}" for i, name in enumerate(names)]
     (out / "data.yaml").write_text("\n".join(yaml) + "\n", encoding="utf-8")
     print(f"train {len(parts['train'])}, val {len(parts['val'])}, test {len(parts['test'])} "
-          f"({label_kind(labels)}) -> {out / 'data.yaml'}")
+          f"({n_clean} clean) ({label_kind(labels)}) -> {out / 'data.yaml'}")
     print(f"Fill in the level column of {out / 'test' / 'labels.csv'} for the level score.")
+
+
+def check_base(kind, task, base):
+    """Stop before training when the labels cannot train this base model. Uses the model's own
+    task, not its file name: a Hugging Face segmentation model can be called best.pt."""
+    if task not in ("detect", "segment"):
+        raise SystemExit(f"{base} is a {task} model; use a detection or segmentation model")
+    if kind == "boxes" and task == "segment":
+        raise SystemExit(f"the labels are boxes but {base} is a segmentation model; use a detection base: "
+                         "python tools/download_model.py --stock yolov8s.pt, then --base models/yolov8s.pt")
+    if kind == "polygons" and task == "detect":
+        print(f"note: {base} is a detection model, so the polygons are trained as boxes")
 
 
 def train(args):
@@ -80,13 +113,11 @@ def train(args):
     except ImportError:
         raise SystemExit("pip install ultralytics (on the GPU machine)")
     data = Path(args.data)
-    kind = label_kind(data.parent / "train" / "labels")
-    is_seg = "-seg" in Path(args.base).name
-    if (kind == "polygons") != is_seg:
-        raise SystemExit(f"the labels are {kind} but {args.base} is a "
-                         f"{'segmentation' if is_seg else 'detection'} model; see the top of this file")
-
-    model = YOLO(args.base)
+    base = Path(args.base)
+    if base.suffix == ".pt" and not base.is_file():   # else ultralytics quietly fetches a stock model of that name
+        raise SystemExit(f"no {base}: python tools/download_model.py --trash (or --stock yolov8s.pt)")
+    model = YOLO(str(base))
+    check_base(label_kind(data.parent / "train" / "labels"), model.task, base)
     model.train(data=str(data), epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
                 patience=args.patience, project=str(ROOT / "runs"), name=args.name, exist_ok=True, seed=0)
     best = Path(model.trainer.best)
@@ -96,8 +127,10 @@ def train(args):
     print("saved", target)
 
     has_test = any((data.parent / "test" / "images").glob("*"))
-    metrics = YOLO(str(target)).val(data=str(data), split="test" if has_test else "val")
-    print(f"mAP50 {metrics.box.map50:.3f}  mAP50-95 {metrics.box.map:.3f}  "
+    metrics = YOLO(str(target)).val(data=str(data), split="test" if has_test else "val",
+                                    project=str(ROOT / "runs"), name=f"{args.name}_test", exist_ok=True)
+    masks = f"  masks mAP50 {metrics.seg.map50:.3f}" if hasattr(metrics, "seg") else ""
+    print(f"mAP50 {metrics.box.map50:.3f}  mAP50-95 {metrics.box.map:.3f}{masks}  "
           f"({'held-out test photos' if has_test else 'validation photos'})")
     print(f"Use it: MODEL_PATH=models/{target.name} LITTER_CLASSES=* python run.py")
 

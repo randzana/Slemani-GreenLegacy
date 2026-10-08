@@ -1,7 +1,8 @@
 """Download a YOLOv8 model into backend/models/.
 
-    python tools/download_model.py            # stock yolov8n.pt (COCO: bottles, cups... the fallback)
-    python tools/download_model.py --trash    # the public trash model from Hugging Face
+    python tools/download_model.py                     # stock yolov8n.pt (COCO: bottles, cups... the fallback)
+    python tools/download_model.py --trash             # the public trash model from Hugging Face
+    python tools/download_model.py --stock yolov8s.pt  # base for fine-tuning on box labels (tools/train.py)
 
 The trash model is turhancan97/yolov8-segment-trash-detection (YOLOv8 segmentation, MIT licence,
 tagged TACO / TrashNet / COCO). Name it and TACO (CC BY 4.0) on the slides. Then start the server with
@@ -14,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 MODELS = Path(__file__).resolve().parent.parent / "models"
-STOCK_URL = "https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt"
+STOCK_RELEASE = "https://github.com/ultralytics/assets/releases/download/v8.2.0"
 TRASH_REPO = "turhancan97/yolov8-segment-trash-detection"
 
 
@@ -25,7 +26,11 @@ def fetch(url, target):
     MODELS.mkdir(exist_ok=True)
     print("downloading", url)
     partial = target.with_suffix(".part")
-    urllib.request.urlretrieve(url, partial)
+    try:
+        urllib.request.urlretrieve(url, partial)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
     partial.rename(target)
     print("saved", target, target.stat().st_size // 1024, "KB")
     return target
@@ -42,15 +47,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--trash", action="store_true", help="download the Hugging Face trash model")
     parser.add_argument("--repo", default=TRASH_REPO, help="Hugging Face repo for --trash")
+    parser.add_argument("--stock", default="yolov8n.pt", help="stock ultralytics model, e.g. yolov8s.pt")
     args = parser.parse_args()
 
-    if not args.trash:
-        fetch(STOCK_URL, MODELS / "yolov8n.pt")
-        return
-    files = trash_files(args.repo)
-    if not files:
-        raise SystemExit(f"no .pt file in {args.repo}")
-    target = fetch(f"https://huggingface.co/{args.repo}/resolve/main/{files[0]}", MODELS / Path(files[0]).name)
+    try:
+        if not args.trash:
+            fetch(f"{STOCK_RELEASE}/{args.stock}", MODELS / args.stock)
+            return
+        files = trash_files(args.repo)
+        if not files:
+            raise SystemExit(f"no .pt file in {args.repo}")
+        target = fetch(f"https://huggingface.co/{args.repo}/resolve/main/{files[0]}", MODELS / Path(files[0]).name)
+    except OSError as exc:                      # URLError / HTTPError: no internet, or the host is blocked
+        raise SystemExit(f"download failed: {exc}\nIf this network blocks the host, run it on Colab and "
+                         f"copy the .pt file into {MODELS}")
     print(f"\nStart the server with:\n  MODEL_PATH=models/{target.name} LITTER_CLASSES=* python run.py")
 
 

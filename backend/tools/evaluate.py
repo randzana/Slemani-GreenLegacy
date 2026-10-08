@@ -104,7 +104,7 @@ def main():
     parser.add_argument("folder")
     parser.add_argument("--model", action="append", help="a .pt file; repeat to compare models")
     parser.add_argument("--classes", default=None,
-                        help="litter classes (default: * with --model, else LITTER_CLASSES)")
+                        help="litter classes for every --model (default: * with --model, else LITTER_CLASSES)")
     parser.add_argument("--detector", choices=["yolo", "colorblob"], default=os.environ.get("DETECTOR_KIND", "yolo"))
     parser.add_argument("--suggest-bands", action="store_true")
     parser.add_argument("--csv", help="write every photo's result here")
@@ -121,7 +121,14 @@ def main():
         detectors = {Path(Config.MODEL_PATH).name: YoloDetector(Config.MODEL_PATH, args.classes or Config.LITTER_CLASSES,
                                                                  Config.DETECT_CONFIDENCE)}
 
-    results = {name: run(det, rows, bands) for name, det in detectors.items()}
+    results = {}
+    for name, det in detectors.items():
+        try:
+            results[name] = run(det, rows, bands)
+        except (OSError, ValueError) as exc:          # missing model or photo, or no class matches
+            hint = ("\n--classes applies to every --model: compare a COCO model and a litter model in two runs"
+                    if args.classes and len(detectors) > 1 else "")
+            raise SystemExit(f"{name}: {exc}{hint}")
     print(f"\n{len(rows)} photos from {args.folder}, level bands {','.join(map(str, bands))}\n")
     print(table({name: score(res) for name, res in results.items()}))
 

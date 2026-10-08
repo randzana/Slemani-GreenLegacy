@@ -6,6 +6,7 @@ ColorBlobDetector — counts bright red blobs. Only for automated tests and for 
                    flow with red paper "litter" when no model is available. Never for the demo.
 """
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -50,10 +51,18 @@ class YoloDetector:
 
     def _model_once(self):
         if self._model is None:
+            # ultralytics quietly downloads a missing file that has a stock name, and the trash
+            # model's yolov8m-seg.pt is one: we would get the COCO model and count people as litter.
+            if not Path(self.model_path).is_file():
+                raise FileNotFoundError(f"no model file at {self.model_path}")
             from ultralytics import YOLO   # imported lazily: heavy, and tests may not need it
             model = YOLO(self.model_path)
             if self.litter is not None:
                 self._class_ids = [i for i, n in model.names.items() if n in self.litter]
+                if not self._class_ids:      # else every report is "no litter", with no error
+                    raise ValueError(f"no LITTER_CLASSES name is a class of this model "
+                                     f"(it has: {', '.join(list(model.names.values())[:12])}); "
+                                     f"use LITTER_CLASSES=* for a litter model")
             self._model = model
         return self._model
 
