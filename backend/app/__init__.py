@@ -5,22 +5,25 @@ on a laptop. The municipality dashboard is served from /dashboard by the same pr
 """
 from flask import Flask, jsonify, send_from_directory
 
+from .ai.describe import make_describer
 from .ai.detector import make_detector
 from .config import Config
 from .db import close_db
 
 
-def create_app(overrides=None, detector=None):
+def create_app(overrides=None, detector=None, describer=None):
     app = Flask(__name__)
     app.config.from_object(Config)
     if overrides:
         app.config.update(overrides)
     app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
     app.detector = detector or make_detector(app.config)
+    app.describer = describer if describer is not None else make_describer(app.config)
 
-    from . import admin, auth, routes, simulator
+    from . import admin, auth, rewards, routes, simulator
     app.register_blueprint(auth.bp)
     app.register_blueprint(routes.bp)
+    app.register_blueprint(rewards.bp)
     app.register_blueprint(admin.bp)
     app.register_blueprint(simulator.bp)
     app.teardown_appcontext(close_db)

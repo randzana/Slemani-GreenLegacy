@@ -43,6 +43,9 @@ class Config:
     MIN_FRAMES = _int("MIN_FRAMES", 4)
     MAX_FRAMES = _int("MAX_FRAMES", 16)
     QR_PREFIX = os.environ.get("QR_PREFIX", "GL-BIN")
+    # Dirtiness: a litter count up to each limit gives level 1, 2, 3, 4; above the last is 5.
+    # Tune on day two with tools/evaluate.py --suggest-bands on the 50 Slemani test photos.
+    LEVEL_COUNT_BANDS = tuple(int(v) for v in os.environ.get("LEVEL_COUNT_BANDS", "2,5,10,20").split(","))
 
     # Points (starting values from the build plan)
     REPORT_POINTS = {1: 5, 2: 8, 3: 11, 4: 15, 5: 20}
@@ -52,6 +55,23 @@ class Config:
     HOLD_HOURS = _int("HOLD_HOURS", 24)
     IMMEDIATE_SHARE = _float("IMMEDIATE_SHARE", 0.2)
     SELF_CLEANUP_BLOCK_HOURS = _int("SELF_CLEANUP_BLOCK_HOURS", 24)
+    # Daily tasks: code -> (how many today, bonus points). The bonus is held HOLD_HOURS like the
+    # rest and stays below a cleanup's points, so tasks never pay more than the work itself.
+    DAILY_TASKS = {"report": (1, 3), "confirm": (1, 2), "cleanup": (1, 10)}
+    # Points shop: reward code -> cost in released points. Names are in strings.py. These are
+    # demo rewards; agree the real ones (and who honours the vouchers) with the municipality.
+    REWARDS = {"cloth_bag": 40, "bus_ticket": 50, "park_coffee": 80, "tree": 150}
+    # Trust score: how each outcome moves the person's users.trust_level. Shown to reviewers.
+    TRUST_DELTAS = {"verified": 1, "approved_by_staff": 1, "report_confirmed": 1,
+                    "rejected_by_staff": -2, "reused_media": -2, "static_frames": -1,
+                    "instruction_not_followed": -1}
+
+    # Kurdish description of each report photo. A template sentence is always written (works with
+    # no internet); with DESCRIBE_WITH_CLAUDE=1 and an Anthropic API key, a vision model rewrites it
+    # in the background. Photos then leave the laptop, so keep it off unless that is agreed.
+    DESCRIBE_WITH_CLAUDE = os.environ.get("DESCRIBE_WITH_CLAUDE", "0") == "1"
+    DESCRIBE_MODEL = os.environ.get("DESCRIBE_MODEL", "claude-opus-5-5")
+    DESCRIBE_TIMEOUT = _float("DESCRIBE_TIMEOUT", 30)
 
     # Map centre for clients
     MAP_CENTER = (35.5613, 45.4373)   # Slemani (lat, lon)

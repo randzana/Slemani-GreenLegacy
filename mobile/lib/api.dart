@@ -158,6 +158,17 @@ class Api {
         return Map<String, dynamic>.from(_decode(res, allowError: true));
       });
 
+  // ---- points shop + daily tasks
+  Future<Map<String, dynamic>> rewards() async => Map<String, dynamic>.from(await _get('/rewards'));
+
+  Future<Map<String, dynamic>> redeem(String code) async =>
+      Map<String, dynamic>.from(await _post('/rewards/$code/redeem'));
+
+  Future<Map<String, dynamic>> tasks() async => Map<String, dynamic>.from(await _get('/tasks'));
+
+  Future<Map<String, dynamic>> claimTask(String code) async =>
+      Map<String, dynamic>.from(await _post('/tasks/$code/claim'));
+
   // ---- people
   Future<Map<String, dynamic>> leaderboard() async =>
       Map<String, dynamic>.from(await _get('/leaderboard'));

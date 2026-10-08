@@ -4,6 +4,8 @@ import '../api.dart';
 import '../data/plant_data.dart';
 import '../strings.dart';
 import '../theme.dart';
+import 'daily_tasks_card.dart';
+import 'rewards_screen.dart';
 import 'spot_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -335,12 +337,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           value: S.digits(pending),
                           icon: Icons.hourglass_top_rounded,
                           color: Colors.deepPurpleAccent,
-                          onTap: () {},
+                          onTap: () => Navigator.of(context)
+                              .push(MaterialPageRoute(builder: (_) => const RewardsScreen()))
+                              .then((_) => widget.refresh.value++),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
+                  DailyTasksCard(refresh: widget.refresh),
 
                   // Digital Garden Preview
                   Row(

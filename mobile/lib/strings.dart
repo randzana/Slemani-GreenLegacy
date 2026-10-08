@@ -73,8 +73,33 @@ class S {
     'report': 'ڕاپۆرت',
     'confirmation': 'پشتڕاستکردنەوە',
     'cleanup': 'پاککردنەوە',
-    'redeem': 'گۆڕینەوە',
+    'task': 'ئەرکی ڕۆژانە',
+    'redeem': 'گۆڕینەوە بە خەڵات',
   };
+  static const rank = 'ڕیزبەندیت';
+  static const hoodRank = 'ڕیزی گەڕەکەکەت';
+  static const trust = 'متمانە';
+  static String rankOf(Object rank, Object total) => '${digits(rank)} لە ${digits(total)}';
+
+  // AI description of the spot
+  static const aiDescription = 'وەسفی زیرەکیی دەستکرد';
+
+  // daily tasks
+  static const dailyTasks = 'ئەرکەکانی ئەمڕۆ';
+  static const claimBonus = 'وەرگرتنی خاڵ';
+  static const bonusClaimed = 'وەرگیرا';
+  static String bonus(Object n) => '+${digits(n)} خاڵ';
+
+  // points shop
+  static const shop = 'فرۆشگای خاڵ';
+  static const shopHint = 'خاڵە ئازادەکانت بگۆڕەوە بە خەڵات';
+  static const balance = 'خاڵی ئازادت';
+  static const redeem = 'گۆڕینەوە';
+  static const notEnough = 'خاڵت بەس نییە';
+  static const myVouchers = 'کۆدەکانم';
+  static const voucherHint = 'ئەم کۆدە بە شارەوانی یان هاوبەشەکە پیشان بدە';
+  static const cancel = 'پاشگەزبوونەوە';
+  static String confirmRedeem(String name, Object cost) => '«$name» بە ${digits(cost)} خاڵ وەردەگریت؟';
   static const statuses = {'pending': 'چاوەڕوان', 'released': 'ئازاد', 'revoked': 'هەڵوەشێنرایەوە'};
 
   // errors

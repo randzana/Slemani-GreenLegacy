@@ -4,6 +4,7 @@ import '../api.dart';
 import '../strings.dart';
 import '../theme.dart';
 import 'auth_screen.dart';
+import 'rewards_screen.dart';
 
 /// Profile: user info, eco stat boxes, earned badges, points history, and logout.
 class ProfileScreen extends StatefulWidget {
@@ -80,6 +81,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final released = (me['released'] as num?)?.toInt() ?? 0;
           final pending = (me['pending'] as num?)?.toInt() ?? 0;
           final history = List<Map<String, dynamic>>.from(me['history'] ?? []);
+          final rank = me['rank'];
+          final hoodRank = me['neighbourhood_rank'];
 
           return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -168,6 +171,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+
+                // League place, trust and the points shop
+                Card(
+                  child: Column(
+                    children: [
+                      if (rank != null)
+                        ListTile(
+                          leading: const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFB300)),
+                          title: const Text(S.rank),
+                          trailing: Text(S.rankOf(rank, me['citizens']),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        ),
+                      if (hoodRank != null)
+                        ListTile(
+                          leading: const Icon(Icons.location_city_rounded, color: Color(0xFF1E88E5)),
+                          title: Text('${S.hoodRank} ($hood)'),
+                          trailing: Text(S.rankOf(hoodRank, me['neighbourhoods']),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.verified_user_rounded, color: kPrimaryGreen),
+                        title: const Text(S.trust),
+                        trailing: Text(S.digits(me['trust_level'] ?? 0),
+                            textDirection: TextDirection.ltr,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.card_giftcard_rounded, color: kPrimaryGreen),
+                        title: const Text(S.shop, style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: const Text(S.shopHint),
+                        trailing: const Icon(Icons.chevron_left_rounded),
+                        onTap: () => Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (_) => const RewardsScreen()))
+                            .then((_) => _reload()),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 26),
 
                 // Earned Badges Section
@@ -232,9 +274,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           leading: CircleAvatar(
                             backgroundColor: (h['status'] == 'revoked' ? kStatusOpen : kPrimaryGreen).withValues(alpha: 0.12),
                             child: Icon(
-                              h['kind'] == 'cleanup'
-                                  ? Icons.cleaning_services_rounded
-                                  : (h['kind'] == 'report' ? Icons.add_a_photo_rounded : Icons.star_rounded),
+                              switch (h['kind']) {
+                                'cleanup' => Icons.cleaning_services_rounded,
+                                'report' => Icons.add_a_photo_rounded,
+                                'redeem' => Icons.card_giftcard_rounded,
+                                _ => Icons.star_rounded,
+                              },
                               color: h['status'] == 'revoked' ? kStatusOpen : kPrimaryGreen,
                               size: 20,
                             ),
@@ -248,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                           ),
                           trailing: Text(
-                            '+${S.digits(h['amount'])} خاڵ',
+                            '${h['kind'] == 'redeem' ? '-' : '+'}${S.digits(h['amount'])} خاڵ',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,

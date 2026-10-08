@@ -28,7 +28,46 @@ REASONS = {
     "phone_taken": "ئەم ژمارە مۆبایلە پێشتر تۆمار کراوە",
     "bad_login": "ژمارە یان وشەی نهێنی هەڵەیە",
     "missing_fields": "هەموو خانەکان پڕ بکەرەوە",
+    # points shop + daily tasks
+    "unknown_reward": "ئەم خەڵاتە بوونی نییە",
+    "not_enough_points": "خاڵی ئازادت بەس نییە بۆ ئەم خەڵاتە",
+    "redeemed": "خەڵاتەکە وەرگیرا! کۆدەکە بە شارەوانی یان هاوبەشەکە پیشان بدە",
+    "unknown_task": "ئەم ئەرکە بوونی نییە",
+    "task_not_done": "ئەم ئەرکە هێشتا تەواو نەبووە",
+    "task_already_claimed": "خەڵاتی ئەم ئەرکەت ئەمڕۆ وەرگرتووە",
+    "task_claimed": "دەستخۆش! خاڵی ئەرکەکە دوای ٢٤ کاتژمێر ئازاد دەبێت",
 }
+
+# Points shop: names and one-line descriptions (costs are in config.REWARDS)
+REWARDS = {
+    "cloth_bag": ("جانتای قوماش", "جانتایەکی قوماشی بۆ بازاڕکردن، لە جیاتی نایلۆن"),
+    "bus_ticket": ("بلیتی پاس", "سەفەرێکی بێبەرامبەر بە پاسی ناو شار"),
+    "park_coffee": ("قاوە لە پارک", "قاوەیەک لە کافێی پارکی ئازادی"),
+    "tree": ("دارێک بە ناوی تۆ", "شارەوانی دارێک بە ناوی تۆ دەڕوێنێت"),
+}
+
+# Daily tasks: title shown in the app (targets and bonus are in config.DAILY_TASKS)
+TASKS = {
+    "report": "ڕاپۆرتی شوێنێکی پیس بکە",
+    "confirm": "ڕاپۆرتی کەسێکی تر پشتڕاست بکەرەوە",
+    "cleanup": "شوێنێک پاک بکەرەوە و بیسەلمێنە",
+}
+
+# Litter class names (YOLO / TACO / COCO) for the offline Kurdish description
+CLASS_NAMES = {
+    "bottle": "بوتڵ", "plastic bottle": "بوتڵی پلاستیک", "glass bottle": "بوتڵی شووشە",
+    "cup": "کوپ", "paper cup": "کوپی کاغەز", "can": "قوتوو", "drink can": "قوتووی خواردنەوە",
+    "plastic bag": "نایلۆن", "plastic bag & wrapper": "نایلۆن و بەرگ", "bag": "نایلۆن",
+    "carton": "کارتۆن", "cardboard": "کارتۆن", "paper": "کاغەز", "plastic": "پلاستیک",
+    "metal": "کانزا", "glass": "شووشە", "trash": "زبڵ", "cigarette": "جگەرە",
+    "lid": "سەرقاپ", "bottle cap": "سەرقاپ", "straw": "قامیش", "styrofoam piece": "فلین",
+    "wrapper": "بەرگ", "food": "پاشماوەی خواردن", "banana": "توێکڵی مۆز", "apple": "سێو",
+    "orange": "پرتەقاڵ", "wine glass": "پەرداخ", "bowl": "قاپ", "fork": "چەتاڵ", "knife": "چەقۆ",
+    "spoon": "کەوچک", "sandwich": "ساندویچ", "pizza": "پیتزا", "donut": "دۆنات",
+    "red_item": "پارچەی سوور",
+}
+
+LEVEL_WORDS = {1: "کەم", 2: "مامناوەند", 3: "زۆر", 4: "زۆر زۆر", 5: "یەکجار پیس"}
 
 INSTRUCTIONS = {
     "qr_first": "سەرەتا کۆدی QR ی زبڵدانەکە نیشان بدە، پاشان شوێنە پاککراوەکە",

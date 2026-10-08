@@ -6,6 +6,7 @@ import '../main.dart';
 import '../strings.dart';
 import '../theme.dart';
 import 'camera_box.dart';
+import 'spot_detail_screen.dart' show AiDescription;
 
 /// Report: take a photo in the app, the AI counts the litter and scores the spot 1-5.
 class ReportScreen extends StatefulWidget {
@@ -218,6 +219,7 @@ class _ResultCard extends StatelessWidget {
                 ],
               ),
             ),
+            AiDescription(report['description']?.toString()),
             const SizedBox(height: 16),
             if (message != null) ...[
               Container(

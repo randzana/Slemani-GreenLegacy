@@ -14,18 +14,25 @@ AI دەیسەلمێنێت ← شوێنەکە سەوز دەبێت و خاڵ دە�
 ```
 backend/                 Flask API + YOLOv8 + PostgreSQL/PostGIS (یەک پرۆسە، لەسەر لاپتۆپ)
   app/
-    routes.py            ڕاپۆرت، claim، cleanup، leaderboard، me
+    routes.py            ڕاپۆرت، claim، cleanup، leaderboard، me (ڕیزبەندی و متمانەش)
+    rewards.py           فرۆشگای خاڵ و ئەرکی ڕۆژانە
     admin.py             کۆتاییەکانی شارەوانی + لاپەڕەی داشبۆرد
-    points.py            یاساکانی خاڵ (ledger، ٢٤ کاتژمێر ڕاگرتن، سنووری ڕۆژانە)
+    points.py            یاساکانی خاڵ (ledger، ٢٤ کاتژمێر ڕاگرتن، سنووری ڕۆژانە، متمانە، ڕیزبەندی)
     ai/detector.py       YOLOv8 (و ColorBlobDetector تەنها بۆ تاقیکردنەوە)
     ai/verify.py         زنجیرەی سەلماندن: ڤیدیۆی ڕاستەقینە ← QR ← هەمان شوێن ← پاشماوە نەماوە
+    ai/describe.py       وەسفی کوردیی وێنەی ڕاپۆرت (قاڵب بێ ئینتەرنێت؛ Claude بە ئارەزوو)
     simulator.py         کامێرای ساختە بۆ سیمولەیتەر (تەنها لەگەڵ colorblob)
     strings.py           هەموو دەقە کوردییەکان
     templates/dashboard.html   داشبۆردی شارەوانی (نەخشە، ئەولەویەت، تۆمار، پشکنین)
   schema.sql             شەش خشتە
-  tests/                 ٢٣ تاقیکردنەوە بەسەر PostGIS ی ڕاستەقینەدا
+  migrations/            بۆ داتابەیسێکی کۆن بێ سڕینەوەی داتا
+  tests/                 ٣٤ تاقیکردنەوە بەسەر PostGIS ی ڕاستەقینەدا
   tools/rehearse.py      هەموو خولەکە لەسەر سێرڤەرێکی کاراوە تاقی دەکاتەوە
   tools/make_qr_stickers.py  ستیکەری QR بۆ زبڵدانەکان چاپ دەکات
+  tools/download_model.py    yolov8n یان مۆدێلی گشتیی پاشماوە (--trash) دادەبەزێنێت
+  tools/train.py         دابەشکردنی وێنەکان و ڕاهێنانی مۆدێل لەسەر وێنەی سلێمانی (Colab/Kaggle)
+  tools/evaluate.py      هەڵسەنگاندنی مۆدێل لەسەر ٥٠ وێنەی تاقیکردنەوە + پێشنیاری پلەکانی پیسی
+  tools/fraud_bench.py   ٢٠ هەوڵی ڕاستەقینە و فێڵ بە زنجیرەی سەلماندندا؛ خشتە بۆ سلایدەکان
 mobile/                  ئەپی Flutter ی هاوڵاتی (کوردی، ڕاست بۆ چەپ)
 ```
 
@@ -61,6 +68,15 @@ python run.py                         # http://0.0.0.0:5000
 | `CLEANUP_RADIUS_M` | 50 | دووری ڕێگەپێدراو لە ڕاپۆرتەکە |
 | `SAME_PLACE_MIN_INLIERS` | 20 | خاڵی ORB بۆ «هەمان شوێن» |
 | `HASH_MAX_DISTANCE` | 6 | بیتی pHash بۆ «وێنەی دووبارە» |
+| `LEVEL_COUNT_BANDS` | `2,5,10,20` | سنووری ژمارەی پاشماوە بۆ پلەی ١، ٢، ٣، ٤ (زیاتر = ٥) |
+| `DESCRIBE_WITH_CLAUDE` | `0` | `1` = Claude وێنەکە دەبینێت و وەسفی کوردی دەنووسێت (پێویستی بە `ANTHROPIC_API_KEY` و ئینتەرنێتە) |
+| `DESCRIBE_MODEL` | `claude-opus-5-5` | مۆدێلی وەسفکردن |
+
+⚠️ بنەڕەتی `DATABASE_URL` لە `app/config.py` پۆرتی `5433` ە، بەڵام فەرمانەکانی سەرەوە و تاقیکردنەوەکان `5432` بەکاردێنن.
+ئەگەر PostgreSQL ەکەت لەسەر 5432 ە: `export DATABASE_URL=postgresql://gl:gl@localhost:5432/greenlegacy`
+
+داتابەیسێکی کۆنت هەیە و ناتەوێت بیسڕیتەوە؟ لە جیاتی `seed.py`:
+`psql "$DATABASE_URL" -f migrations/001_shop_tasks_description.sql`
 
 ## ٢. تاقیکردنەوەکان
 
@@ -109,7 +125,8 @@ cd mobile && python3 setup_ios.py && flutter pub get && flutter run   # پەنج
 یان ڕێگە نادات بگاتە سێرڤەر. لە شاشەی چوونەژوورەوە: `http://localhost:5000` (ئیمولەیتەری ئەندرۆید: `http://10.0.2.2:5000`).
 ڕاپۆرت بکە، پاشان بە هەژمارێکی تر پاکی بکەرەوە: فریمەکان هەمان شوێنن بێ پاشماوە و بە ڕێنماییەکە، بۆیە دەسەلمێنرێت.
 
-⚠️ `flutter analyze` بێ هەڵە تێدەپەڕێت، بەڵام ئەپەکە هێشتا لەسەر مۆبایل یان سیمولەیتەر تاقی نەکراوەتەوە.
+⚠️ `flutter analyze` بێ هەڵە تێدەپەڕێت، و شاشە نوێکان (ئەرکی ڕۆژانە، فرۆشگا، ڕیزبەندی، وەسف) لە build ی web دا
+بینراون، بەڵام ئەپەکە هێشتا لەسەر مۆبایلی ڕاستەقینە تاقی نەکراوەتەوە.
 
 ## ٥. شتەکانی پێویستە بە وێنەی ڕاستەقینە ڕێکبخرێن
 
@@ -119,7 +136,62 @@ cd mobile && python3 setup_ios.py && flutter pub get && flutter run   # پەنج
 - **هەمان شوێن:** `SAME_PLACE_MIN_INLIERS=20` لەسەر وێنەی دروستکراو تاقی کراوەتەوە، نەک لەسەر شەقامی ڕاستەقینە.
 - **QR:** ستیکەرەکان بە `python tools/make_qr_stickers.py 12` چاپ بکەن و لە ٣٠–٥٠ سم تاقی بکەنەوە.
 
-## ٦. چی فێربوون (لەم ڕاهێنانەدا دۆزرانەوە)
+## ٦. مۆدێل: دابەزاندن، ڕاهێنان، هەڵسەنگاندن
+
+```bash
+cd backend
+python tools/download_model.py --trash          # turhancan97/yolov8-segment-trash-detection (MIT)
+MODEL_PATH=models/yolov8m-seg.pt LITTER_CLASSES=* python run.py
+
+# ئێوارەی ڕۆژی یەکەم: وێنەکانی سلێمانی بە YOLO format هەناردە بکە (Label Studio / CVAT / Roboflow)
+python tools/train.py split --images export/images --labels export/labels \
+    --classes export/classes.txt --out datasets/slemani --test 50
+# لەسەر Colab/Kaggle (GPU):  pip install ultralytics
+python tools/train.py train --data datasets/slemani/data.yaml --base models/yolov8m-seg.pt
+
+# بەراوردکردن: ئەگەر مۆدێلی ڕاهێنراو باشتر نەبوو، گشتییەکە بەکاربهێنە
+python tools/evaluate.py datasets/slemani/test --model models/yolov8m-seg.pt --model models/slemani.pt
+# پلەکانی پیسی: ستوونی level لە datasets/slemani/test/labels.csv بە دەست پڕ بکەرەوە
+python tools/evaluate.py datasets/slemani/test --model models/slemani.pt --suggest-bands
+```
+
+`--base` دەبێت لەگەڵ جۆری لەیبڵەکان بگونجێت: polygon ← مۆدێلی `-seg`؛ box ← `yolov8s.pt`.
+ناوی مۆدێلەکە و TACO (CC BY 4.0) لە سلایدەکاندا بهێنن.
+
+## ٧. تاقیکردنەوەی فێڵ (fraud bench)
+
+```bash
+python tools/fraud_bench.py                     # ٢٠ هەوڵ لەسەر داتابەیسی test (دەیسڕێتەوە)
+python tools/fraud_bench.py --from-db           # هەوڵە ڕاستەقینەکان لەسەر سێرڤەری کاراوە (تەنها خوێندنەوە)
+SAME_PLACE_MIN_INLIERS=15 python tools/fraud_bench.py --from-db --rerun   # ڕێکخستنی نوێ لەسەر هەمان فریمەکان
+```
+
+ئەنجامی ئێستا (وێنەی دروستکراو): ٤/٤ پاککردنەوەی ڕاستەقینە سەلمێنران؛ ٠/١٦ فێڵ خاڵی وەرگرت
+(١٤ ڕەتکرانەوە، ٢ چوونە پشکنینی مرۆیی). بۆ «٢٠ ڤیدیۆی ساختە»ی ڕۆژی دووەم، هەوڵەکان بە ئەپی ڕاستەقینە بکەن و
+پاشان `--from-db` خشتەکە دەدات.
+
+## ٨. فرۆشگای خاڵ، ئەرکی ڕۆژانە، وەسفی کوردی، متمانە
+
+ئەمانە یەکەم شتن کە کاتی کەم بوو لادەبرێن (پلانی دروستکردن)، بۆیە لە `rewards.py` ی جیادان و هیچ شتێکی تر پشتیان پێ نابەستێت.
+
+| Endpoint | کێ | چی دەکات |
+| --- | --- | --- |
+| `GET /rewards` | ئەپ | خەڵاتەکان، خاڵی ئازاد و کۆدەکانی پێشووت |
+| `POST /rewards/<code>/redeem` | ئەپ | خاڵی ئازاد دەگۆڕێتەوە بە کۆدێک (`GL-XXXXXX`)؛ دوو داواکاریی هاوکات هەمان خاڵ دووجار خەرج ناکەن |
+| `GET /tasks` | ئەپ | سێ ئەرکی ئەمڕۆ: ڕاپۆرت، پشتڕاستکردنەوە، پاککردنەوەی سەلمێنراو |
+| `POST /tasks/<code>/claim` | ئەپ | خاڵی ئەرکێکی تەواوبوو، ڕۆژی یەک جار، دوای ٢٤ کاتژمێر ئازاد دەبێت |
+| `GET /admin/redemptions` | داشبۆرد | کۆدەکان بۆ ئەوەی شارەوانی بیانپشکنێت |
+
+- `GET /me` ئێستا `rank`، `neighbourhood_rank` و `trust_level` یش دەگەڕێنێتەوە.
+- خەرجکردنی خاڵ ڕیزی لیگ کەم ناکاتەوە (لیگ خاڵی بەدەستهاتوو دەژمێرێت).
+- خەڵاتەکان (`config.REWARDS`) نموونەن؛ خەڵاتی ڕاستەقینە و کێ کۆدەکان قبووڵ دەکات لەگەڵ شارەوانی ڕێکبخەن.
+- متمانە: پاککردنەوەی سەلمێنراو +١، ڕاپۆرتی پشتڕاستکراو +١، ڤیدیۆی دووبارە −٢، ڕەتکردنەوەی شارەوانی −٢ (`TRUST_DELTAS`).
+  لە کارتی پشکنینی داشبۆرددا دەردەکەوێت.
+- وەسفی کوردی: هەمیشە ڕستەیەکی قاڵب لە ژمارەکانی YOLO؛ بە `DESCRIBE_WITH_CLAUDE=1` Claude لە پشتەوە وێنەکە دەبینێت و
+  ڕستەکە دەگۆڕێت (ئەپ چاوەڕێ ناکات؛ ئەگەر ئینتەرنێت نەبوو قاڵبەکە دەمێنێتەوە). وێنەکان دەچنە دەرەوەی لاپتۆپ،
+  بۆیە تەنها کاتێک بیکەنەوە کە ئەمە ڕێککەوتراوە.
+
+## ٩. چی فێربوون (لەم ڕاهێنانەدا دۆزرانەوە)
 
 - وێنەی «دوا»ی هەمان شوێن زۆر لە وێنەی «پێش» دەچێت؛ پشکنینی دووبارە دەبێت وێنەکانی هەمان ڕاپۆرت لاببات.
 - ستیکەری QR ی هەمان زبڵدان لە هەموو پاککردنەوەیەکدا یەکسانە؛ تەنها فریمەکانی شوێنەکە بۆ دووبارە بپشکنن.

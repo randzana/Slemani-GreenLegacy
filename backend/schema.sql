@@ -32,6 +32,8 @@ CREATE TABLE reports (
     litter_classes     JSONB NOT NULL DEFAULT '{}'::jsonb,
     coverage           REAL NOT NULL DEFAULT 0,    -- share of the image covered by litter boxes
     dirtiness          INTEGER NOT NULL CHECK (dirtiness BETWEEN 1 AND 5),
+    description        TEXT,                       -- plain Kurdish summary for crews (app/ai/describe.py)
+    description_source TEXT,                       -- 'template' (offline) or 'claude' (vision model)
     status             TEXT NOT NULL DEFAULT 'open'
                        CHECK (status IN ('open', 'in_progress', 'clean', 'needs_review', 'confirmation')),
     confirms_report_id INTEGER REFERENCES reports(id),   -- set when this row only confirms an earlier report
@@ -76,11 +78,14 @@ CREATE TABLE point_ledger (
     id          SERIAL PRIMARY KEY,
     user_id     INTEGER NOT NULL REFERENCES users(id),
     amount      INTEGER NOT NULL,
-    kind        TEXT NOT NULL CHECK (kind IN ('report', 'confirmation', 'cleanup', 'redeem')),
+    kind        TEXT NOT NULL CHECK (kind IN ('report', 'confirmation', 'cleanup', 'task', 'redeem')),
     status      TEXT NOT NULL CHECK (status IN ('pending', 'released', 'revoked')),
     report_id   INTEGER REFERENCES reports(id),
     cleanup_id  INTEGER REFERENCES cleanups(id),
     release_at  TIMESTAMPTZ,                       -- NULL = waits for an event (confirmation, review)
+    detail      TEXT,                              -- task: 'task:<code>:<day>'; redeem: reward code + voucher
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX point_ledger_user_idx ON point_ledger (user_id);
+-- a daily task bonus can be claimed once per person per day
+CREATE UNIQUE INDEX point_ledger_task_once ON point_ledger (user_id, detail) WHERE kind = 'task';

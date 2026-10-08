@@ -62,6 +62,10 @@
   #login input { font: inherit; padding: 10px; border-radius: 10px; border: 1px solid var(--line); direction: ltr; text-align: right; }
   #login .error { color: var(--red); min-height: 1.4em; }
   .actions { display: flex; gap: 8px; margin-top: 8px; }
+  .desc { white-space: normal; min-width: 220px; max-width: 360px; color: var(--soft); font-size: 13px; }
+  .trust { font-size: 12px; border-radius: 999px; padding: 1px 8px; background: var(--paper-2); color: var(--soft); }
+  .trust.low { background: #F6E1E1; color: var(--red); }
+  .voucher { font-family: ui-monospace, Menlo, Consolas, monospace; direction: ltr; display: inline-block; }
 </style>
 </head>
 <body>
@@ -91,6 +95,7 @@
     <button role="tab" aria-selected="false" data-tab="priority">لیستی ئەولەویەت</button>
     <button role="tab" aria-selected="false" data-tab="log">تۆماری پاککردنەوە</button>
     <button role="tab" aria-selected="false" data-tab="review">پشکنین<span class="badge" id="review-count">٠</span></button>
+    <button role="tab" aria-selected="false" data-tab="vouchers">خەڵاتەکان</button>
   </nav>
 
   <section class="panel active" id="panel-map">
@@ -100,6 +105,7 @@
   <section class="panel" id="panel-priority"><div id="priority"></div></section>
   <section class="panel" id="panel-log"><div id="log"></div></section>
   <section class="panel" id="panel-review"><div id="review"></div></section>
+  <section class="panel" id="panel-vouchers"><div id="vouchers"></div></section>
 </main>
 
 <script src="/static/leaflet/leaflet.js"></script>
@@ -108,6 +114,7 @@ const LEVEL_COLOURS = ['#E9C46A', '#E0A030', '#D9822B', '#C4532F', '#9E2A2B'];
 const STATUS = { open: 'کراوە', in_progress: 'لە پاککردنەوەدایە', needs_review: 'چاوەڕوانی پشکنین', clean: 'پاککراوە' };
 const VERDICT = { verified: 'سەلمێنرا', review: 'پشکنین', rejected: 'ڕەتکرایەوە' };
 const toKu = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + toKu(Math.abs(n || 0));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 let token = null;
@@ -171,7 +178,8 @@ async function loadMap() {
       radius: clean ? 7 : 6 + s.dirtiness * 2, weight: 2, color: '#fff',
       fillColor: clean ? '#1E7A4A' : LEVEL_COLOURS[s.dirtiness - 1], fillOpacity: .9,
     }).bindPopup(`<div dir="rtl"><img src="${esc(s.photo_url)}" style="width:180px;border-radius:8px"><br>
-      پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}</div>`)
+      پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}
+      ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`)
       .addTo(layer);
   }
   if (!fitted && spots.length) {
@@ -186,11 +194,12 @@ async function loadPriority() {
   const box = document.getElementById('priority');
   if (!rows.length) { box.innerHTML = '<div class="empty">هیچ شوێنێکی کراوە نییە</div>'; return; }
   box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>ڕیز</th><th>وێنە</th><th>پیسی</th><th>پاشماوە</th>
-    <th>تەمەن</th><th>پشتڕاستکردنەوە</th><th>دۆخ</th></tr></thead><tbody>` +
+    <th>تەمەن</th><th>پشتڕاستکردنەوە</th><th>دۆخ</th><th>وەسف</th></tr></thead><tbody>` +
     rows.map((r, i) => `<tr><td>${toKu(i + 1)}</td><td><img src="${esc(r.photo_url)}" alt=""></td>
       <td>${levelPill(r.dirtiness)}</td><td>${toKu(r.litter_count)}</td>
       <td>${toKu(Math.round(r.age_hours))} کاتژمێر</td><td>${toKu(r.confirmations)}</td>
-      <td>${STATUS[r.status] || esc(r.status)}</td></tr>`).join('') + '</tbody></table></div>';
+      <td>${STATUS[r.status] || esc(r.status)}</td><td class="desc">${esc(r.description)}</td></tr>`).join('') +
+    '</tbody></table></div>';
 }
 
 // ---- cleanup log and review queue: before and after side by side
@@ -199,7 +208,8 @@ function cleanupCard(c, withActions) {
   const after = c.litter_count_after == null ? '—' : toKu(c.litter_count_after);
   return `<article class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <strong>شوێنی ${toKu(c.report_id)} · ${esc(c.cleaner)}</strong>
+      <strong>شوێنی ${toKu(c.report_id)} · ${esc(c.cleaner)}
+        <span class="trust ${c.cleaner_trust < 0 ? 'low' : ''}" title="متمانەی پاککەرەوە">متمانە ${signed(c.cleaner_trust)}</span></strong>
       <span class="verdict ${esc(c.verdict)}">${VERDICT[c.verdict] || esc(c.verdict)}</span></div>
     <div class="pair">
       <figure><img src="${esc(c.before_url)}" alt="پێش"><figcaption>پێش · ${toKu(c.litter_count_before ?? 0)} پاشماوە</figcaption></figure>
@@ -236,6 +246,19 @@ document.getElementById('review').addEventListener('click', async e => {
   refresh();
 });
 
+// ---- points shop vouchers, so staff can honour and check them
+async function loadVouchers() {
+  const rows = await api('/admin/redemptions');
+  document.getElementById('vouchers').innerHTML = rows.length
+    ? `<div class="table-wrap"><table><thead><tr><th>کۆد</th><th>خەڵات</th><th>خاڵ</th><th>هاوڵاتی</th>
+        <th>مۆبایل</th><th>کات</th></tr></thead><tbody>` +
+      rows.map(r => `<tr><td><span class="voucher">${esc(r.voucher)}</span></td><td>${esc(r.reward_name)}</td>
+        <td>${toKu(r.cost)}</td><td>${esc(r.name)}</td><td><span class="voucher">${esc(r.phone)}</span></td>
+        <td><span class="voucher">${esc(new Date(r.created_at).toLocaleString('en-GB'))}</span></td></tr>`).join('') +
+      '</tbody></table></div>'
+    : '<div class="empty">هێشتا کەس خەڵاتی وەرنەگرتووە</div>';
+}
+
 // ---- totals
 async function loadStats() {
   const s = await api('/admin/stats');
@@ -247,7 +270,7 @@ async function loadStats() {
 
 async function refresh() {
   if (!token) { showLogin(); return; }
-  try { await Promise.all([loadStats(), loadMap(), loadPriority(), loadLog(), loadReview()]); }
+  try { await Promise.all([loadStats(), loadMap(), loadPriority(), loadLog(), loadReview(), loadVouchers()]); }
   catch (e) { /* the login form opens on auth errors */ }
 }
 

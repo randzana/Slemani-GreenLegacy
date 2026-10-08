@@ -8,7 +8,7 @@ from .db import housekeeping, query
 from .auth import staff_required
 from .routes import REPORT_COLUMNS, report_json
 from .storage import url_of
-from .strings import reason
+from .strings import REWARDS, reason
 
 bp = Blueprint("admin", __name__)
 
@@ -42,7 +42,8 @@ def _cleanup_rows(where, params=()):
         f"""SELECT c.id, c.report_id, c.verdict, c.reason_code, c.reason, c.litter_count_before,
                    c.litter_count_after, c.similarity, c.frame_paths, c.after_frame_path,
                    c.created_at, c.reviewed_at,
-                   r.photo_path AS before_photo, r.dirtiness, u.name AS cleaner
+                   r.photo_path AS before_photo, r.dirtiness, r.description,
+                   u.name AS cleaner, u.trust_level AS cleaner_trust
             FROM cleanups c JOIN reports r ON r.id = c.report_id JOIN users u ON u.id = c.cleaner_id
             WHERE {where} ORDER BY c.created_at DESC LIMIT 200""", params)
     out = []
@@ -85,12 +86,14 @@ def review(cleanup_id):
               (cleanup["report_id"],))
         points.approve_reviewed_cleanup(cleanup_id)
         points.release_report_points(cleanup["report_id"])
+        points.adjust_trust(cleanup["cleaner_id"], "approved_by_staff")
     elif decision == "reject":
         query("""UPDATE cleanups SET verdict = 'rejected', reason_code = 'rejected_by_staff',
                  reason = %s, reviewed_by = %s, reviewed_at = now() WHERE id = %s""",
               (reason("rejected_by_staff"), g.user["id"], cleanup_id))
         query("UPDATE reports SET status = 'open' WHERE id = %s", (cleanup["report_id"],))
         points.revoke_cleanup(cleanup_id)
+        points.adjust_trust(cleanup["cleaner_id"], "rejected_by_staff")
     else:
         return jsonify({"error": "bad_decision"}), 400
     return jsonify({"ok": True, "decision": decision})
@@ -110,3 +113,19 @@ def stats():
                 FROM cleanups WHERE verdict = 'verified') AS litter_removed,
              (SELECT count(*) FROM users WHERE role = 'citizen') AS citizens""",
         one=True))
+
+
+@bp.get("/admin/redemptions")
+@staff_required
+def redemptions():
+    """Vouchers from the points shop, newest first, so staff can honour and check them."""
+    rows = query(
+        """SELECT p.id, p.amount AS cost, p.detail, p.created_at, u.name, u.phone
+           FROM point_ledger p JOIN users u ON u.id = p.user_id
+           WHERE p.kind = 'redeem' ORDER BY p.created_at DESC LIMIT 200""")
+    out = []
+    for r in rows:
+        code, _, voucher = (r.pop("detail") or "").partition(":")
+        out.append({**r, "reward": code, "reward_name": REWARDS.get(code, (code,))[0],
+                    "voucher": voucher, "created_at": r["created_at"].isoformat()})
+    return jsonify(out)

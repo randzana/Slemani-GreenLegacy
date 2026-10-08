@@ -14,16 +14,18 @@ from flask import current_app
 from .db import query
 
 
-def add(user_id, amount, kind, status, report_id=None, cleanup_id=None, release_in_hours=None):
+def add(user_id, amount, kind, status, report_id=None, cleanup_id=None, release_in_hours=None,
+        detail=None):
     if amount <= 0:
         return None
     release_sql = "now() + make_interval(hours => %s)" if release_in_hours is not None else "NULL"
-    params = [user_id, amount, kind, status, report_id, cleanup_id]
+    params = [user_id, amount, kind, status, report_id, cleanup_id, detail]
     if release_in_hours is not None:
         params.append(release_in_hours)
     return query(
-        f"""INSERT INTO point_ledger (user_id, amount, kind, status, report_id, cleanup_id, release_at)
-            VALUES (%s, %s, %s, %s, %s, %s, {release_sql}) RETURNING *""",
+        f"""INSERT INTO point_ledger (user_id, amount, kind, status, report_id, cleanup_id, detail,
+                                      release_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, {release_sql}) RETURNING *""",
         params,
         one=True,
     )
@@ -106,5 +108,38 @@ def balance(user_id):
              COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0) AS pending
            FROM point_ledger WHERE user_id = %s""",
         (user_id,),
+        one=True,
+    )
+
+
+def adjust_trust(user_id, event):
+    """Move the person's trust score by the amount set for this outcome (config.TRUST_DELTAS)."""
+    delta = current_app.config["TRUST_DELTAS"].get(event)
+    if delta:
+        query("UPDATE users SET trust_level = trust_level + %s WHERE id = %s", (delta, user_id))
+
+
+# Earned points for the league: released, never redeemed ones (spending does not lower your rank)
+EARNED = "COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'released' AND p.kind <> 'redeem'), 0)"
+
+
+def ranks(user_id, neighbourhood_id):
+    """The person's place among citizens and their neighbourhood's place in the league."""
+    return query(
+        f"""WITH people AS (
+                SELECT u.id, RANK() OVER (ORDER BY {EARNED} DESC) AS rank
+                FROM users u LEFT JOIN point_ledger p ON p.user_id = u.id
+                WHERE u.role = 'citizen' GROUP BY u.id),
+            hoods AS (
+                SELECT n.id, RANK() OVER (ORDER BY {EARNED} DESC) AS rank
+                FROM neighbourhoods n
+                LEFT JOIN users u ON u.neighbourhood_id = n.id
+                LEFT JOIN point_ledger p ON p.user_id = u.id
+                GROUP BY n.id)
+            SELECT (SELECT rank FROM people WHERE id = %s) AS rank,
+                   (SELECT count(*) FROM people) AS citizens,
+                   (SELECT rank FROM hoods WHERE id = %s) AS neighbourhood_rank,
+                   (SELECT count(*) FROM hoods) AS neighbourhoods""",
+        (user_id, neighbourhood_id),
         one=True,
     )

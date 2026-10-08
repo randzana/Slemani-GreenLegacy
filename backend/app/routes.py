@@ -5,6 +5,7 @@ import random
 from flask import Blueprint, current_app, g, jsonify, request
 
 from . import points
+from .ai.describe import describe_later, template_description
 from .ai.hashing import phash_int
 from .ai.scoring import dirtiness as score_dirtiness
 from .ai.verify import analyse_cleanup, qr_flags_for
@@ -16,7 +17,7 @@ from .strings import INSTRUCTIONS, reason
 bp = Blueprint("citizen", __name__)
 
 REPORT_COLUMNS = """r.id, r.reporter_id, r.status, r.dirtiness, r.litter_count, r.litter_classes,
-    r.photo_path, r.created_at, r.cleaned_at,
+    r.description, r.photo_path, r.created_at, r.cleaned_at,
     ST_Y(r.location::geometry) AS lat, ST_X(r.location::geometry) AS lon"""
 
 
@@ -91,7 +92,7 @@ def create_report():
     found = current_app.detector.detect(path_of(name))
     if found.count == 0:
         return error("no_litter", 422)
-    level = score_dirtiness(found.count, found.coverage)
+    level = score_dirtiness(found.count, found.coverage, cfg["LEVEL_COUNT_BANDS"])
 
     nearby = query(
         f"""SELECT {REPORT_COLUMNS} FROM reports r
@@ -120,17 +121,21 @@ def create_report():
         if not already and points.under_daily_cap(g.user["id"]):
             points.award_confirmation(g.user["id"], nearby["id"])
             earned = cfg["CONFIRMATION_POINTS"]
+        if not already:
+            points.adjust_trust(nearby["reporter_id"], "report_confirmed")
         points.release_report_points(nearby["id"])   # a second person saw it: the first report was real
         return jsonify({"kind": "confirmation", "report": report_json(nearby),
                         "points_pending": earned, "message": reason("confirmed")}), 200
 
     report = query(
         f"""INSERT INTO reports (reporter_id, location, photo_path, photo_hash, litter_count,
-                litter_classes, coverage, dirtiness)
-            VALUES (%s, ST_MakePoint(%s, %s)::geography, %s, %s, %s, %s, %s, %s)
+                litter_classes, coverage, dirtiness, description, description_source)
+            VALUES (%s, ST_MakePoint(%s, %s)::geography, %s, %s, %s, %s, %s, %s, %s, 'template')
             RETURNING id""",
-        common, one=True,
+        common + (template_description(found.classes, found.count, level),), one=True,
     )
+    describe_later(current_app._get_current_object(), report["id"], path_of(name), found.classes,
+                   found.count, level)
     row = query(f"SELECT {REPORT_COLUMNS} FROM reports r WHERE r.id = %s", (report["id"],), one=True)
     earned, message = 0, None
     if points.under_daily_cap(g.user["id"]):
@@ -225,6 +230,8 @@ def _finish(report, cleanup_fields, verdict, code, status=200):
         one=True,
     )
     awarded = {"now": 0, "pending": 0}
+    if cleanup_fields["challenge_id"] is not None:
+        points.adjust_trust(g.user["id"], code)
     if verdict == "verified":
         query("UPDATE reports SET status = 'clean', cleaned_at = now() WHERE id = %s", (report["id"],))
         awarded = points.award_cleanup(g.user["id"], report["id"], cleanup["id"], report["dirtiness"], True)
@@ -340,12 +347,14 @@ def me():
     housekeeping()
     hood = query("SELECT name FROM neighbourhoods WHERE id = %s", (g.user["neighbourhood_id"],), one=True)
     history = query(
-        """SELECT amount, kind, status, report_id, release_at, created_at
-           FROM point_ledger WHERE user_id = %s ORDER BY created_at DESC LIMIT 30""",
+        """SELECT amount, kind, status, report_id, detail, release_at, created_at
+           FROM point_ledger WHERE user_id = %s ORDER BY created_at DESC, id DESC LIMIT 30""",
         (g.user["id"],))
     for h in history:
         for key in ("release_at", "created_at"):
             if h[key] is not None:
                 h[key] = h[key].isoformat()
     return jsonify({**public_user(g.user), "neighbourhood": hood["name"] if hood else None,
+                    "trust_level": g.user["trust_level"],
+                    **points.ranks(g.user["id"], g.user["neighbourhood_id"]),
                     **points.balance(g.user["id"]), "history": history})

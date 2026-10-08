@@ -189,6 +189,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                     ),
                   ),
                 ),
+                AiDescription(spot['description']?.toString()),
                 const SizedBox(height: 24),
 
                 // Action Button
@@ -213,6 +214,44 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// The AI's plain-Kurdish description of a spot, when the server has one.
+class AiDescription extends StatelessWidget {
+  const AiDescription(this.text, {super.key});
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (text == null || text!.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E88E5).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1E88E5).withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.auto_awesome_rounded, color: Color(0xFF1E88E5), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(S.aiDescription,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E88E5))),
+                const SizedBox(height: 4),
+                Text(text!, style: const TextStyle(fontSize: 15, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
