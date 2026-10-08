@@ -1,3 +1,6 @@
+import cv2
+import numpy as np
+
 from app.ai.detector import ColorBlobDetector
 from app.ai.hashing import hamming, phash_int
 from app.ai.qr import instruction_followed, read_qr
@@ -33,6 +36,19 @@ def test_qr_is_read_with_prefix_only():
     assert read_qr(synthetic.qr_sticker("GL-BIN-007"), "GL-BIN") == "GL-BIN-007"
     assert read_qr(synthetic.qr_sticker("https://example.com"), "GL-BIN") is None
     assert read_qr(synthetic.place(3), "GL-BIN") is None
+
+
+def test_qr_is_read_next_to_another_qr_code():
+    """A bin sticker beside a shop's or an advert's QR code: OpenCV's single decode returns the
+    other code (or nothing), which used to hide the sticker and fail an honest cleanup."""
+    sticker = cv2.resize(synthetic.qr_sticker("GL-BIN-007"), (320, 240))
+    for other in ("https://example.com/menu", "WIFI:S:cafe;T:WPA;P:12345678;;"):
+        advert = cv2.resize(synthetic.qr_sticker(other), (320, 240))
+        for pair in ([advert, sticker], [sticker, advert]):
+            frame = np.vstack([np.hstack(pair), cv2.resize(synthetic.place(3), (640, 240))])
+            frame = cv2.imdecode(np.frombuffer(synthetic.encode(frame), np.uint8), cv2.IMREAD_COLOR)
+            assert read_qr(frame, "GL-BIN") == "GL-BIN-007"
+        assert read_qr(cv2.resize(synthetic.qr_sticker(other), (320, 240)), "GL-BIN") is None
 
 
 def test_instruction_order():

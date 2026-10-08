@@ -6,6 +6,24 @@ from .detector import load_bgr
 _detector = cv2.QRCodeDetector()
 
 
+def _texts(img):
+    """QR texts in img, cheapest first. detectAndDecode returns one code only, so when it finds a
+    code that is not readable or not ours (a shop's menu, an advert on the bin), decode all of them."""
+    try:
+        text, points, _ = _detector.detectAndDecode(img)
+    except cv2.error:
+        return
+    yield text
+    if points is None:                                   # no code at all: skip the slower search
+        return
+    try:
+        found, texts, _points, _ = _detector.detectAndDecodeMulti(img)
+    except cv2.error:
+        return
+    if found:
+        yield from texts
+
+
 def read_qr(image, prefix):
     """Return the decoded text if a bin QR code (starting with prefix) is visible, else None."""
     img = load_bgr(image)
@@ -14,12 +32,9 @@ def read_qr(image, prefix):
     if max(h, w) < 900:                                  # small frames: try an upscaled copy too
         candidates.append(cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC))
     for candidate in candidates:
-        try:
-            text, _points, _ = _detector.detectAndDecode(candidate)
-        except cv2.error:
-            text = ""
-        if text and text.startswith(prefix):
-            return text
+        for text in _texts(candidate):
+            if text and text.startswith(prefix):
+                return text
     return None
 
 
