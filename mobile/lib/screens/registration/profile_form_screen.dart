@@ -65,7 +65,10 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   Future<void> _submit() async {
     final gaps = _gaps();
     setState(() => _errors = gaps);
-    if (gaps.isNotEmpty) return;
+    if (gaps.isNotEmpty) {
+      showError(context, S.fillAllFields);
+      return;
+    }
     setState(() => _busy = true);
     try {
       final household = draft.withHousehold ? draft.household.toJson() : null;

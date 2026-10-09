@@ -17,6 +17,8 @@ backend/qr_stickers_*.png
 *.log
 *.pid
 .env
+.DS_Store
+slemani/
 
 # Flutter
 mobile/.dart_tool/

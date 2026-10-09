@@ -9,10 +9,14 @@ import socket
 
 def _find_port(preferred):
     for p in range(preferred, preferred + 10):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                s.bind(("0.0.0.0", p))
+                try:
+                    s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+                except (AttributeError, OSError):
+                    pass
+                s.bind(("::", p))
                 if p != preferred:
                     print(f"Port {preferred} is occupied (e.g. macOS AirPlay). Using port {p} instead.")
                 return p
@@ -29,5 +33,5 @@ if __name__ == "__main__":
                              "Run python tools/download_model.py or set MODEL_PATH.")
     port = int(os.environ.get("PORT", 5000))
     port = _find_port(port)
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    app.run(host="::", port=port, debug=False, threaded=True)
 

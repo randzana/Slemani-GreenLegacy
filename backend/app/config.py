@@ -4,6 +4,14 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+_env_file = BASE_DIR / ".env"
+if _env_file.is_file():
+    for _line in _env_file.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip().strip("'\""))
+
 
 def _int(name, default):
     return int(os.environ.get(name, default))
@@ -79,7 +87,7 @@ class Config:
     # Verification chain (tune on site)
     CHALLENGE_MINUTES = _int("CHALLENGE_MINUTES", 5)
     CLEANUP_RADIUS_M = _int("CLEANUP_RADIUS_M", 50)
-    CONFIRM_RADIUS_M = _int("CONFIRM_RADIUS_M", 30)
+    CONFIRM_RADIUS_M = _float("CONFIRM_RADIUS_M", 5.0)
     HASH_MAX_DISTANCE = _int("HASH_MAX_DISTANCE", 6)       # pHash bits; <= this = same image
     SAME_PLACE_MIN_INLIERS = _int("SAME_PLACE_MIN_INLIERS", 20)
     LITTER_DROP_VERIFIED = _float("LITTER_DROP_VERIFIED", 0.8)

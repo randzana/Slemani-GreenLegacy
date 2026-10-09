@@ -105,10 +105,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// A new account: what is registered, the form, then the email code (app/registration/).
   Future<void> _signUp([RegistrationDraft? draft]) async {
-    final config = await _working(Api.instance.authConfig);
-    if (config == null || !mounted) return;
-    setState(() {});
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => AccountTypeScreen(draft: draft ?? RegistrationDraft())));
+    await Api.instance.setBaseUrl(_server.text);
+    if (!mounted) return;
+    if (Api.instance.config == null) {
+      Api.instance.authConfig().catchError((_) => <String, dynamic>{});
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AccountTypeScreen(draft: draft ?? RegistrationDraft()),
+      ),
+    );
   }
 
   /// Google: a known account signs straight in; a new one either links to the account its email
@@ -335,26 +341,33 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 20),
 
                 // Switch between Login and Sign up
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      S.noAccount,
-                      style: TextStyle(color: isDark ? Colors.grey : Colors.black54),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _busy ? null : _signUp,
-                      child: const Text(
-                        S.signUp,
-                        style: TextStyle(
-                          color: kPrimaryGreen,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                Center(
+                  child: InkWell(
+                    key: const Key('switch-to-signup'),
+                    onTap: _busy ? null : () => _signUp(),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            S.noAccount,
+                            style: TextStyle(color: isDark ? Colors.grey : Colors.black54, fontSize: 15),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            S.signUp,
+                            style: TextStyle(
+                              color: kPrimaryGreen,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
