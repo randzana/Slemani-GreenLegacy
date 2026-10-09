@@ -173,7 +173,8 @@ def test_settings_that_must_not_reach_the_stage(monkeypatch):
 
 def test_email_code_settings():
     smtp = {"SMTP_HOST": "smtp.example.com", "SMTP_PORT": 587, "SMTP_USER": "bot@example.com",
-            "SMTP_PASSWORD": "pw", "SMTP_FROM": "", "SMTP_SECURITY": "starttls", "OTP_TTL_SECONDS": 300}
+            "SMTP_PASSWORD": "pw", "SMTP_FROM": "", "SMTP_SECURITY": "starttls", "OTP_TTL_SECONDS": 300,
+            "OTP_REQUIRED": True}
     found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "console", "OTP_PEPPER": ""}))
     assert found["کۆدی ئیمەیڵ"][0] == WARN and "server log" in found["کۆدی ئیمەیڵ"][1]
     assert found["کلیلی کۆدەکان"][0] == WARN
@@ -182,6 +183,8 @@ def test_email_code_settings():
     for broken in ({"OTP_SENDER": "smtp", "SMTP_HOST": ""}, {"OTP_SENDER": "fake"}, {"OTP_SENDER": "sms"}):
         found = marks(preflight.check_email_codes({**smtp, "OTP_PEPPER": "x", **broken}))
         assert found["کۆدی ئیمەیڵ"][0] == FAIL, broken
+    found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "smtp", "OTP_PEPPER": "x", "OTP_REQUIRED": False}))
+    assert found["ئیمەیڵی پێویست"][0] == WARN and "rehearsal" in found["ئیمەیڵی پێویست"][1]
 
 
 def test_phone_url_uses_the_port():

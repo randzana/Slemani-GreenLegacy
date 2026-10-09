@@ -4,12 +4,12 @@ import random
 
 from flask import Blueprint, current_app, g, jsonify, request
 
-from . import points
+from . import accounts, points
 from .ai.describe import describe_later, template_description
 from .ai.hashing import is_flat, phash_int
 from .ai.scoring import dirtiness as score_dirtiness
 from .ai.verify import analyse_cleanup, qr_flags_for
-from .auth import error, login_required, public_user
+from .auth import error, json_body, login_required, public_user
 from .db import housekeeping, query
 from .storage import path_of, save_upload, url_of
 from .strings import INSTRUCTIONS, reason
@@ -403,8 +403,29 @@ def me():
                 h[key] = h[key].isoformat()
     return jsonify({**public_user(g.user), "neighbourhood": hood["name"] if hood else None,
                     "trust_level": g.user["trust_level"],
+                    "email_verified": g.user["email_verified_at"] is not None,
+                    "auth_methods": accounts.auth_methods(g.user),
+                    # the person's household and business, with their location: only the owner sees this
+                    "places": accounts.owner_places(g.user["id"]),
+                    "money": accounts.money(g.user["id"]),
                     **points.ranks(g.user["id"], g.user["neighbourhood_id"]),
                     **points.balance(g.user["id"]), "history": history})
+
+
+@bp.post("/me/places")
+@login_required
+def save_my_place():
+    """{kind: household|business, ...its fields}: add it, or change it (the whole place each time).
+    Changing what staff checked sends it back to their queue; see app/accounts.py."""
+    data = json_body()
+    kind = data.get("kind")
+    if kind not in accounts.KINDS:
+        return error("invalid_profile", 400, fields={"kind": "invalid"})
+    place, problems = accounts.validate_place(kind, {k: v for k, v in data.items() if k != "kind"})
+    if problems:
+        return error("invalid_profile", 400, fields=problems)
+    saved, created = accounts.save_place(g.user["id"], place)
+    return jsonify(saved), 201 if created else 200
 
 
 # ---------------------------------------------------------------- pins & notifications

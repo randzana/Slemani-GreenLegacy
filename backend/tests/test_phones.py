@@ -31,7 +31,8 @@ def test_login_finds_the_staff_account_however_the_number_is_typed(client):
     assert client.post("/auth/login", json={}).status_code == 401
 
 
-def test_signup_stores_the_normalised_number_and_refuses_bad_ones(client):
+def test_signup_stores_the_normalised_number_and_refuses_bad_ones(client, app):
+    app.config["OTP_REQUIRED"] = False          # the phone rules are the same with or without an email
     r = client.post("/auth/signup", json={"name": "ڕەند", "phone": "0770 123 4567", "password": "secret123"})
     assert r.status_code == 201 and r.json["user"]["phone"] == "+9647701234567"
     again = client.post("/auth/signup", json={"name": "x", "phone": "+9647701234567", "password": "secret123"})

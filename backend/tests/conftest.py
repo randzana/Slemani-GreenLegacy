@@ -43,13 +43,23 @@ class Api:
         self.client = client
         self._phone = 7700000000
 
-    def signup(self, name="هاوڵاتی", neighbourhood_id=1):
+    def signup(self, name="هاوڵاتی", neighbourhood_id=1, **places):
+        """A new account the way the app makes one: email code first, then the form (places are
+        household= / business= objects)."""
         self._phone += 1
-        r = self.client.post("/auth/signup", json={"name": name, "phone": f"0{self._phone}",
-                                                   "password": "secret123",
-                                                   "neighbourhood_id": neighbourhood_id})
+        r = self.client.post("/auth/signup", json={
+            "name": name, "phone": f"0{self._phone}", "password": "secret123", "neighbourhood_id": neighbourhood_id,
+            "email_verification_token": self.email_token(f"person{self._phone}@example.com"), **places})
         assert r.status_code == 201, r.json
         return {"Authorization": f"Bearer {r.json['token']}"}
+
+    def email_token(self, email):
+        """Ask for a code, read it from the fake sender, answer it: the step token for signing up."""
+        assert self.client.post("/auth/otp/request", json={"email": email}).status_code == 200
+        code = self.client.application.otp_sender.last_code(email.strip().lower())
+        r = self.client.post("/auth/otp/verify", json={"email": email, "code": code})
+        assert r.status_code == 200, r.json
+        return r.json["email_verification_token"]
 
     def staff(self):
         r = self.client.post("/auth/login", json={"phone": STAFF[0], "password": STAFF[1]})

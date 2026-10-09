@@ -31,15 +31,14 @@ import psycopg
 from flask import Blueprint, current_app, jsonify, request
 
 from . import emails
-from .auth import error, json_body, make_step_token
-from .db import get_db, query
+from .auth import EMAIL_VERIFIED, error, json_body, make_step_token
+from .db import query, savepoint
 from .strings import EMAIL_CODE_BODY, EMAIL_CODE_SUBJECT
 
 log = logging.getLogger(__name__)
 bp = Blueprint("otp", __name__)
 
 VERIFY_EMAIL = "verify_email"
-EMAIL_VERIFIED = "email_verified"          # the step token's typ (app/auth.py)
 
 
 class OtpSendError(Exception):
@@ -158,8 +157,8 @@ def send_code(email, email_key, ip, purpose=VERIFY_EMAIL):
 
     code = f"{secrets.randbelow(10 ** cfg['OTP_LENGTH']):0{cfg['OTP_LENGTH']}d}"
     try:
-        # a savepoint: if the mail cannot be sent the new code is undone and the old one stays live
-        with get_db().transaction():
+        # if the mail cannot be sent the new code is undone and the old one stays live
+        with savepoint():
             query("""UPDATE otp_codes SET superseded_at = now()
                      WHERE email_key = %s AND purpose = %s AND consumed_at IS NULL AND superseded_at IS NULL""",
                   (email_key, purpose))

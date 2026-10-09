@@ -5,6 +5,7 @@ import pytest
 
 from app import create_app
 from app.ai.detector import ColorBlobDetector
+from app.otp import FakeOtpSender
 from conftest import STAFF, TEST_DB, Api
 from seed import seed
 
@@ -19,7 +20,8 @@ def _image(response):
 def sim_client(tmp_path):
     seed(TEST_DB, *STAFF)
     app = create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path / "uploads"),
-                      "TESTING": True, "SIM_CAMERA": True}, detector=ColorBlobDetector())
+                      "TESTING": True, "SIM_CAMERA": True}, detector=ColorBlobDetector(),
+                     otp_sender=FakeOtpSender())
     return app.test_client()
 
 

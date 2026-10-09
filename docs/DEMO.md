@@ -132,17 +132,21 @@
 python - http://localhost:5000 <<'EOF'
 import random, sys
 import psycopg, requests
+from werkzeug.security import generate_password_hash
 from app.config import Config
 base = sys.argv[1]
+phone = "+9647" + random.choice("5789") + "".join(random.choices("0123456789", k=8))
 with psycopg.connect(Config.DATABASE_URL) as db:
     done = db.execute("SELECT frame_paths FROM cleanups WHERE verdict = 'verified' ORDER BY id DESC LIMIT 1").fetchone()
     spot = db.execute("SELECT id, ST_Y(location::geometry), ST_X(location::geometry) FROM reports "
                       "WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
-if not done or not spot:
-    sys.exit("need one verified cleanup and one open spot")
-phone = "07" + random.choice("5789") + "".join(random.choices("0123456789", k=8))
-auth = {"Authorization": "Bearer " + requests.post(f"{base}/auth/signup", json={
-    "name": "فێڵباز", "phone": phone, "password": "secret123", "neighbourhood_id": 1}).json()["token"]}
+    if not done or not spot:
+        sys.exit("need one verified cleanup and one open spot")
+    # the new account goes straight into the database: the server asks new accounts for an email code
+    db.execute("INSERT INTO users (name, phone, password_hash, neighbourhood_id) VALUES ('فێڵباز', %s, %s, 1)",
+               (phone, generate_password_hash("secret123")))
+auth = {"Authorization": "Bearer " + requests.post(f"{base}/auth/login", json={
+    "phone": phone, "password": "secret123"}).json()["token"]}
 challenge = requests.post(f"{base}/reports/{spot[0]}/claim", headers=auth).json()
 files = [("frames", (n, open(f"{Config.UPLOAD_DIR}/{n}", "rb"), "image/jpeg")) for n in done[0]]
 r = requests.post(f"{base}/reports/{spot[0]}/cleanup", headers=auth, files=files,

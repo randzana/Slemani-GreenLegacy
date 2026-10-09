@@ -218,6 +218,9 @@ def check_email_codes(cfg):
             out = [(OK, "کۆدی ئیمەیڵ", f"smtp via {cfg['SMTP_HOST']}:{cfg['SMTP_PORT']} ({cfg['SMTP_SECURITY']})")]
         except ValueError as exc:
             out = [(FAIL, "کۆدی ئیمەیڵ", str(exc))]
+    out.append((OK, "ئیمەیڵی پێویست", "every new account verifies an email") if cfg["OTP_REQUIRED"] else
+               (WARN, "ئیمەیڵی پێویست", "OTP_REQUIRED=0: anyone can sign up without an email; offline "
+                                          "rehearsal only (tools/rehearse.py)"))
     out.append((OK, "کلیلی کۆدەکان", "OTP_PEPPER set") if cfg["OTP_PEPPER"] else
                (WARN, "کلیلی کۆدەکان", "OTP_PEPPER is not set: the code hashes are keyed from SECRET_KEY; "
                                         "export OTP_PEPPER=<random>"))

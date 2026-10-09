@@ -46,6 +46,12 @@ class Config:
     PHONE_REGION = os.environ.get("PHONE_REGION", "IQ")
     PHONE_ALLOWED_COUNTRY_CODES = tuple(
         c.strip().lstrip("+") for c in os.environ.get("PHONE_ALLOWED_COUNTRY_CODES", "964").split(",") if c.strip())
+    # A new account needs a verified email. 0 lets old app builds sign up without one: an offline
+    # rehearsal only (preflight warns).
+    OTP_REQUIRED = os.environ.get("OTP_REQUIRED", "1") != "0"
+    # Households and businesses must be inside this box (min_lat,min_lon,max_lat,max_lon): roughly
+    # Sulaimani governorate, so a pin dropped in the sea or a simulator's Cupertino is caught.
+    SERVICE_AREA_BBOX = tuple(float(v) for v in os.environ.get("SERVICE_AREA_BBOX", "34.3,44.3,36.6,46.4").split(","))
 
     # AI
     # "yolo" for real use; "colorblob" counts red paper as litter (rehearsal without a model)

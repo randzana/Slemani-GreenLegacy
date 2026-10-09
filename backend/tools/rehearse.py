@@ -1,6 +1,7 @@
 """Run the demo loop against a running server with synthetic images, and print every step.
 
-    DETECTOR_KIND=colorblob python run.py        # terminal 1 (red rectangles count as litter)
+    OTP_REQUIRED=0 DETECTOR_KIND=colorblob python run.py   # terminal 1 (red rectangles count as litter;
+                                                            # its people sign up without an email code)
     python tools/rehearse.py                      # terminal 2
 
 Then open http://localhost:5000/dashboard (staff 07500000000 / staff1234) and watch it change.
@@ -29,6 +30,9 @@ def signup(name):
     phone = "07" + random.choice("5789") + "".join(random.choice("0123456789") for _ in range(8))
     r = requests.post(f"{BASE}/auth/signup", json={"name": name, "phone": phone,
                                                     "password": "secret123", "neighbourhood_id": 2})
+    if r.status_code == 401:
+        sys.exit("The server wants an email code for every new account: start it with OTP_REQUIRED=0 "
+                 "for this rehearsal (see the top of this file).")
     r.raise_for_status()
     return {"Authorization": "Bearer " + r.json()["token"]}
 

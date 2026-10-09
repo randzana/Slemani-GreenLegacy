@@ -1,13 +1,16 @@
-"""Sign up, log in and the JWT decorators."""
+"""Sign up, log in and the JWT decorators.
+
+A new account needs a verified email (app/otp.py gives the step token) unless OTP_REQUIRED=0, which
+keeps old app builds signing up during an offline rehearsal. Log in with the email or the phone.
+"""
 import datetime as dt
 from functools import wraps
 
 import jwt
-import psycopg
 from flask import Blueprint, current_app, g, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from . import phones
+from . import accounts, emails, phones
 from .db import query
 from .strings import reason
 
@@ -30,6 +33,8 @@ def error(code, status, **extra):
 # carries this audience, and is accepted only by the endpoint for that step. One SECRET_KEY signs them
 # all, so without typ a step token would pass wherever any valid signature does.
 ACCESS = "access"
+EMAIL_VERIFIED = "email_verified"      # step: this mailbox answered a code (app/otp.py)
+GOOGLE_SIGNUP = "google_signup"        # step: Google vouched for a person who has no account yet
 STEP_AUDIENCE = "gl-step"
 MAX_USER_ID = 2**31 - 1        # users.id is an INTEGER; a bigger number is not one of ours
 
@@ -98,38 +103,57 @@ def staff_required(fn):
 
 
 def public_user(user):
-    return {k: user[k] for k in ("id", "name", "phone", "neighbourhood_id", "role")}
+    """The account as its owner sees it after signing up or in (never sent to anyone else)."""
+    return {k: user[k] for k in ("id", "name", "phone", "email", "neighbourhood_id", "role")}
 
 
 @bp.post("/auth/signup")
 def signup():
-    data = request.get_json(silent=True) or {}
-    name, phone, password = (data.get(k, "").strip() for k in ("name", "phone", "password"))
+    """{name, phone, password, email_verification_token, neighbourhood_id?, household?, business?}.
+    The email comes from the step token, never from the body."""
+    data = json_body()
+    name, phone, password = (str(data.get(k) or "").strip() for k in ("name", "phone", "password"))
     if not (name and phone and len(password) >= 6):
         return error("missing_fields", 400)
     phone, problem = phones.normalise(phone)
     if problem:
         return error(problem, 400)
-    try:
-        user = query(
-            """INSERT INTO users (name, phone, password_hash, neighbourhood_id)
-               VALUES (%s, %s, %s, %s) RETURNING *""",
-            (name, phone, generate_password_hash(password), data.get("neighbourhood_id")),
-            one=True,
-        )
-    except psycopg.errors.UniqueViolation:
-        return error("phone_taken", 409)
+    email = email_key = None
+    token = data.get("email_verification_token")
+    if token or current_app.config["OTP_REQUIRED"]:      # a token that is sent must be good, either way
+        claims = read_step_token(token, EMAIL_VERIFIED)
+        if claims is None:
+            return error("email_not_verified", 401)
+        email, email_key = claims["email"], claims["email_key"]
+    profile, problems = accounts.validate_signup(data)
+    if problems:
+        return error("invalid_profile", 400, fields=problems)
+    user, taken = accounts.create_account(name, phone, generate_password_hash(password), profile["neighbourhood_id"],
+                                          email, email_key, profile["places"])
+    if taken:
+        return error(taken, 409)
     return jsonify({"token": make_token(user), "user": public_user(user)}), 201
+
+
+def find_login(who):
+    """The account for what was typed in the login field: an email (any spelling of the mailbox) or
+    a phone (any way of writing it, or exactly as typed for the few rows 007 left alone)."""
+    text = str(who or "").strip()
+    if "@" in text:
+        _, key, problem = emails.normalise(text)
+        return None if problem else query("SELECT * FROM users WHERE email_key = %s", (key,), one=True)
+    for phone in phones.login_candidates(text):
+        user = query("SELECT * FROM users WHERE phone = %s", (phone,), one=True)
+        if user:
+            return user
+    return None
 
 
 @bp.post("/auth/login")
 def login():
-    data = request.get_json(silent=True) or {}
-    user = None
-    for phone in phones.login_candidates(data.get("phone")):
-        user = query("SELECT * FROM users WHERE phone = %s", (phone,), one=True)
-        if user:
-            break
+    """{login, password}; old builds send {phone, password}."""
+    data = json_body()
+    user = find_login(data.get("login") or data.get("email") or data.get("phone"))
     # a Google-only account has no password, so no password opens it
     if user is None or not user["password_hash"] or not check_password_hash(user["password_hash"],
                                                                                str(data.get("password", ""))):
