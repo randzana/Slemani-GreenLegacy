@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../google_auth.dart';
 import '../main.dart';
 import '../strings.dart';
 import '../theme.dart';
 import 'home_screen.dart';
+import 'registration/account_type_screen.dart';
+import 'registration/link_dialog.dart';
+import 'registration/registration_draft.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, this.notice});
@@ -19,16 +23,15 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final _server = TextEditingController(text: Api.instance.baseUrl);
   final _serverFocus = FocusNode();
-  final _name = TextEditingController();
-  final _phone = TextEditingController();
+  final _login = TextEditingController();
   final _password = TextEditingController();
-  bool _signUp = false;
   bool _busy = false;
   bool _obscurePassword = true;
-  List<Map<String, dynamic>> _hoods = [];
-  String? _hoodsUrl; // the address the neighbourhood list was last asked from
-  int? _hood;
+  String? _configUrl; // the address the sign-up settings were last asked from
   late String? _notice = widget.notice;
+
+  /// This server offers Google sign-in (its /auth/config says so). Hidden when it is off or unknown.
+  bool get _googleOn => Api.instance.config?['google']?['enabled'] == true;
 
   @override
   void initState() {
@@ -36,69 +39,104 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_server.text.isEmpty) {
       _server.text = S.serverHint;
     }
-    // Neighbourhoods load when the person leaves the address field (submitting it does that too),
-    // not on every keystroke: half a typed address is one failed request and error per character.
+    // The server's settings load when the person leaves the address field (submitting it does that
+    // too), not on every keystroke: half a typed address is one failed request per character.
     _serverFocus.addListener(() {
-      if (!_serverFocus.hasFocus && _signUp && _server.text != _hoodsUrl) _loadHoods();
+      if (!_serverFocus.hasFocus && _server.text != _configUrl) _loadConfig();
     });
+    _loadConfig();
   }
 
   @override
   void dispose() {
     _server.dispose();
     _serverFocus.dispose();
-    _name.dispose();
-    _phone.dispose();
+    _login.dispose();
     _password.dispose();
     super.dispose();
   }
 
-  Future<void> _loadHoods() async {
+  /// Quietly: a server from before accounts had settings, or one not started yet, just has no Google
+  /// button; signing in still says what is wrong.
+  Future<void> _loadConfig() async {
     final url = _server.text;
-    _hoodsUrl = url;
+    _configUrl = url;
     try {
       await Api.instance.setBaseUrl(url);
-      final hoods = await Api.instance.neighbourhoods();
-      // The address changed while this was loading: the answer (or the error) is for an old one.
-      if (!mounted || _server.text != url) return;
-      setState(() {
-        _hoods = hoods;
-        // another server can have other neighbourhoods; the dropdown needs its value in the list
-        if (!hoods.any((h) => h['id'] == _hood)) _hood = null;
-      });
-    } catch (e) {
-      if (!mounted || _server.text != url) return;
-      _hoodsUrl = null; // leaving the field again retries, e.g. once the server is started
-      showError(context, e);
+      await Api.instance.authConfig();
+    } catch (_) {
+      Api.instance.config = null;
+      _configUrl = null; // leaving the field again retries, e.g. once the server is started
     }
+    if (mounted && _server.text == url) setState(() {});
   }
 
-  Future<void> _submit() async {
-    final phone = _phone.text.trim();
-    final pass = _password.text;
-    if (phone.isEmpty || pass.isEmpty || (_signUp && _name.text.trim().isEmpty)) {
-      showError(context, S.fillAllFields);
-      return;
-    }
-
+  Future<T?> _working<T>(Future<T> Function() job) async {
     setState(() {
       _busy = true;
       _notice = null;
     });
     try {
       await Api.instance.setBaseUrl(_server.text);
-      if (_signUp) {
-        await Api.instance.signup(_name.text.trim(), phone, pass, _hood);
-      } else {
-        await Api.instance.login(phone, pass);
-      }
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+      return await job();
     } catch (e) {
       if (mounted) showError(context, e);
+      return null;
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _goHome() =>
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
+
+  Future<void> _submit() async {
+    final who = _login.text.trim();
+    if (who.isEmpty || _password.text.isEmpty) {
+      showError(context, S.fillAllFields);
+      return;
+    }
+    final ok = await _working(() async {
+      await Api.instance.login(who, _password.text);
+      return true;
+    });
+    if (ok == true && mounted) _goHome();
+  }
+
+  /// A new account: what is registered, the form, then the email code (app/registration/).
+  Future<void> _signUp([RegistrationDraft? draft]) async {
+    final config = await _working(Api.instance.authConfig);
+    if (config == null || !mounted) return;
+    setState(() {});
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => AccountTypeScreen(draft: draft ?? RegistrationDraft())));
+  }
+
+  /// Google: a known account signs straight in; a new one either links to the account its email
+  /// already has (with that account's password), or signs up with Google's verified email.
+  Future<void> _google() async {
+    final answer = await _working(() async {
+      final config = await Api.instance.authConfig();
+      final clientId = config['google']?['server_client_id'] as String?;
+      if (clientId == null) throw ApiException(S.googleNotSetUp, 'google_not_set_up');
+      final idToken = await GoogleAuth.idToken(clientId);
+      return idToken == null ? null : Api.instance.googleSignIn(idToken);
+    });
+    if (answer == null || !mounted) return;
+    if (answer['status'] == 'signed_in') return _goHome();
+    final profile = Map<String, dynamic>.from(answer['profile'] ?? {});
+    final token = answer['google_signup_token'] as String;
+    if (answer['email_has_account'] == true) {
+      final linked = await showLinkDialog(context,
+          signupToken: token, login: '${profile['email'] ?? ''}', message: S.linkEmailHasAccount);
+      if (linked && mounted) _goHome();
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AccountTypeScreen(
+            draft: RegistrationDraft()
+              ..googleSignupToken = token
+              ..googleEmail = profile['email'] as String?
+              ..name = '${profile['name'] ?? ''}')));
   }
 
   @override
@@ -133,7 +171,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  _signUp ? S.signUp : S.appName,
+                  S.appName,
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -143,7 +181,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _signUp ? S.joinUs : S.welcomeBack,
+                  S.welcomeBack,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
@@ -197,33 +235,22 @@ class _AuthScreenState extends State<AuthScreen> {
                               tooltip: S.serverHint,
                               onPressed: () {
                                 _server.text = S.serverHint;
-                                if (_signUp) _loadHoods();
+                                _loadConfig();
                               },
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
 
-                        // Name (if sign up)
-                        if (_signUp) ...[
-                          TextField(
-                            controller: _name,
-                            decoration: const InputDecoration(
-                              labelText: S.name,
-                              prefixIcon: Icon(Icons.person_outline_rounded, color: kPrimaryGreen),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Phone Number
+                        // Email or phone (accounts from before emails log in with the phone)
                         TextField(
-                          controller: _phone,
-                          keyboardType: TextInputType.phone,
+                          controller: _login,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email, AutofillHints.telephoneNumber],
                           textDirection: TextDirection.ltr,
                           decoration: const InputDecoration(
-                            labelText: S.phone,
-                            prefixIcon: Icon(Icons.phone_outlined, color: kPrimaryGreen),
+                            labelText: S.loginField,
+                            prefixIcon: Icon(Icons.alternate_email_rounded, color: kPrimaryGreen),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -246,23 +273,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
 
-                        // Neighbourhood dropdown (if sign up)
-                        if (_signUp) ...[
-                          const SizedBox(height: 16),
-                          DropdownButtonFormField<int>(
-                            initialValue: _hood,
-                            items: [
-                              for (final h in _hoods)
-                                DropdownMenuItem(value: h['id'] as int, child: Text(h['name'].toString())),
-                            ],
-                            onChanged: (v) => setState(() => _hood = v),
-                            onTap: _hoods.isEmpty ? _loadHoods : null,
-                            decoration: const InputDecoration(
-                              labelText: S.neighbourhood,
-                              prefixIcon: Icon(Icons.location_city_outlined, color: kPrimaryGreen),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -288,12 +298,40 @@ class _AuthScreenState extends State<AuthScreen> {
                             height: 24,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                           )
-                        : Text(
-                            _signUp ? S.signUp : S.signIn,
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        : const Text(
+                            S.signIn,
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
+
+                // Google, when this server offers it
+                if (_googleOn) ...[
+                  const SizedBox(height: 16),
+                  Row(children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(S.or, style: TextStyle(color: Colors.grey.shade600)),
+                    ),
+                    const Expanded(child: Divider()),
+                  ]),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      key: const Key('google'),
+                      onPressed: _busy ? null : _google,
+                      icon: const Icon(Icons.g_mobiledata_rounded, size: 32),
+                      label: const Text(S.continueWithGoogle, style: TextStyle(fontSize: 16)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: textColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 // Switch between Login and Sign up
@@ -301,18 +339,15 @@ class _AuthScreenState extends State<AuthScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _signUp ? S.haveAccount : S.noAccount,
+                      S.noAccount,
                       style: TextStyle(color: isDark ? Colors.grey : Colors.black54),
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () {
-                        setState(() => _signUp = !_signUp);
-                        if (_signUp && _hoods.isEmpty) _loadHoods();
-                      },
-                      child: Text(
-                        _signUp ? S.signIn : S.signUp,
-                        style: const TextStyle(
+                      onTap: _busy ? null : _signUp,
+                      child: const Text(
+                        S.signUp,
+                        style: TextStyle(
                           color: kPrimaryGreen,
                           fontWeight: FontWeight.bold,
                           fontSize: 15,

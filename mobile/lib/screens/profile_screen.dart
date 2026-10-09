@@ -4,6 +4,7 @@ import '../api.dart';
 import '../strings.dart';
 import '../theme.dart';
 import 'auth_screen.dart';
+import 'place_edit_screen.dart';
 import 'rewards_screen.dart';
 
 /// Profile: user info, eco stat boxes, earned badges, points history, and logout.
@@ -137,6 +138,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
+                if (me['email'] != null) ...[
+                  const SizedBox(height: 4),
+                  Text('${me['email']}', textDirection: TextDirection.ltr,
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                ],
                 const SizedBox(height: 24),
 
                 // 3 Stat Boxes Row (Zanko-GreenLegacy style)
@@ -213,6 +219,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // The person's household and business: the municipality's answer, and the money
+                _placesCard(context, me),
                 const SizedBox(height: 26),
 
                 // Earned Badges Section
@@ -332,6 +342,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _editPlace(String kind, Map<String, dynamic>? existing) async {
+    final saved = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => PlaceEditScreen(kind: kind, existing: existing)));
+    if (saved == true) _reload();
+  }
+
+  Widget _placesCard(BuildContext context, Map<String, dynamic> me) {
+    final places = List<Map<String, dynamic>>.from(me['places'] ?? const []);
+    final money = Map<String, dynamic>.from(me['money'] ?? const {});
+    final payments = List<Map<String, dynamic>>.from(money['payments'] ?? const []);
+    final has = {for (final p in places) p['kind']};
+    const statusColours = {'pending': amber, 'verified': kPrimaryGreen, 'rejected': red};
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(S.myPlaces, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            for (final p in places)
+              ListTile(
+                leading: Icon(p['kind'] == 'household' ? Icons.home_rounded : Icons.storefront_rounded,
+                    color: kDarkGreen),
+                title: Text('${p['name']}'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(S.placeKinds[p['kind']] ?? ''),
+                    const SizedBox(height: 4),
+                    Chip(
+                      label: Text(S.placeStatuses[p['verification_status']] ?? '${p['verification_status']}'),
+                      labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                      backgroundColor: statusColours[p['verification_status']] ?? soft,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    if (p['rejection_reason'] != null)
+                      Text(S.rejectedBecause('${p['rejection_reason']}'), style: const TextStyle(color: red)),
+                  ],
+                ),
+                isThreeLine: true,
+                trailing: const Icon(Icons.edit_outlined),
+                onTap: () => _editPlace('${p['kind']}', p),
+              ),
+            if (!has.contains('household'))
+              ListTile(
+                leading: const Icon(Icons.add_home_outlined, color: kPrimaryGreen),
+                title: const Text(S.addHousehold),
+                onTap: () => _editPlace('household', null),
+              ),
+            if (!has.contains('business'))
+              ListTile(
+                leading: const Icon(Icons.add_business_outlined, color: kPrimaryGreen),
+                title: const Text(S.addBusiness),
+                onTap: () => _editPlace('business', null),
+              ),
+            if (places.isNotEmpty) ...[
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined, color: kDarkGreen),
+                title: const Text(S.monthlyMoney, style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text(S.moneyHint),
+                trailing: Text(S.dinar((money['total_iqd'] as num?) ?? 0),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+              if (payments.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(S.moneyNone, style: TextStyle(color: Colors.grey.shade600)),
+                ),
+              for (final pay in payments.take(6))
+                ListTile(
+                  dense: true,
+                  leading: Text(S.month('${pay['month']}')),
+                  title: Text(S.placeKinds[pay['kind']] ?? ''),
+                  trailing: Text(S.dinar((pay['amount_iqd'] as num?) ?? 0)),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }

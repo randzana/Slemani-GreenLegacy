@@ -6,12 +6,20 @@ import 'package:camera/camera.dart' show XFile;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'google_auth.dart';
 import 'strings.dart';
 
 class ApiException implements Exception {
-  ApiException(this.message, [this.code]);
+  ApiException(this.message, [this.code, this.details = const {}]);
   final String message;
   final String? code;
+
+  /// The rest of the server's error body: retry_after, attempts_left, fields (one problem per form
+  /// field, e.g. {"household.location": "outside_service_area"}) or can_link.
+  final Map<String, dynamic> details;
+
+  Map<String, String> get fields =>
+      {for (final e in Map<String, dynamic>.from(details['fields'] ?? {}).entries) e.key: '${e.value}'};
 
   @override
   String toString() => message;
@@ -25,6 +33,9 @@ class Api {
   String baseUrl = S.serverHint;
   String? token;
   Map<String, dynamic>? user;
+
+  /// What this server offers at sign-up (GET /auth/config), asked again whenever the address changes.
+  Map<String, dynamic>? config;
 
   /// Set by main.dart: the server no longer accepts the saved token (expired, or the database was
   /// re-seeded), so the person goes back to the login screen with the server's message.
@@ -73,6 +84,7 @@ class Api {
     if (res.statusCode >= 400 && !(allowError && body is Map && body.containsKey('verdict'))) {
       final message = (body is Map ? (body['message'] ?? S.genericError) : S.genericError).toString();
       final code = body is Map ? body['error']?.toString() : null;
+      final details = body is Map ? Map<String, dynamic>.from(body) : <String, dynamic>{};
       // Sign out once, and only for the token this request carried: the screens loading together
       // all get the same 401, and a slow answer for an old token must not log out a fresh login.
       if (res.statusCode == 401 &&
@@ -83,7 +95,7 @@ class Api {
         user = null;
         onSignedOut?.call(message);
       }
-      throw ApiException(message, code);
+      throw ApiException(message, code, details);
     }
     return body;
   }
@@ -107,24 +119,86 @@ class Api {
       _decode(await http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? {}))));
 
   // ---- auth
-  Future<void> login(String phone, String password) async {
-    final data = await _post('/auth/login', {'phone': phone, 'password': password});
+  Future<void> _signedIn(dynamic data) async {
     user = Map<String, dynamic>.from(data['user']);
     await _saveToken(data['token']);
   }
 
-  Future<void> signup(String name, String phone, String password, int? neighbourhoodId) async {
-    final data = await _post('/auth/signup', {
-      'name': name,
-      'phone': phone,
-      'password': password,
-      'neighbourhood_id': neighbourhoodId,
-    });
-    user = Map<String, dynamic>.from(data['user']);
-    await _saveToken(data['token']);
+  Future<Map<String, dynamic>> authConfig() async {
+    config = Map<String, dynamic>.from(await _get('/auth/config'));
+    return config!;
   }
 
-  Future<void> logout() => _saveToken(null);
+  /// [who] is an email or a phone number. Servers from before email accounts only read 'phone'.
+  Future<void> login(String who, String password) async =>
+      _signedIn(await _post('/auth/login', {'login': who, 'phone': who, 'password': password}));
+
+  /// A new account. [emailToken] comes from [verifyEmailCode]; [household] and [business] are the
+  /// optional places, as the server's field names.
+  Future<void> signup({
+    required String name,
+    required String phone,
+    required String password,
+    required int? neighbourhoodId,
+    String? emailToken,
+    Map<String, dynamic>? household,
+    Map<String, dynamic>? business,
+  }) async =>
+      _signedIn(await _post('/auth/signup', {
+        'name': name,
+        'phone': phone,
+        'password': password,
+        'neighbourhood_id': neighbourhoodId,
+        if (emailToken != null) 'email_verification_token': emailToken,
+        if (household != null) 'household': household,
+        if (business != null) 'business': business,
+      }));
+
+  /// Sends a code to [email]: {expires_in, resend_in}. 429s carry retry_after.
+  Future<Map<String, dynamic>> requestEmailCode(String email) async =>
+      Map<String, dynamic>.from(await _post('/auth/otp/request', {'email': email}));
+
+  /// {email_verification_token, expires_in, email_has_account}. otp_invalid carries attempts_left.
+  Future<Map<String, dynamic>> verifyEmailCode(String email, String code) async =>
+      Map<String, dynamic>.from(await _post('/auth/otp/verify', {'email': email, 'code': code}));
+
+  /// Google's ID token to the server: {status: signed_in} (and the person is signed in), or
+  /// {status: registration_required, google_signup_token, profile, email_has_account}.
+  Future<Map<String, dynamic>> googleSignIn(String idToken) async {
+    final data = Map<String, dynamic>.from(await _post('/auth/google', {'id_token': idToken}));
+    if (data['status'] == 'signed_in') await _signedIn(data);
+    return data;
+  }
+
+  Future<void> googleRegister({
+    required String signupToken,
+    required String name,
+    required String phone,
+    required int? neighbourhoodId,
+    Map<String, dynamic>? household,
+    Map<String, dynamic>? business,
+  }) async =>
+      _signedIn(await _post('/auth/google/register', {
+        'google_signup_token': signupToken,
+        'name': name,
+        'phone': phone,
+        'neighbourhood_id': neighbourhoodId,
+        if (household != null) 'household': household,
+        if (business != null) 'business': business,
+      }));
+
+  /// Adds Google to an existing account: its email or phone and its password.
+  Future<void> googleLink(String signupToken, String who, String password) async => _signedIn(
+      await _post('/auth/google/link', {'google_signup_token': signupToken, 'login': who, 'password': password}));
+
+  /// Adds or changes the person's household or business ([kind]); returns it as saved.
+  Future<Map<String, dynamic>> savePlace(String kind, Map<String, dynamic> fields) async =>
+      Map<String, dynamic>.from(await _post('/me/places', {'kind': kind, ...fields}));
+
+  Future<void> logout() async {
+    await GoogleAuth.signOut();
+    await _saveToken(null);
+  }
 
   Future<List<Map<String, dynamic>>> neighbourhoods() async =>
       List<Map<String, dynamic>>.from(await _get('/neighbourhoods'));
