@@ -29,6 +29,14 @@ REASONS = {
     "phone_taken": "ئەم ژمارە مۆبایلە پێشتر تۆمار کراوە",
     "invalid_phone": "ژمارەی مۆبایل دروست نییە",
     "phone_not_allowed": "تەنها ژمارەی مۆبایلی عێراق قبووڵ دەکرێت",
+    # email codes
+    "invalid_email": "ئیمەیڵەکە دروست نییە",
+    "otp_invalid": "کۆدەکە هەڵەیە",
+    "otp_expired": "کاتی کۆدەکە بەسەرچووە؛ کۆدێکی نوێ داوا بکە",
+    "otp_locked": "هەوڵی زۆر درا؛ کۆدێکی نوێ داوا بکە",
+    "otp_too_soon": "تکایە چەند چرکەیەک چاوەڕێ بکە",
+    "otp_rate_limited": "داواکاریی زۆر کرا؛ دواتر هەوڵ بدەرەوە",
+    "otp_send_failed": "نەتوانرا ئیمەیڵەکە بنێردرێت؛ دواتر هەوڵ بدەرەوە",
     "bad_login": "ژمارە یان وشەی نهێنی هەڵەیە",
     "missing_fields": "هەموو خانەکان پڕ بکەرەوە",
     "unauthorized": "کاتی چوونەژوورەوەکەت بەسەرچووە؛ دووبارە بچۆرە ژوورەوە",
@@ -44,6 +52,17 @@ REASONS = {
     "task_claimed": "دەستخۆش! خاڵی ئەرکەکە دوای ٢٤ کاتژمێر ئازاد دەبێت",
     "voucher_used": "ئەم کۆدە پێشتر بەکارهاتووە یان بوونی نییە",
 }
+
+# The email with the sign-up code (app/otp.py); {code} and {minutes} are filled in
+EMAIL_CODE_SUBJECT = "کۆدی پشتڕاستکردنەوەی GreenLegacy"
+EMAIL_CODE_BODY = """سڵاو،
+
+کۆدی پشتڕاستکردنەوەی ئیمەیڵەکەت: {code}
+
+ئەم کۆدە بۆ {minutes} خولەک کار دەکات. ئەگەر تۆ داوات نەکردووە، ئەم ئیمەیڵە پشتگوێ بخە.
+
+GreenLegacy سلێمانی
+"""
 
 # Points shop: names and one-line descriptions (costs are in config.REWARDS)
 REWARDS = {

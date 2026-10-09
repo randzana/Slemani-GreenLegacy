@@ -171,6 +171,19 @@ def test_settings_that_must_not_reach_the_stage(monkeypatch):
     assert {mark for mark, _ in found.values()} == {OK}
 
 
+def test_email_code_settings():
+    smtp = {"SMTP_HOST": "smtp.example.com", "SMTP_PORT": 587, "SMTP_USER": "bot@example.com",
+            "SMTP_PASSWORD": "pw", "SMTP_FROM": "", "SMTP_SECURITY": "starttls", "OTP_TTL_SECONDS": 300}
+    found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "console", "OTP_PEPPER": ""}))
+    assert found["کۆدی ئیمەیڵ"][0] == WARN and "server log" in found["کۆدی ئیمەیڵ"][1]
+    assert found["کلیلی کۆدەکان"][0] == WARN
+    found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "smtp", "OTP_PEPPER": "x" * 32}))
+    assert {mark for mark, _ in found.values()} == {OK} and "smtp.example.com:587" in found["کۆدی ئیمەیڵ"][1]
+    for broken in ({"OTP_SENDER": "smtp", "SMTP_HOST": ""}, {"OTP_SENDER": "fake"}, {"OTP_SENDER": "sms"}):
+        found = marks(preflight.check_email_codes({**smtp, "OTP_PEPPER": "x", **broken}))
+        assert found["کۆدی ئیمەیڵ"][0] == FAIL, broken
+
+
 def test_phone_url_uses_the_port():
     results = preflight.check_network(5101)
     if results[0][0] == OK:          # a machine with no network at all only gets a warning

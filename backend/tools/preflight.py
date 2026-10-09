@@ -203,6 +203,27 @@ def check_settings(cfg, rehearsal=False):
     return out
 
 
+def check_email_codes(cfg):
+    """Who delivers the sign-up codes (app/otp.py), and what keys their stored hashes."""
+    from app.otp import make_otp_sender
+    sender = cfg["OTP_SENDER"]
+    if sender == "console":
+        out = [(WARN, "کۆدی ئیمەیڵ", "OTP_SENDER=console: codes appear in the server log; fine for the demo, "
+                                       "never for a pilot")]
+    elif sender == "fake":
+        out = [(FAIL, "کۆدی ئیمەیڵ", "OTP_SENDER=fake is for tests: nobody would receive a code")]
+    else:
+        try:
+            make_otp_sender(cfg)
+            out = [(OK, "کۆدی ئیمەیڵ", f"smtp via {cfg['SMTP_HOST']}:{cfg['SMTP_PORT']} ({cfg['SMTP_SECURITY']})")]
+        except ValueError as exc:
+            out = [(FAIL, "کۆدی ئیمەیڵ", str(exc))]
+    out.append((OK, "کلیلی کۆدەکان", "OTP_PEPPER set") if cfg["OTP_PEPPER"] else
+               (WARN, "کلیلی کۆدەکان", "OTP_PEPPER is not set: the code hashes are keyed from SECRET_KEY; "
+                                        "export OTP_PEPPER=<random>"))
+    return out
+
+
 def lan_addresses():
     """IPv4 addresses the phones can reach. The UDP connect sends nothing: it only asks the system
     which interface it would use, which on a hotspot is the hotspot one."""
@@ -290,7 +311,8 @@ def main(argv=None):
 
     checks = [lambda: check_database(cfg["DATABASE_URL"]), lambda: check_uploads(cfg["UPLOAD_DIR"]),
               lambda: check_detector(cfg, args.rehearsal, args.model), check_files,
-              lambda: check_settings(cfg, args.rehearsal), lambda: check_network(port)]
+              lambda: check_settings(cfg, args.rehearsal), lambda: check_email_codes(cfg),
+              lambda: check_network(port)]
     if args.server:
         checks.append(lambda: check_server(args.server, cfg, args.rehearsal))
     print("GreenLegacy preflight" + (" (rehearsal)" if args.rehearsal else ""))

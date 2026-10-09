@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from app import create_app                       # noqa: E402
 from app.ai.detector import ColorBlobDetector    # noqa: E402
+from app.otp import FakeOtpSender                # noqa: E402
 from seed import seed                            # noqa: E402
 from tools import synthetic                      # noqa: E402
 
@@ -18,11 +19,16 @@ STAFF = ("07500000000", "staff1234")
 SLEMANI = (35.5613, 45.4373)
 
 
+# Every test request comes from 127.0.0.1, so the per-IP and overall hourly email-code caps would
+# stop tests that sign up many people; tests/test_otp.py sets its own caps where it tests them.
+TEST_SETTINGS = {"TESTING": True, "OTP_MAX_PER_IP_HOUR": 10_000, "OTP_MAX_PER_HOUR": 10_000}
+
+
 @pytest.fixture()
 def app(tmp_path):
     seed(TEST_DB, *STAFF)
-    return create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path / "uploads"),
-                       "TESTING": True}, detector=ColorBlobDetector())
+    return create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path / "uploads"), **TEST_SETTINGS},
+                      detector=ColorBlobDetector(), otp_sender=FakeOtpSender())
 
 
 @pytest.fixture()

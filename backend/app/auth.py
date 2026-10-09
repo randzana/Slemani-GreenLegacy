@@ -14,8 +14,15 @@ from .strings import reason
 bp = Blueprint("auth", __name__)
 
 
-def error(code, status):
-    return jsonify({"error": code, "message": reason(code)}), status
+def json_body():
+    """The request's JSON object, or {} for anything else (no body, a list, a bare string)."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def error(code, status, **extra):
+    """{"error": code, "message": its Kurdish text} plus any extra fields (retry_after, attempts_left)."""
+    return jsonify({"error": code, "message": reason(code), **extra}), status
 
 
 # Every token says what it is for (typ). Only an access token is a login; a step token proves one step

@@ -11,9 +11,10 @@ from .ai.describe import make_describer
 from .ai.detector import make_detector
 from .config import Config
 from .db import close_db
+from .otp import make_otp_sender
 
 
-def create_app(overrides=None, detector=None, describer=None):
+def create_app(overrides=None, detector=None, describer=None, otp_sender=None):
     app = Flask(__name__)
     app.config.from_object(Config)
     if overrides:
@@ -21,9 +22,11 @@ def create_app(overrides=None, detector=None, describer=None):
     app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
     app.detector = detector or make_detector(app.config)
     app.describer = describer if describer is not None else make_describer(app.config)
+    app.otp_sender = otp_sender or make_otp_sender(app.config)      # email codes (app/otp.py)
 
-    from . import admin, auth, rewards, routes, simulator
+    from . import admin, auth, otp, rewards, routes, simulator
     app.register_blueprint(auth.bp)
+    app.register_blueprint(otp.bp)
     app.register_blueprint(routes.bp)
     app.register_blueprint(rewards.bp)
     app.register_blueprint(admin.bp)
