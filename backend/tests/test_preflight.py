@@ -69,6 +69,28 @@ def test_database_from_before_vouchers_could_be_handed_over_names_migration_003(
     assert marks(preflight.check_database(db))["ستوونە نوێکان"][0] == OK
 
 
+def test_database_from_before_pins_and_bins_names_migrations_004_to_006(db):
+    """Map pins (004, 005) and trash bins (006) came later; 001 had rewritten the ledger's kind check
+    without 'bin_disposal'. Running the named files, even twice, is the fix."""
+    run_sql("DROP TABLE bin_disposals, trash_bins, pin_registrations, notifications, pins;"
+            "ALTER TABLE point_ledger DROP COLUMN bin_id;"
+            "ALTER TABLE point_ledger DROP CONSTRAINT point_ledger_kind_check;"
+            "ALTER TABLE point_ledger ADD CONSTRAINT point_ledger_kind_check"
+            "    CHECK (kind IN ('report', 'confirmation', 'cleanup', 'task', 'redeem'))")
+    found = marks(preflight.check_database(db))
+    mark, detail = found["خشتە نوێکان"]
+    assert mark == FAIL and "pins" in detail and "trash_bins" in detail and "bin_disposals" in detail
+    assert detail.index("004_custom_pins") < detail.index("005_pin_registrations") < detail.index("006_trash_bins")
+    assert found["ستوونە نوێکان"][0] == FAIL and "point_ledger.bin_id" in found["ستوونە نوێکان"][1]
+
+    for _ in range(2):
+        for name in ("004_custom_pins_and_notifications.sql", "005_pin_registrations.sql", "006_trash_bins.sql"):
+            run_sql((MIGRATIONS / name).read_text(encoding="utf-8"))
+    assert {mark for mark, _, _ in preflight.check_database(db)} == {OK}
+    run_sql("""INSERT INTO point_ledger (user_id, amount, kind, status)
+               SELECT id, 15, 'bin_disposal', 'released' FROM users LIMIT 1""")
+
+
 def test_public_default_staff_password_warns(db):
     """seed.py without STAFF_PASSWORD: the password is in the README."""
     assert marks(preflight.check_database(db))["وشەی نهێنیی شارەوانی"][0] == OK

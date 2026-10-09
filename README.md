@@ -173,6 +173,9 @@ python run.py                         # http://0.0.0.0:5000
 psql "$DATABASE_URL" -f migrations/001_shop_tasks_description.sql
 psql "$DATABASE_URL" -f migrations/002_neighbourhood_boundaries.sql
 psql "$DATABASE_URL" -f migrations/003_voucher_honoured.sql
+psql "$DATABASE_URL" -f migrations/004_custom_pins_and_notifications.sql
+psql "$DATABASE_URL" -f migrations/005_pin_registrations.sql
+psql "$DATABASE_URL" -f migrations/006_trash_bins.sql
 ```
 `python tools/preflight.py` پێت دەڵێت کامیان ماوە.
 

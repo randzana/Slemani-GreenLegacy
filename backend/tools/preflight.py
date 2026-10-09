@@ -33,7 +33,13 @@ TABLES = ("neighbourhoods", "users", "reports", "challenges", "cleanups", "point
 NEWER_COLUMNS = {("reports", "description"): "001_shop_tasks_description.sql",
                  ("reports", "description_source"): "001_shop_tasks_description.sql",
                  ("point_ledger", "detail"): "001_shop_tasks_description.sql",
-                 ("point_ledger", "honoured_at"): "003_voucher_honoured.sql"}
+                 ("point_ledger", "honoured_at"): "003_voucher_honoured.sql",
+                 ("point_ledger", "bin_id"): "006_trash_bins.sql"}
+# Tables added after the first schema.sql, and the migration that creates them
+NEWER_TABLES = {"pins": "004_custom_pins_and_notifications.sql",
+                "notifications": "004_custom_pins_and_notifications.sql",
+                "pin_registrations": "005_pin_registrations.sql",
+                "trash_bins": "006_trash_bins.sql", "bin_disposals": "006_trash_bins.sql"}
 STOCK_MODEL = "yolov8n.pt"
 MIN_FREE_MB, LOW_FREE_MB = 200, 1000    # a report photo plus an 8-frame video is a few MB
 
@@ -47,7 +53,7 @@ def migrate(files):
 
 
 def check_database(url):
-    """Connection, PostGIS, the six tables, newer columns, staff account and neighbourhoods."""
+    """Connection, PostGIS, the six tables, newer columns and tables, staff account and neighbourhoods."""
     where = url.rsplit("@", 1)[-1]          # host:port/name, without the password
     try:
         conn = psycopg.connect(url, connect_timeout=5, autocommit=True)
@@ -74,7 +80,10 @@ def check_database(url):
             names = ", ".join(".".join(col) for col in old)
             out.append((FAIL, "ستوونە نوێکان", f"missing {names}: {migrate(NEWER_COLUMNS[c] for c in old)}"))
         else:
-            out.append((OK, "ستوونە نوێکان", "reports.description, point_ledger.detail, point_ledger.honoured_at"))
+            out.append((OK, "ستوونە نوێکان", ", ".join(".".join(col) for col in NEWER_COLUMNS)))
+        absent = [t for t in NEWER_TABLES if t not in tables]
+        out.append((FAIL, "خشتە نوێکان", f"missing {', '.join(absent)}: {migrate(NEWER_TABLES[t] for t in absent)}")
+                   if absent else (OK, "خشتە نوێکان", ", ".join(NEWER_TABLES)))
         shape = conn.execute("""SELECT type FROM geography_columns
                                 WHERE f_table_schema = current_schema() AND f_table_name = 'neighbourhoods'
                                   AND f_geography_column = 'boundary'""").fetchone()

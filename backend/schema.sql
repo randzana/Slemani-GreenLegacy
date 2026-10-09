@@ -3,7 +3,7 @@
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
-DROP TABLE IF EXISTS pin_registrations, notifications, pins, point_ledger, cleanups, challenges, reports, users, neighbourhoods CASCADE;
+DROP TABLE IF EXISTS bin_disposals, trash_bins, pin_registrations, notifications, pins, point_ledger, cleanups, challenges, reports, users, neighbourhoods CASCADE;
 
 CREATE TABLE neighbourhoods (
     id          SERIAL PRIMARY KEY,
