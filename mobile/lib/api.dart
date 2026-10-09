@@ -35,7 +35,7 @@ class Api {
     baseUrl = prefs.getString('baseUrl') ?? S.serverHint;
     // Only the first build's hotspot default is replaced. Anything else was typed and worked,
     // including the old localhost:5001 default, which is right on a Mac where AirPlay holds 5000.
-    if (baseUrl == 'http://192.168.43.1:5000') {
+    if (baseUrl == 'http://192.168.43.1:5000' || baseUrl == 'http://localhost:5000') {
       baseUrl = S.serverHint;
       await prefs.setString('baseUrl', baseUrl);
     }
@@ -195,4 +195,38 @@ class Api {
     user = data;
     return data;
   }
+
+  // ---- municipality pins & notifications
+  Future<List<Map<String, dynamic>>> pins([String? category]) async {
+    final query = category != null ? '?category=$category' : '';
+    return List<Map<String, dynamic>>.from(await _get('/pins$query'));
+  }
+
+  Future<Map<String, dynamic>> pin(int id) async =>
+      Map<String, dynamic>.from(await _get('/pins/$id'));
+
+  Future<Map<String, dynamic>> registerPin(int id, {String? notes}) async =>
+      Map<String, dynamic>.from(await _post('/pins/$id/register', {'notes': notes}));
+
+  Future<Map<String, dynamic>> unregisterPin(int id) async =>
+      Map<String, dynamic>.from(await _post('/pins/$id/unregister'));
+
+  Future<List<Map<String, dynamic>>> notifications() async =>
+      List<Map<String, dynamic>>.from(await _get('/notifications'));
+
+  Future<void> markNotificationRead(int id) async =>
+      await _post('/notifications/$id/read');
+
+  // ---- trash bins & disposal verification
+  Future<List<Map<String, dynamic>>> trashBins() async =>
+      List<Map<String, dynamic>>.from(await _get('/bins'));
+
+  Future<Map<String, dynamic>> verifyDisposal(String qrCode, {double? lat, double? lon, String? notes}) async =>
+      Map<String, dynamic>.from(await _post('/bins/verify-disposal', {
+        'qr_code': qrCode,
+        if (lat != null) 'lat': lat,
+        if (lon != null) 'lon': lon,
+        if (notes != null) 'notes': notes,
+      }));
 }
+

@@ -13,6 +13,7 @@ from .auth import error, login_required, public_user
 from .db import housekeeping, query
 from .storage import path_of, save_upload, url_of
 from .strings import INSTRUCTIONS, reason
+from .bins import BIN_COLUMNS, bin_json
 
 bp = Blueprint("citizen", __name__)
 
@@ -404,3 +405,259 @@ def me():
                     "trust_level": g.user["trust_level"],
                     **points.ranks(g.user["id"], g.user["neighbourhood_id"]),
                     **points.balance(g.user["id"]), "history": history})
+
+
+# ---------------------------------------------------------------- pins & notifications
+@bp.get("/pins")
+@login_required
+def list_pins():
+    category = request.args.get("category")
+    status = request.args.get("status", "active")
+    sql = """SELECT p.id, p.creator_id, p.title, p.description, p.category, p.status,
+                    p.target_count, p.reward_points, p.send_notification, p.created_at,
+                    p.neighbourhood_id, n.name AS neighbourhood_name,
+                    ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lon,
+                    COALESCE(COUNT(pr.id) FILTER (WHERE pr.status = 'registered'), 0)::int AS participant_count,
+                    COALESCE(BOOL_OR(pr.user_id = %s AND pr.status = 'registered'), false) AS user_registered
+             FROM pins p
+             LEFT JOIN neighbourhoods n ON n.id = p.neighbourhood_id
+             LEFT JOIN pin_registrations pr ON pr.pin_id = p.id
+             WHERE p.status = %s"""
+    params = [g.user["id"], status]
+    if category:
+        sql += " AND p.category = %s"
+        params.append(category)
+    sql += " GROUP BY p.id, n.name ORDER BY p.created_at DESC LIMIT 100"
+    rows = query(sql, params)
+    out = []
+    for r in rows:
+        item = dict(r)
+        if item.get("created_at") is not None:
+            item["created_at"] = item["created_at"].isoformat()
+        out.append(item)
+    return jsonify(out)
+
+
+@bp.get("/pins/<int:pin_id>")
+@login_required
+def get_pin(pin_id):
+    row = query(
+        """SELECT p.id, p.creator_id, p.title, p.description, p.category, p.status,
+                  p.target_count, p.reward_points, p.send_notification, p.created_at,
+                  p.neighbourhood_id, n.name AS neighbourhood_name,
+                  ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lon,
+                  COALESCE(COUNT(pr.id) FILTER (WHERE pr.status = 'registered'), 0)::int AS participant_count,
+                  COALESCE(BOOL_OR(pr.user_id = %s AND pr.status = 'registered'), false) AS user_registered
+           FROM pins p
+           LEFT JOIN neighbourhoods n ON n.id = p.neighbourhood_id
+           LEFT JOIN pin_registrations pr ON pr.pin_id = p.id
+           WHERE p.id = %s
+           GROUP BY p.id, n.name""",
+        (g.user["id"], pin_id), one=True)
+    if not row:
+        return jsonify({"error": "not_found", "message": "پینەکە نەدۆزرایەوە"}), 404
+    item = dict(row)
+    if item.get("created_at") is not None:
+        item["created_at"] = item["created_at"].isoformat()
+    return jsonify(item)
+
+
+@bp.post("/pins/<int:pin_id>/register")
+@login_required
+def register_pin(pin_id):
+    """Citizen registers to participate in a tree planting or cleanup event."""
+    pin = query("SELECT id, title, category, status, target_count FROM pins WHERE id = %s", (pin_id,), one=True)
+    if pin is None:
+        return jsonify({"error": "not_found", "message": "پینەکە نەدۆزرایەوە"}), 404
+    if pin["status"] != "active":
+        return jsonify({"error": "not_active", "message": "ئەم دەستپێشخەرییە لە ئێستادا کارا نییە"}), 400
+
+    data = request.get_json(silent=True) or {}
+    notes = (data.get("notes") or "").strip() or None
+
+    query(
+        """INSERT INTO pin_registrations (pin_id, user_id, notes, status, created_at)
+           VALUES (%s, %s, %s, 'registered', now())
+           ON CONFLICT (pin_id, user_id)
+           DO UPDATE SET status = 'registered', notes = COALESCE(EXCLUDED.notes, pin_registrations.notes), created_at = now()""",
+        (pin_id, g.user["id"], notes)
+    )
+
+    count_row = query(
+        "SELECT COUNT(*)::int AS count FROM pin_registrations WHERE pin_id = %s AND status = 'registered'",
+        (pin_id,), one=True
+    )
+    participant_count = count_row["count"] if count_row else 1
+
+    return jsonify({
+        "ok": True,
+        "registered": True,
+        "participant_count": participant_count,
+        "message": "ناوت بە سەرکەوتوویی تۆمارکرا بۆ بەشداریکردن لەم دەستپێشخەرییەدا"
+    })
+
+
+@bp.post("/pins/<int:pin_id>/unregister")
+@login_required
+def unregister_pin(pin_id):
+    """Citizen cancels registration for a pin."""
+    query(
+        "DELETE FROM pin_registrations WHERE pin_id = %s AND user_id = %s",
+        (pin_id, g.user["id"])
+    )
+    count_row = query(
+        "SELECT COUNT(*)::int AS count FROM pin_registrations WHERE pin_id = %s AND status = 'registered'",
+        (pin_id,), one=True
+    )
+    participant_count = count_row["count"] if count_row else 0
+
+    return jsonify({
+        "ok": True,
+        "registered": False,
+        "participant_count": participant_count,
+        "message": "ناونووسینەکەت لابرایەوە"
+    })
+
+
+
+@bp.get("/notifications")
+@login_required
+def list_notifications():
+    rows = query(
+        """SELECT n.id, n.title, n.message, n.category, n.pin_id, n.created_at, n.is_read,
+                  p.title AS pin_title,
+                  ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lon
+           FROM notifications n
+           LEFT JOIN pins p ON p.id = n.pin_id
+           ORDER BY n.created_at DESC LIMIT 50""")
+    out = []
+    for r in rows:
+        item = dict(r)
+        item["created_at"] = item["created_at"].isoformat()
+        out.append(item)
+    return jsonify(out)
+
+
+@bp.post("/notifications/<int:notif_id>/read")
+@login_required
+def mark_notification_read(notif_id):
+    query("UPDATE notifications SET is_read = true WHERE id = %s", (notif_id,))
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------- trash bins
+
+@bp.get("/bins")
+def list_bins():
+    """List active trash bins for map and citizens."""
+    rows = query(
+        f"""SELECT {BIN_COLUMNS}
+            FROM trash_bins b
+            LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+            WHERE b.status <> 'maintenance'
+            ORDER BY b.created_at DESC LIMIT 300"""
+    )
+    return jsonify([bin_json(r) for r in rows])
+
+
+@bp.post("/bins/verify-disposal")
+@login_required
+def verify_disposal():
+    """Citizen scans the QR code on a trash bin when disposing of waste to earn points."""
+    housekeeping()
+    data = request.get_json(silent=True) or {}
+    qr_code = (data.get("qr_code") or data.get("code") or "").strip().upper()
+
+    if not qr_code:
+        return jsonify({"error": "missing_qr", "message": "تکایە کۆدی QR ی تەنەکەکە داخڵ بکە یان سکانی بکە"}), 400
+
+    bin_row = query(
+        f"""SELECT {BIN_COLUMNS}
+            FROM trash_bins b
+            LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+            WHERE b.code = %s""",
+        (qr_code,), one=True)
+
+    if not bin_row:
+        return jsonify({"error": "bin_not_found", "message": f"کۆدی «{qr_code}» وەک تەنەکەی خۆڵی فەرمیی شارەوانی تۆمار نەکراوە"}), 404
+
+    if bin_row["status"] == "maintenance":
+        return jsonify({"error": "bin_maintenance", "message": "ئەم تەنەکەیە لە چاککردنەوەدایە و لە کار کەوتووە"}), 400
+
+    lat = data.get("lat")
+    lon = data.get("lon")
+    if lat is not None and lon is not None:
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            # Check proximity to the bin (within 120m)
+            near = query(
+                """SELECT ST_DWithin(location, ST_MakePoint(%s, %s)::geography, 120) AS ok
+                   FROM trash_bins WHERE id = %s""",
+                (lon, lat, bin_row["id"]), one=True)
+            if near and not near["ok"]:
+                return jsonify({
+                    "error": "too_far_from_bin",
+                    "message": "تۆ لە شوێنی دیاریکراوی ئەم تەنەکەی خۆڵە دووریت؛ تکایە لە نزیک تەنەکەکە سکان بکە"
+                }), 400
+        except (ValueError, TypeError):
+            pass
+
+    # Anti-spam: check if user verified at THIS bin in the last 15 minutes
+    recent = query(
+        """SELECT 1 FROM bin_disposals
+           WHERE bin_id = %s AND user_id = %s
+             AND created_at > now() - interval '15 minutes'""",
+        (bin_row["id"], g.user["id"]), one=True)
+    if recent:
+        return jsonify({
+            "error": "disposal_rate_limit",
+            "message": "تۆ کەمێک پێش ئێستا فڕێدانی پاشماوەت لەم تەنەکەیەدا تۆمار کردووە؛ تکایە دواتر دووبارەی بکەرەوە"
+        }), 429
+
+    # Daily cap for disposal points (max 5 per day)
+    today_count = query(
+        """SELECT count(*)::int AS cnt FROM bin_disposals
+           WHERE user_id = %s AND created_at >= date_trunc('day', now())""",
+        (g.user["id"],), one=True)
+    is_capped = (today_count["cnt"] or 0) >= 5
+
+    points_to_award = 15 if not is_capped else 0
+
+    # Insert disposal record
+    query(
+        """INSERT INTO bin_disposals (bin_id, user_id, points_awarded, location, notes)
+           VALUES (%s, %s, %s,
+                   CASE WHEN %s::float8 IS NULL THEN NULL ELSE ST_MakePoint(%s, %s)::geography END,
+                   %s)""",
+        (bin_row["id"], g.user["id"], points_to_award, lon, lon, lat,
+         data.get("notes") or "فڕێدانی پاشماوە بە سکانی QR")
+    )
+
+    if points_to_award > 0:
+        query(
+            """INSERT INTO point_ledger (user_id, amount, kind, status, bin_id, release_at, detail)
+               VALUES (%s, %s, 'bin_disposal', 'released', %s, now(), %s)""",
+            (g.user["id"], points_to_award, bin_row["id"], f"bin_disposal:{bin_row['code']}")
+        )
+        points.adjust_trust(g.user["id"], "verified")
+
+    # Fetch updated disposal count for this bin
+    updated_bin = query(
+        f"""SELECT {BIN_COLUMNS}
+            FROM trash_bins b
+            LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+            WHERE b.id = %s""",
+        (bin_row["id"],), one=True)
+
+    msg = (f"فڕێدانی پاشماوە بە سەرکەوتوویی لە «{bin_row['name']}» ({bin_row['code']}) پشتڕاستکرایەوە! "
+           f"+{points_to_award} خاڵی سەوزت پێبەخشرا." if points_to_award > 0
+           else f"فڕێدانی پاشماوە لە «{bin_row['name']}» تۆمارکرا (گەیشتوویتە سنووری خاڵی ڕۆژانە).")
+
+    return jsonify({
+        "ok": True,
+        "message": msg,
+        "points_awarded": points_to_award,
+        "bin": bin_json(updated_bin)
+    })
+

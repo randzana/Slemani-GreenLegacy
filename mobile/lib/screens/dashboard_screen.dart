@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../data/plant_data.dart';
+import '../notification_service.dart';
 import '../strings.dart';
 import '../theme.dart';
 import 'daily_tasks_card.dart';
@@ -52,6 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final me = await Api.instance.me();
       final reports = await Api.instance.reports();
+      NotificationService.instance.refresh();
       if (mounted) {
         setState(() {
           _user = me;
@@ -64,6 +66,296 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _showNotifications() {
+    NotificationService.instance.refresh();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => ValueListenableBuilder<List<Map<String, dynamic>>>(
+        valueListenable: NotificationService.instance.notifications,
+        builder: (ctx, notifs, _) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.65,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          builder: (ctx, scroll) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(S.notifications, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('${S.digits(notifs.length)} ${S.notifications}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: notifs.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.notifications_none_rounded, size: 54, color: Colors.grey.shade400),
+                              const SizedBox(height: 10),
+                              Text(S.notificationsEmpty, style: TextStyle(color: Colors.grey.shade600)),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scroll,
+                          itemCount: notifs.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (_, i) {
+                            final n = notifs[i];
+                            final isUnread = n['is_read'] != true;
+                            final cat = n['category']?.toString() ?? '';
+                            final isTree = cat == 'tree_planting';
+                            final isWater = cat == 'watering_point';
+                            final icon = isTree ? Icons.park_rounded : (isWater ? Icons.water_drop_rounded : Icons.warning_amber_rounded);
+                            final iconColor = isTree ? kPrimaryGreen : (isWater ? Colors.blue : Colors.orange.shade800);
+                            return Card(
+                              elevation: 0,
+                              color: isUnread ? iconColor.withValues(alpha: 0.06) : null,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: isUnread ? iconColor.withValues(alpha: 0.4) : Colors.grey.shade200,
+                                  width: isUnread ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: ListTile(
+                                onTap: () {
+                                  if (n['id'] != null) {
+                                    NotificationService.instance.markRead(n['id'] as int);
+                                  }
+                                  if (n['lat'] != null) {
+                                    Navigator.pop(ctx);
+                                    widget.onOpenMap();
+                                  }
+                                },
+                                leading: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    CircleAvatar(backgroundColor: iconColor.withValues(alpha: 0.15), child: Icon(icon, color: iconColor)),
+                                    if (isUnread)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 2),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                title: Text(n['title']?.toString() ?? '', style: TextStyle(fontWeight: isUnread ? FontWeight.bold : FontWeight.w600, fontSize: 14)),
+                                subtitle: Text(n['message']?.toString() ?? '', style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+                                trailing: n['lat'] != null
+                                    ? IconButton(
+                                        icon: const Icon(Icons.map_rounded, color: kPrimaryGreen),
+                                        onPressed: () {
+                                          if (n['id'] != null) {
+                                            NotificationService.instance.markRead(n['id'] as int);
+                                          }
+                                          Navigator.pop(ctx);
+                                          widget.onOpenMap();
+                                        },
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDisposalDialog() async {
+    List<Map<String, dynamic>> bins = [];
+    try {
+      bins = await Api.instance.trashBins();
+    } catch (_) {}
+
+    if (!mounted) return;
+    final codeCtrl = TextEditingController(text: bins.isNotEmpty ? bins.first['code'] : 'GL-BIN-001');
+    bool busy = false;
+    String? errorMsg;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF059669), size: 28),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('فڕێدانی پاشماوە و سکانی تەنەکە',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                        Text('پشکنینی کۆدی سەر تەنەکەی شارەوانی',
+                            style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('+١٥ خاڵ',
+                        style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text('کۆدی QR ی سەر تەنەکەکە:',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'نموونە: GL-BIN-001',
+                  prefixIcon: const Icon(Icons.qr_code_rounded, color: Color(0xFF10B981)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+              ),
+              if (bins.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('تەنەکەکانی نزیکت:',
+                    style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final b in bins)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: ActionChip(
+                            avatar: const Icon(Icons.delete_outline_rounded, size: 16),
+                            label: Text('${b['code']} (${b['name']})'),
+                            onPressed: () {
+                              setSheetState(() {
+                                codeCtrl.text = b['code'] ?? '';
+                              });
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              if (errorMsg != null) ...[
+                const SizedBox(height: 10),
+                Text(errorMsg!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle_rounded),
+                  label: busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('پشکنین و وەرگرتنی خاڵ (+١٥)',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          final code = codeCtrl.text.trim();
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(ctx);
+                          setSheetState(() {
+                            busy = true;
+                            errorMsg = null;
+                          });
+                          try {
+                            final res = await Api.instance.verifyDisposal(code);
+                            navigator.pop();
+                            widget.refresh.value++;
+                            _load();
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(res['message']?.toString() ?? 'فڕێدانی پاشماوە بە سەرکەوتوویی پشکنرا!'),
+                                backgroundColor: const Color(0xFF10B981),
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          } catch (err) {
+                            setSheetState(() {
+                              busy = false;
+                              errorMsg = err.toString();
+                            });
+                          }
+                        },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -71,13 +363,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cardColor = Theme.of(context).cardColor;
 
     final name = _user?['name']?.toString() ?? S.citizen;
-    // Everything ever earned, not the spendable balance: buying in the shop must not lower the
-    // total or the level (an older server without "earned" falls back to the balance).
     final points = ((_user?['earned'] ?? _user?['released']) as num?)?.toInt() ?? 0;
     final pending = (_user?['pending'] as num?)?.toInt() ?? 0;
     final totalPoints = points + pending;
 
-    // Eco levels
     String levelName = S.levelSeed;
     double progress = (totalPoints / 200).clamp(0.0, 1.0);
     int nextGoal = 200;
@@ -117,7 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: Column(
                 children: [
-                  // Greeting & Streak
+                  // Greeting & Streak & Notification Bell
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -139,22 +428,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 22),
-                            const SizedBox(width: 4),
-                            Text(
-                              S.digits(_reports.where((r) => r['status'] == 'clean').length),
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange, fontSize: 15),
+                      Row(
+                        children: [
+                          ValueListenableBuilder<int>(
+                            valueListenable: NotificationService.instance.unreadCount,
+                            builder: (context, unread, _) {
+                              return Stack(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.notifications_none_rounded, size: 26),
+                                    color: kPrimaryGreen,
+                                    onPressed: _showNotifications,
+                                  ),
+                                  if (unread > 0)
+                                    Positioned(
+                                      right: 6,
+                                      top: 6,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                        child: Text(
+                                          unread > 9 ? '9+' : '$unread',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 22),
+                                const SizedBox(width: 4),
+                                Text(
+                                  S.digits(_reports.where((r) => r['status'] == 'clean').length),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -284,6 +614,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 SizedBox(height: 2),
                                 Text(
                                   S.liveMapHint,
+                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 18),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Waste Disposal & QR Scan Banner
+                  GestureDetector(
+                    onTap: _showDisposalDialog,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF047857), Color(0xFF10B981)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF047857).withValues(alpha: 0.32),
+                            blurRadius: 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 28),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'فڕێدانی پاشماوە و سکانی QR',
+                                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      '+١٥ خاڵ',
+                                      style: TextStyle(
+                                        color: Color(0xFFFEF08A),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'کۆدی سەر تەنەکەی خۆڵ سکان بکە بۆ وەرگرتنی خاڵ',
                                   style: TextStyle(color: Colors.white70, fontSize: 12),
                                 ),
                               ],

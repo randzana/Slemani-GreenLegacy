@@ -4,13 +4,12 @@ class S {
 
   // auth
   static const server = 'ناونیشانی سێرڤەر';
-  // run.py listens on 5000 and moves to 5001 only when 5000 is taken (macOS AirPlay)
-  static const serverHint = 'http://localhost:5000';
+  // run.py listens on 5001 (macOS AirPlay takes 5000)
+  static const serverHint = 'http://localhost:5001';
   // one hint per line: a narrow phone otherwise breaks the addresses after "http://"
-  static const serverHelp = 'مۆبایل: IP ی لاپتۆپ\n'
-      'سیمولەیتەری iOS: http://localhost:5000\n'
-      'ئیمولەیتەری ئەندرۆید: http://10.0.2.2:5000\n'
-      'پۆرتی 5000 گیرابوو (macOS)؟ 5001 بەکاربهێنە';
+  static const serverHelp = 'مۆبایل: IP ی لاپتۆپ:5001\n'
+      'سیمولەیتەری iOS: http://localhost:5001\n'
+      'ئیمولەیتەری ئەندرۆید: http://10.0.2.2:5001';
   static const name = 'ناو';
   static const phone = 'ژمارەی مۆبایل';
   static const password = 'وشەی نهێنی (لانیکەم ٦ پیت)';
@@ -52,7 +51,30 @@ class S {
   static const filterAll = 'هەموو';
   static const filterInProgress = 'لەسەریەتی';
   static const filterClean = 'پاک';
+  static const filterTreePlanting = 'نەمام ناشتن 🌱';
+  static const filterCleanupTarget = 'شوێنی پیس ⚠️';
   static String withCount(String label, Object n) => '$label (${digits(n)})';
+
+  // custom pins & directives
+  static const pinTreePlanting = 'نەمام ناشتن';
+  static const pinCleanupTarget = 'شوێنی پیس بۆ پاککردنەوە';
+  static const pinWateringPoint = 'خاڵی ئاودان و چاودێری';
+  static const pinTarget = 'ئامانج';
+  static const pinReward = 'خاڵی پاداشت';
+  static const pinDetails = 'زانیاریی خاڵ / کەمپین';
+  static const notifications = 'ئاگادارییەکانی شارەوانی';
+  static const notificationsEmpty = 'هیچ ئاگادارییەکی نوێ نییە';
+  static const municipalityDirectives = 'دەستپێشخەرییەکانی شارەوانی';
+  static const participantsCount = 'بەشداربووان';
+  static String participantsProgress(Object current, Object target) =>
+      '${digits(current)} خۆبەخش ناوی تۆمارکردووە (ئامانج: ${digits(target)})';
+  static const registerParticipation = 'ناونووسین بۆ بەشداریکردن لە هەڵمەتەکە 🌱';
+  static const cancelRegistration = 'پاشگەزبوونەوە لە بەشداریکردن';
+  static const registeredSuccess = 'ناوت بە سەرکەوتوویی تۆمارکرا بۆ بەشداریکردن!';
+  static const unregisteredSuccess = 'ناونووسینەکەت بە سەرکەوتوویی لابرایەوە.';
+  static const alreadyRegisteredBadge = '✓ تۆ ناوت تۆمارکردووە بۆ ئەم هەڵمەتە';
+  static const registrationNotes = 'تێبینی یان ئامادەیی خۆت بنووسە (ئارەزوومەندانە)';
+
 
   // dashboard (home tab)
   static const citizen = 'هاوڵاتی'; // shown when the server sends no name

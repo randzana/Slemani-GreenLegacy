@@ -274,3 +274,131 @@ def test_black_frames_do_not_make_an_honest_cleanup_look_reused(api):
         frames = frames[:-1] + [black] if challenge["instruction"] == "qr_first" else [black] + frames[1:]
         r = api.cleanup(cleaner, report["id"], challenge["id"], frames, *at)
         assert r.json["verdict"] == "verified", r.json
+
+
+def test_admin_pin_creation_and_citizen_notifications(api):
+    staff_auth = api.staff()
+    citizen_auth = api.signup()
+
+    # 1. Staff creates a tree planting pin with broadcast notification
+    pin_payload = {
+        "title": "هەڵمەتی چاندنی ٥٠ نەمام لە پارکی ئازادی",
+        "description": "پێویستمان بە خۆبەخشانە بۆ چاندنی نەمامی چنار",
+        "category": "tree_planting",
+        "lat": 35.5613,
+        "lon": 45.4373,
+        "target_count": 50,
+        "reward_points": 25,
+        "notify_citizens": True,
+    }
+    r = api.client.post("/admin/pins", json=pin_payload, headers=staff_auth)
+    assert r.status_code == 201, r.json
+    pin = r.json["pin"]
+    assert pin["title"] == pin_payload["title"]
+    assert pin["category"] == "tree_planting"
+    assert pin["reward_points"] == 25
+
+    # 2. Staff creates a dirty spot pin without notification
+    waste_payload = {
+        "title": "شوێنی فڕێدانی پاشماوە لە چوارباخ",
+        "description": "کۆمەڵێک زبڵ و خاشاک لەسەر شەقامەکە کەوتووە",
+        "category": "cleanup_target",
+        "lat": 35.5620,
+        "lon": 45.4380,
+        "notify_citizens": False,
+    }
+    r2 = api.client.post("/admin/pins", json=waste_payload, headers=staff_auth)
+    assert r2.status_code == 201, r2.json
+
+    # 3. Citizen fetches active pins
+    r_pins = api.client.get("/pins", headers=citizen_auth)
+    assert r_pins.status_code == 200
+    pins_list = r_pins.json
+    assert len(pins_list) >= 2
+    categories = [p["category"] for p in pins_list]
+    assert "tree_planting" in categories
+    assert "cleanup_target" in categories
+
+    # 4. Citizen fetches notifications (should have the broadcast notification)
+    r_notifs = api.client.get("/notifications", headers=citizen_auth)
+    assert r_notifs.status_code == 200
+    notifs = r_notifs.json
+    assert len(notifs) >= 1
+    found_notif = next((n for n in notifs if n["pin_id"] == pin["id"]), None)
+    assert found_notif is not None
+    assert found_notif["category"] == "tree_planting"
+    assert found_notif["is_read"] is False
+
+    # 5. Citizen marks notification as read
+    r_read = api.client.post(f"/notifications/{found_notif['id']}/read", headers=citizen_auth)
+    assert r_read.status_code == 200
+    assert r_read.json["ok"] is True
+
+    # 6. Staff lists pins and deletes one
+    r_admin_pins = api.client.get("/admin/pins", headers=staff_auth)
+    assert r_admin_pins.status_code == 200
+    assert len(r_admin_pins.json) >= 2
+
+    del_r = api.client.delete(f"/admin/pins/{pin['id']}", headers=staff_auth)
+    assert del_r.status_code == 200
+
+
+def test_tree_planting_volunteer_registration(api):
+    staff_auth = api.staff()
+    citizen1_auth = api.signup("خۆبەخش ئاکۆ")
+    citizen2_auth = api.signup("خۆبەخش باخان")
+
+    # 1. Staff creates tree planting pin
+    pin_payload = {
+        "title": "هەڵمەتی ناشتنی ١٠٠ نەمامی بەڕوو لە گوێژە",
+        "description": "پێویستمان بە خۆبەخشانە لە ڕۆژی هەینی",
+        "category": "tree_planting",
+        "lat": 35.5650,
+        "lon": 45.4400,
+        "target_count": 100,
+        "reward_points": 75,
+        "notify_citizens": True,
+    }
+    r = api.client.post("/admin/pins", json=pin_payload, headers=staff_auth)
+    assert r.status_code == 201
+    pin_id = r.json["pin"]["id"]
+
+    # 2. Citizen 1 registers
+    r_reg1 = api.client.post(f"/pins/{pin_id}/register", json={"notes": "بە خاکەناز و کەرەستەوە ئامادە دەبم"}, headers=citizen1_auth)
+    assert r_reg1.status_code == 200
+    assert r_reg1.json["ok"] is True
+    assert r_reg1.json["registered"] is True
+    assert r_reg1.json["participant_count"] == 1
+
+    # 3. Citizen 2 registers
+    r_reg2 = api.client.post(f"/pins/{pin_id}/register", json={"notes": "لەگەڵ ٢ هاوڕێم دێین"}, headers=citizen2_auth)
+    assert r_reg2.status_code == 200
+    assert r_reg2.json["participant_count"] == 2
+
+    # 4. Citizen 1 checks pin details
+    r_pin_detail = api.client.get(f"/pins/{pin_id}", headers=citizen1_auth)
+    assert r_pin_detail.status_code == 200
+    assert r_pin_detail.json["participant_count"] == 2
+    assert r_pin_detail.json["user_registered"] is True
+
+    # 5. Staff inspects participants list
+    r_parts = api.client.get(f"/admin/pins/{pin_id}/participants", headers=staff_auth)
+    assert r_parts.status_code == 200
+    assert r_parts.json["count"] == 2
+    names = [p["user_name"] for p in r_parts.json["participants"]]
+    assert "خۆبەخش ئاکۆ" in names
+    assert "خۆبەخش باخان" in names
+
+    # 6. Citizen 2 unregisters
+    r_unreg = api.client.post(f"/pins/{pin_id}/unregister", headers=citizen2_auth)
+    assert r_unreg.status_code == 200
+    assert r_unreg.json["registered"] is False
+    assert r_unreg.json["participant_count"] == 1
+
+    # 7. Verify count is now 1
+    r_parts_after = api.client.get(f"/admin/pins/{pin_id}/participants", headers=staff_auth)
+    assert r_parts_after.status_code == 200
+    assert r_parts_after.json["count"] == 1
+    assert r_parts_after.json["participants"][0]["user_name"] == "خۆبەخش ئاکۆ"
+
+

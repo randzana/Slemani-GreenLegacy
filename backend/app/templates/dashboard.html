@@ -95,6 +95,75 @@
   #voucher-note { margin: 0 0 10px; min-height: 1.4em; font-size: 14px; }
   #voucher-note.bad { color: var(--red); font-weight: 600; }
   button.small { padding: 4px 12px; }
+
+  /* Map toolbar & Pin controls */
+  .map-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .map-actions { display: flex; align-items: center; gap: 10px; }
+  .placement-hint { background: #FBEFD9; color: var(--amber); border: 1px solid #E8D3B0; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; animation: hintpulse 1.5s infinite; }
+  @keyframes hintpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .chip-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--ink); cursor: pointer; transition: all 0.2s; }
+  .chip.active { background: var(--forest); color: #fff; border-color: var(--forest); }
+  
+  /* Pin Modal */
+  #pin-modal { position: fixed; inset: 0; background: rgba(15, 42, 31, .75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 2500; }
+  #pin-modal[hidden] { display: none; }
+  .modal-card { background: var(--card); border-radius: 20px; width: 100%; max-width: 540px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); border: 1px solid var(--line); overflow: hidden; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--forest); color: #fff; }
+  .modal-head h3 { margin: 0; font-size: 17px; }
+  .close-btn { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 4px; }
+  #pin-form { padding: 20px; display: grid; gap: 14px; }
+  .field-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; display: block; color: var(--soft); }
+  #pin-form input, #pin-form textarea, #pin-form select { width: 100%; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); box-sizing: border-box; }
+  #pin-form input:focus, #pin-form textarea:focus { border-color: var(--green); outline: none; }
+  .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .cat-card input { display: none; }
+  .cat-content { border: 2px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--paper); }
+  .cat-card input:checked + .cat-content { border-color: var(--green); background: #E3F2E9; box-shadow: 0 4px 10px rgba(30,122,74,0.15); }
+  .cat-card input:checked + .cat-content.clean { border-color: var(--amber); background: #FBEFD9; }
+  .cat-card input:checked + .cat-content.water { border-color: #1E88E5; background: #E3F2FD; }
+  .cat-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+  .cat-content strong { display: block; font-size: 12px; }
+  .cat-content small { display: block; font-size: 10px; color: var(--soft); margin-top: 2px; }
+  .form-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #EAF3EE; border-radius: 10px; border: 1px solid #CDE2D6; }
+  .checkbox-row input { width: auto !important; margin: 0; }
+  .checkbox-row span { font-size: 13px; font-weight: 600; color: #174E31; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+  /* Map markers */
+  .custom-pin-marker { display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,0.3); border: 2px solid #fff; cursor: pointer; transition: transform 0.2s; }
+  .custom-pin-marker:hover { transform: scale(1.15); }
+  .pin-tree { background: #1E7A4A; color: #fff; }
+  .pin-clean { background: #D9822B; color: #fff; }
+  .pin-water { background: #1E88E5; color: #fff; }
+  .pin-badge { font-size: 16px; line-height: 1; }
+  .pin-cat-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .pin-cat-pill.tree_planting { background: #E3F2E9; color: var(--green); }
+  .pin-cat-pill.cleanup_target { background: #FBEFD9; color: var(--amber); }
+  .pin-cat-pill.watering_point { background: #E3F2FD; color: #1565C0; }
+
+  /* Trash Bins styling */
+  .bin-badge-type { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .bin-badge-type.general { background: #E2DDD0; color: #334155; }
+  .bin-badge-type.recycle { background: #D1E7DD; color: #0F5132; }
+  .bin-badge-type.organic { background: #FFF3CD; color: #664D03; }
+  .bin-badge-type.glass_metal { background: #CFE2FF; color: #084298; }
+  .bin-status { border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: bold; }
+  .bin-status.active { background: #D1E7DD; color: #0F5132; }
+  .bin-status.full { background: #F8D7DA; color: #842029; }
+  .bin-status.maintenance { background: #FFF3CD; color: #664D03; }
+  .qr-thumb { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; transition: transform 0.15s; vertical-align: middle; background:#fff; }
+  .qr-thumb:hover { transform: scale(1.15); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+  .bin-code-pill { font-family: ui-monospace, monospace; background: var(--paper-2); padding: 3px 8px; border-radius: 6px; font-weight: bold; color: var(--forest); }
+  .qr-modal-preview { text-align: center; padding: 18px; background: #fff; border-radius: 14px; border: 2px dashed #0F2A1F; margin-bottom: 16px; }
+  .qr-modal-preview img { width: 240px; height: 240px; border-radius: 8px; display: block; margin: 0 auto; }
+  .custom-bin-marker { display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,0.3); border: 2px solid #fff; cursor: pointer; transition: transform 0.2s; background: #13261D; color: #fff; }
+  .custom-bin-marker:hover { transform: scale(1.15); }
+  /* Participants Modal */
+  #participants-modal { position: fixed; inset: 0; background: rgba(15, 42, 31, .75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 2500; }
+  #participants-modal[hidden] { display: none; }
+  .vol-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #E3F2E9; color: var(--forest); }
 </style>
 </head>
 <body>
@@ -106,6 +175,178 @@
     <div class="error" id="login-error"></div>
     <button class="primary" type="submit">چوونەژوورەوە</button>
   </form>
+</div>
+
+<div id="participants-modal" hidden>
+  <div class="modal-card" style="max-width:700px">
+    <div class="modal-head">
+      <div>
+        <h3 id="pm-pin-title" style="margin:0 0 4px">ناوی بەشداربووان</h3>
+        <p id="pm-pin-subtitle" style="margin:0;font-size:13px;opacity:0.9"></p>
+      </div>
+      <button type="button" class="close-btn" id="close-pm-modal">✕</button>
+    </div>
+    <div id="pm-content" style="max-height:420px;overflow-y:auto;padding:16px 20px">
+      <!-- dynamic content -->
+    </div>
+    <div class="modal-footer" style="padding:12px 20px;border-top:1px solid var(--line);background:var(--paper)">
+      <button type="button" id="btn-close-pm">داخستن</button>
+    </div>
+  </div>
+</div>
+
+<div id="pin-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>دیاریکردنی خاڵی نوێ لەسەر نەخشە</h3>
+      <button type="button" class="close-btn" id="close-pin-modal">✕</button>
+    </div>
+    <form id="pin-form">
+      <div>
+        <label class="field-title">جۆری چالاکی / پین:</label>
+        <div class="category-grid">
+          <label class="cat-card">
+            <input type="radio" name="pin-category" value="tree_planting" checked>
+            <div class="cat-content">
+              <span class="cat-icon">🌱</span>
+              <strong>نەمام ناشتن</strong>
+              <small>دار چاندن</small>
+            </div>
+          </label>
+          <label class="cat-card">
+            <input type="radio" name="pin-category" value="cleanup_target">
+            <div class="cat-content clean">
+              <span class="cat-icon">⚠️</span>
+              <strong>شوێنی پیس</strong>
+              <small>پاککردنەوەی بەپەلە</small>
+            </div>
+          </label>
+          <label class="cat-card">
+            <input type="radio" name="pin-category" value="watering_point">
+            <div class="cat-content water">
+              <span class="cat-icon">💧</span>
+              <strong>خاڵی ئاودان</strong>
+              <small>خزمەتکردنی دار</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label for="pin-title" class="field-title">ناونیشانی پین / کەمپین:</label>
+        <input id="pin-title" placeholder="بۆ نموونە: کەمپینی نەمام ناشتن لە پارکی ئازادی" required>
+      </div>
+
+      <div>
+        <label for="pin-desc" class="field-title">زانیاری و وەسفی ورد بۆ هاوڵاتییان:</label>
+        <textarea id="pin-desc" rows="3" placeholder="ڕوونکردنەوە لەسەر ئەم شوێنە و چ کارێک پێویستە بکرێت..." required></textarea>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="pin-coords" class="field-title">پۆوتان (نەخشە):</label>
+          <input id="pin-coords" readonly style="direction:ltr;background:var(--paper-2);font-weight:600">
+        </div>
+        <div>
+          <label for="pin-target" class="field-title">ئامانج (ژمارە):</label>
+          <input id="pin-target" type="number" min="1" value="20">
+        </div>
+        <div>
+          <label for="pin-points" class="field-title">خاڵی پاداشت:</label>
+          <input id="pin-points" type="number" min="5" step="5" value="50">
+        </div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="pin-notify" checked>
+        <span>🔔 ناردنی ئاگاداری دەستبەجێ (Notification) بۆ ئەپی مۆبایلی هاوڵاتییان</span>
+      </div>
+
+      <div class="modal-footer">
+        <button type="submit" class="primary" id="btn-submit-pin">تۆمارکردن و بڵاوکردنەوە</button>
+        <button type="button" id="btn-cancel-pin">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="bin-modal" hidden>
+  <div class="modal-card" style="max-width:580px">
+    <div class="modal-head">
+      <h3>🗑️ زیادکردنی تەنەکەی خۆڵی نوێ</h3>
+      <button type="button" class="close-btn" id="close-bin-modal">✕</button>
+    </div>
+    <form id="bin-form">
+      <div>
+        <label for="bin-name" class="field-title">ناوی تەنەکەکە:</label>
+        <input id="bin-name" placeholder="بۆ نموونە: تەنەکەی خۆڵی پارکی ئازادی ١" required>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="bin-type" class="field-title">جۆری پاشماوە:</label>
+          <select id="bin-type" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font:inherit">
+            <option value="general">🗑️ پاشماوەی گشتی</option>
+            <option value="recycle">♻️ ڕیسایکڵین (پلاستیک و نایلۆن)</option>
+            <option value="organic">🍏 ئەندامی و خۆراک</option>
+            <option value="glass_metal">🍾 شووشە و کانزا</option>
+          </select>
+        </div>
+        <div>
+          <label for="bin-capacity" class="field-title">قەبارە (لیتر):</label>
+          <select id="bin-capacity" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font:inherit">
+            <option value="240">٢٤٠ لیتر (تەنەکەی ستاندارد)</option>
+            <option value="660">٦٦٠ لیتر (مامناوەند)</option>
+            <option value="1100">١١٠٠ لیتر (کۆنتێنەری گەورە)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="bin-coords" class="field-title">پۆوتان (نەخشە):</label>
+          <input id="bin-coords" readonly style="direction:ltr;background:var(--paper-2);font-weight:600" placeholder="کلیک لەسەر نەخشە بکە" required>
+        </div>
+        <div>
+          <label for="bin-custom-code" class="field-title">کۆدی تایبەت (ئارەزوومەندانە):</label>
+          <input id="bin-custom-code" placeholder="بە بەتاڵی جێیبهێڵە بۆ خۆکار" style="direction:ltr;text-transform:uppercase">
+        </div>
+      </div>
+
+      <p class="note" style="margin-top:6px">💡 سیستەمەکە ڕاستەوخۆ کۆدی QR ی تایبەت بۆ ئەم تەنەکەیە دروست دەکات، و هاوڵاتی لەکاتی فڕێدانی پاشماوە دەتوانێت سکانی بکات.</p>
+
+      <div class="modal-footer">
+        <button type="submit" class="primary" id="btn-submit-bin">تۆمارکردن و بەرهەمهێنانی QR</button>
+        <button type="button" id="btn-cancel-bin">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="qr-view-modal" hidden>
+  <div class="modal-card" style="max-width:540px;text-align:center">
+    <div class="modal-head">
+      <h3 id="qm-title">کۆدی QR ی تەنەکەی خۆڵ</h3>
+      <button type="button" class="close-btn" id="close-qr-modal">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div class="qr-modal-preview">
+        <img id="qm-img" src="" alt="QR Code">
+        <div style="margin-top:12px">
+          <span class="bin-code-pill" id="qm-code" style="font-size:18px">GL-BIN-001</span>
+        </div>
+        <p id="qm-desc" style="margin:8px 0 0;color:var(--soft);font-size:14px"></p>
+      </div>
+      <p style="font-size:13px;color:var(--soft);margin:0 0 16px">
+        ئەم کۆدە چاپ بکە و لەسەر تەنەکەی خۆڵەکە بچەسپێنە تا هاوڵاتییان لە کاتی فڕێدانی پاشماوە سکانی بکەن.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a id="qm-download-sticker" class="primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:10px 18px;border-radius:10px;color:#fff;background:var(--green);font-weight:600" download>📥 داگرتنی ستیکەری چاپ (A5)</a>
+        <button type="button" id="qm-print" style="display:inline-flex;align-items:center;gap:6px">🖨️ چاپکردنی خێرا</button>
+        <button type="button" id="btn-close-qr">داخستن</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <header>
@@ -121,6 +362,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="map">نەخشەی زیندوو</button>
+    <button role="tab" aria-selected="false" data-tab="bins">🗑️ تەنەکەکانی خۆڵ<span class="badge" id="bin-count">٠</span></button>
     <button role="tab" aria-selected="false" data-tab="priority">لیستی ئەولەویەت</button>
     <button role="tab" aria-selected="false" data-tab="log">تۆماری پاککردنەوە</button>
     <button role="tab" aria-selected="false" data-tab="review">پشکنین<span class="badge" id="review-count">٠</span></button>
@@ -129,8 +371,66 @@
   </nav>
 
   <section class="panel active" id="panel-map">
+    <div class="map-toolbar">
+      <div class="map-actions">
+        <button id="btn-add-pin" class="primary" type="button">📍 دانانی پین لەسەر نەخشە</button>
+        <button id="btn-add-bin-map" style="background:var(--paper-2);border:1px solid var(--line)" type="button">🗑️ دانانی تەنەکە لە نەخشە</button>
+        <span id="pin-placement-hint" class="placement-hint" hidden>👈 کلیک لەسەر هەر شوێنێکی نەخشەکە بکە بۆ دیاریکردنی خاڵەکە</span>
+      </div>
+      <div class="chip-group" id="map-filters">
+        <span style="color:var(--soft);font-size:13px">پیشاندان:</span>
+        <button class="chip active" data-map-filter="all" type="button">هەموو</button>
+        <button class="chip" data-map-filter="reports" type="button">ڕاپۆرتەکان</button>
+        <button class="chip" data-map-filter="bins" type="button">🗑️ تەنەکەکانی خۆڵ</button>
+        <button class="chip" data-map-filter="tree_planting" type="button">🌱 نەمام ناشتن</button>
+        <button class="chip" data-map-filter="cleanup_target" type="button">⚠️ شوێنی پیس</button>
+        <button class="chip" data-map-filter="watering_point" type="button">💧 ئاودان</button>
+      </div>
+    </div>
     <div id="map"></div>
     <div class="legend" id="legend"></div>
+
+    <div style="margin-top:28px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="font-size:17px;margin:0">پین و کەمپینە چالاکەکانی شارەوانی لەسەر نەخشە</h2>
+        <span id="pin-count-badge" class="badge">٠</span>
+      </div>
+      <div id="pins-list"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-bins">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="font-size:18px;margin:0 0 4px">بەڕێوەبردنی تەنەکەکانی خۆڵ و کۆدی QR</h2>
+        <small style="color:var(--soft)">بەرهەمهێنانی کۆدی QR و بەستنەوە بە سیستەمی پشکنینی فڕێدانی پاشماوە</small>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button id="btn-open-add-bin" class="primary" type="button">➕ زیادکردنی تەنەکەی نوێ</button>
+      </div>
+    </div>
+
+    <!-- Mini stats for bins -->
+    <div class="stats" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));margin-bottom:20px">
+      <div class="stat"><div class="num" id="stat-bin-total">٠</div><div class="label">کۆی تەنەکەکان</div></div>
+      <div class="stat"><div class="num" id="stat-bin-active" style="color:var(--green)">٠</div><div class="label">تەنەکەی چالاک</div></div>
+      <div class="stat"><div class="num" id="stat-bin-full" style="color:var(--red)">٠</div><div class="label">پڕبووە</div></div>
+      <div class="stat"><div class="num" id="stat-bin-disposals" style="color:var(--amber)">٠</div><div class="label">کۆی فڕێدانی پشکنراو</div></div>
+    </div>
+
+    <!-- Filter chips for bins table -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+      <div class="chip-group" id="bin-table-filters">
+        <span style="color:var(--soft);font-size:13px">فلتەری جۆر:</span>
+        <button class="chip active" data-bin-filter="all" type="button">هەموو</button>
+        <button class="chip" data-bin-filter="general" type="button">🗑️ گشتی</button>
+        <button class="chip" data-bin-filter="recycle" type="button">♻️ ڕیسایکڵین</button>
+        <button class="chip" data-bin-filter="organic" type="button">🍏 ئەندامی</button>
+        <button class="chip" data-bin-filter="glass_metal" type="button">🍾 شووشە/کانزا</button>
+      </div>
+    </div>
+
+    <div id="bins-table-wrap"></div>
   </section>
   <section class="panel" id="panel-priority"><div id="priority"></div></section>
   <section class="panel" id="panel-log"><div id="log"></div></section>
@@ -199,9 +499,262 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
 const areaLayer = L.featureGroup().addTo(map);   // neighbourhood boundaries, kept under the spots
 const layer = L.layerGroup().addTo(map);
+const pinLayer = L.layerGroup().addTo(map);      // custom municipality pins (tree planting, dirty spots)
+const binLayer = L.layerGroup().addTo(map);      // trash bins with QR codes
 let fitted = false;
 let lastSpots = [];
+let customPins = [];
+let customBins = [];
 let spotsLoaded = false;
+let currentMapFilter = 'all';
+let currentBinFilter = 'all';
+
+const PIN_TYPES = {
+  tree_planting: { title: 'نەمام ناشتن', icon: '🌱', cls: 'pin-tree', pill: 'tree_planting' },
+  cleanup_target: { title: 'شوێنی پیس', icon: '⚠️', cls: 'pin-clean', pill: 'cleanup_target' },
+  watering_point: { title: 'خاڵی ئاودان', icon: '💧', cls: 'pin-water', pill: 'watering_point' },
+};
+
+// Filter chips handling
+document.querySelectorAll('[data-map-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-map-filter]').forEach(b => b.classList.toggle('active', b === btn));
+    currentMapFilter = btn.dataset.mapFilter;
+    renderSpots();
+    renderCustomPins();
+    renderBinMarkers();
+  });
+});
+
+// Pin & Bin Placement Mode
+let pinMode = false;
+let binMode = false;
+let tempPinMarker = null;
+let tempBinMarker = null;
+const btnAddPin = document.getElementById('btn-add-pin');
+const btnAddBinMap = document.getElementById('btn-add-bin-map');
+const pinHint = document.getElementById('pin-placement-hint');
+const pinModal = document.getElementById('pin-modal');
+const binModal = document.getElementById('bin-modal');
+
+if (btnAddPin) {
+  btnAddPin.addEventListener('click', () => {
+    pinMode = !pinMode;
+    if (pinMode && binMode) {
+      binMode = false;
+      if (btnAddBinMap) {
+        btnAddBinMap.classList.remove('active');
+        btnAddBinMap.textContent = '🗑️ دانانی تەنەکە لە نەخشە';
+      }
+    }
+    btnAddPin.classList.toggle('active', pinMode);
+    btnAddPin.textContent = pinMode ? '❌ هەڵوەشاندنەوەی دانان' : '📍 دانانی پین لەسەر نەخشە';
+    if (pinHint) {
+      pinHint.hidden = !pinMode;
+      pinHint.textContent = '👈 کلیک لەسەر هەر شوێنێکی نەخشەکە بکە بۆ دیاریکردنی پینەکە';
+    }
+    document.getElementById('map').style.cursor = pinMode ? 'crosshair' : '';
+  });
+}
+
+if (btnAddBinMap) {
+  btnAddBinMap.addEventListener('click', () => {
+    binMode = !binMode;
+    if (binMode && pinMode) {
+      pinMode = false;
+      if (btnAddPin) {
+        btnAddPin.classList.remove('active');
+        btnAddPin.textContent = '📍 دانانی پین لەسەر نەخشە';
+      }
+    }
+    btnAddBinMap.classList.toggle('active', binMode);
+    btnAddBinMap.textContent = binMode ? '❌ هەڵوەشاندنەوەی دانان' : '🗑️ دانانی تەنەکە لە نەخشە';
+    if (pinHint) {
+      pinHint.hidden = !binMode;
+      pinHint.textContent = '👈 کلیک لەسەر هەر شوێنێکی نەخشەکە بکە بۆ دیاریکردنی شوێنی تەنەکەی خۆڵ';
+    }
+    document.getElementById('map').style.cursor = binMode ? 'crosshair' : '';
+  });
+}
+
+map.on('click', e => {
+  const lat = e.latlng.lat.toFixed(5);
+  const lon = e.latlng.lng.toFixed(5);
+
+  if (pinMode) {
+    pinMode = false;
+    if (btnAddPin) {
+      btnAddPin.classList.remove('active');
+      btnAddPin.textContent = '📍 دانانی پین لەسەر نەخشە';
+    }
+    if (pinHint) pinHint.hidden = true;
+    document.getElementById('map').style.cursor = '';
+
+    document.getElementById('pin-coords').value = `${lat}, ${lon}`;
+    if (tempPinMarker) map.removeLayer(tempPinMarker);
+    tempPinMarker = L.marker(e.latlng).addTo(map);
+    if (pinModal) pinModal.hidden = false;
+    return;
+  }
+
+  if (binMode) {
+    binMode = false;
+    if (btnAddBinMap) {
+      btnAddBinMap.classList.remove('active');
+      btnAddBinMap.textContent = '🗑️ دانانی تەنەکە لە نەخشە';
+    }
+    if (pinHint) pinHint.hidden = true;
+    document.getElementById('map').style.cursor = '';
+
+    document.getElementById('bin-coords').value = `${lat}, ${lon}`;
+    if (tempBinMarker) map.removeLayer(tempBinMarker);
+    tempBinMarker = L.marker(e.latlng).addTo(map);
+    if (binModal) binModal.hidden = false;
+    return;
+  }
+});
+
+function closePinModal() {
+  if (pinModal) pinModal.hidden = true;
+  if (tempPinMarker) { map.removeLayer(tempPinMarker); tempPinMarker = null; }
+}
+
+const btnCloseModal = document.getElementById('close-pin-modal');
+const btnCancelModal = document.getElementById('btn-cancel-pin');
+if (btnCloseModal) btnCloseModal.addEventListener('click', closePinModal);
+if (btnCancelModal) btnCancelModal.addEventListener('click', closePinModal);
+
+const pinForm = document.getElementById('pin-form');
+if (pinForm) {
+  pinForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const catInput = document.querySelector('input[name="pin-category"]:checked');
+    const category = catInput ? catInput.value : 'tree_planting';
+    const title = document.getElementById('pin-title').value.trim();
+    const description = document.getElementById('pin-desc').value.trim();
+    const coords = document.getElementById('pin-coords').value.split(',').map(s => parseFloat(s.trim()));
+    const target_count = parseInt(document.getElementById('pin-target').value) || 1;
+    const reward_points = parseInt(document.getElementById('pin-points').value) || 50;
+    const send_notification = document.getElementById('pin-notify').checked;
+
+    const btn = document.getElementById('btn-submit-pin');
+    if (btn) btn.disabled = true;
+    try {
+      await api('/admin/pins', {
+        method: 'POST',
+        body: JSON.stringify({
+          category, title, description,
+          lat: coords[0], lon: coords[1],
+          target_count, reward_points, send_notification
+        })
+      });
+      closePinModal();
+      document.getElementById('pin-title').value = '';
+      document.getElementById('pin-desc').value = '';
+      refresh();
+    } catch (err) {
+      alert(err.message || 'هەڵەیەک ڕوویدا لە کاتی تۆمارکردنی پینەکەدا');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+}
+
+// Global pin deletion handler
+document.addEventListener('click', async e => {
+  const delBtn = e.target.closest('[data-delete-pin]');
+  if (!delBtn) return;
+  if (!confirm('ئایا دڵنیایت لە سڕینەوەی ئەم پینە؟')) return;
+  delBtn.disabled = true;
+  try {
+    await api(`/admin/pins/${delBtn.dataset.deletePin}`, { method: 'DELETE' });
+    refresh();
+  } catch (err) {
+    delBtn.disabled = false;
+    alert(err.message || 'هەڵە لە سڕینەوەی پین');
+  }
+});
+
+// Participants Modal & View handler
+const pmModal = document.getElementById('participants-modal');
+const pmTitle = document.getElementById('pm-pin-title');
+const pmSub = document.getElementById('pm-pin-subtitle');
+const pmContent = document.getElementById('pm-content');
+
+function closeParticipantsModal() {
+  if (pmModal) pmModal.hidden = true;
+}
+
+document.getElementById('close-pm-modal')?.addEventListener('click', closeParticipantsModal);
+document.getElementById('btn-close-pm')?.addEventListener('click', closeParticipantsModal);
+
+async function openParticipantsModal(pinId) {
+  if (!pmModal) return;
+  pmTitle.textContent = 'چاوەڕوانبە...';
+  pmSub.textContent = '';
+  pmContent.innerHTML = '<div style="text-align:center;padding:30px;color:var(--soft)">لە بارکردندایە...</div>';
+  pmModal.hidden = false;
+
+  try {
+    const data = await api(`/admin/pins/${pinId}/participants`);
+    const pin = data.pin;
+    const participants = data.participants || [];
+    const count = data.count || 0;
+    const cfg = PIN_TYPES[pin.category] || PIN_TYPES.tree_planting;
+
+    pmTitle.textContent = `${cfg.icon} ${pin.title}`;
+    pmSub.textContent = `ئامانج: ${toKu(pin.target_count)} | خۆبەخشانی تۆمارکراو: ${toKu(count)} کەس`;
+
+    if (!participants.length) {
+      pmContent.innerHTML = `
+        <div class="empty" style="padding:40px 20px;text-align:center">
+          <p style="font-size:36px;margin:0 0 10px">👥</p>
+          <strong style="display:block;font-size:16px;margin-bottom:6px">هیچ کەسێک خۆی تۆمار نەکردووە</strong>
+          <span style="color:var(--soft);font-size:13px">تا ئێستا هیچ هاوڵاتییەک ناوی خۆی لە ئەپڵیکەیشنی مۆبایلەوە تۆمار نەکردووە بۆ ئەم دەستپێشخەرییە.</span>
+        </div>`;
+      return;
+    }
+
+    pmContent.innerHTML = `
+      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span class="vol-badge">کۆی گشتی: ${toKu(count)} خۆبەخش</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ناوی هاوڵاتی</th>
+              <th>مۆبایل</th>
+              <th>گەڕەک</th>
+              <th>تێبینی</th>
+              <th>کاتی تۆمارکردن</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${participants.map((u, i) => `
+              <tr>
+                <td>${toKu(i + 1)}</td>
+                <td><strong>${esc(u.user_name)}</strong></td>
+                <td style="direction:ltr;text-align:right">${esc(u.user_phone)}</td>
+                <td>${esc(u.neighbourhood_name || '—')}</td>
+                <td class="desc">${esc(u.notes || '—')}</td>
+                <td style="font-size:12px;color:var(--soft)">${new Date(u.created_at).toLocaleDateString('en-GB')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    pmContent.innerHTML = `<div class="error" style="padding:20px">${esc(err.message || 'هەڵە لە وەرگرتنی بەشداربووان')}</div>`;
+  }
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-view-participants]');
+  if (btn) openParticipantsModal(btn.dataset.viewParticipants);
+});
+
 
 // Areas: one blue hue, light to dark, by open spots. Blue keeps them apart from the yellow-red spot
 // markers on top; fixed steps (not "share of the busiest area") so a colour means the same count every refresh.
@@ -215,6 +768,10 @@ const decimal = n => toKu(n).replace('.', '٫');
 document.getElementById('legend').innerHTML =
   LEVEL_COLOURS.map((c, i) => `<span><span class="dot" style="background:${c}"></span>پیسی ${toKu(i + 1)}</span>`).join('') +
   '<span><span class="dot" style="background:#1E7A4A"></span>پاککراوە</span>' +
+  '<span><span class="dot" style="background:#1E7A4A"></span>🌱 نەمام ناشتن</span>' +
+  '<span><span class="dot" style="background:#D9822B"></span>⚠️ شوێنی پیس</span>' +
+  '<span><span class="dot" style="background:#1E88E5"></span>💧 ئاودان</span>' +
+  '<span><span class="dot" style="background:#10B981"></span>🗑️ تەنەکەی خۆڵ</span>' +
   `<span id="area-legend" hidden>گەڕەک بەپێی شوێنی کراوە:
      <span class="step"><span class="swatch none"></span>${toKu(0)}</span>` +
   AREA_COLOURS.map((c, i) => `<span class="step"><span class="swatch" style="background:${c}"></span>${stepLabel(i)}</span>`).join('') +
@@ -259,46 +816,440 @@ function drawAreas(hoods) {
   document.getElementById('area-legend').hidden = !areas.size;
 }
 
-// first load only: zoom to the spots, or to the neighbourhoods while there are no spots yet. Called by
-// loadMap and loadHoods themselves, so one failing panel (e.g. vouchers on an old database) cannot stop it;
-// the areas wait until the spots have loaded, because spots win when there are any.
+// first load only: zoom to the spots, or to the neighbourhoods while there are no spots yet.
 function fitOnce() {
   if (fitted) return;
-  if (lastSpots.length) map.fitBounds(lastSpots.map(s => [s.lat, s.lon]), { maxZoom: 16, padding: [40, 40] });
+  const allPoints = [
+    ...lastSpots.map(s => [s.lat, s.lon]),
+    ...customPins.map(p => [p.lat, p.lon]),
+    ...customBins.map(b => [b.lat, b.lon])
+  ];
+  if (allPoints.length) map.fitBounds(allPoints, { maxZoom: 16, padding: [40, 40] });
   else if (spotsLoaded && areas.size) map.fitBounds(areaLayer.getBounds(), { padding: [20, 20] });
   else return;
   fitted = true;
 }
 
-// Markers are kept by spot id and updated in place, so a popup someone opened on the projector
-// stays open through the 10-second refresh (rebuilding the layer closed it every time).
+// Markers are kept by spot id and updated in place
 const markers = new Map();
-async function loadMap() {
-  const spots = await api('/reports');
-  lastSpots = spots;
-  spotsLoaded = true;
+function renderSpots() {
   const seen = new Set();
-  for (const s of spots) {
-    seen.add(s.id);
-    const clean = s.status === 'clean';
-    const style = { radius: clean ? 7 : 6 + s.dirtiness * 2, weight: 2, color: '#fff',
-                    fillColor: clean ? '#1E7A4A' : LEVEL_COLOURS[s.dirtiness - 1], fillOpacity: .9 };
-    const popup = `<div dir="rtl"><img src="${esc(s.photo_url)}" style="width:180px;border-radius:8px"><br>
-      پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}
-      ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`;
-    const marker = markers.get(s.id);
-    if (marker) {
-      marker.setLatLng([s.lat, s.lon]).setStyle(style).setRadius(style.radius);
-      if (marker.getPopup().getContent() !== popup) marker.setPopupContent(popup);
-    } else {
-      markers.set(s.id, L.circleMarker([s.lat, s.lon], style).bindPopup(popup).addTo(layer));
+  const showReports = currentMapFilter === 'all' || currentMapFilter === 'reports';
+  if (showReports) {
+    for (const s of lastSpots) {
+      seen.add(s.id);
+      const clean = s.status === 'clean';
+      const style = { radius: clean ? 7 : 6 + s.dirtiness * 2, weight: 2, color: '#fff',
+                      fillColor: clean ? '#1E7A4A' : LEVEL_COLOURS[s.dirtiness - 1], fillOpacity: .9 };
+      const popup = `<div dir="rtl"><img src="${esc(s.photo_url)}" style="width:180px;border-radius:8px"><br>
+        پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}
+        ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`;
+      const marker = markers.get(s.id);
+      if (marker) {
+        marker.setLatLng([s.lat, s.lon]).setStyle(style).setRadius(style.radius);
+        if (marker.getPopup().getContent() !== popup) marker.setPopupContent(popup);
+      } else {
+        markers.set(s.id, L.circleMarker([s.lat, s.lon], style).bindPopup(popup).addTo(layer));
+      }
     }
   }
   for (const [id, marker] of markers) {
     if (!seen.has(id)) { layer.removeLayer(marker); markers.delete(id); }
   }
+}
+
+// Custom municipality pins markers
+const pinMarkers = new Map();
+function renderCustomPins() {
+  const seen = new Set();
+  for (const p of customPins) {
+    const show = currentMapFilter === 'all' || currentMapFilter === p.category;
+    if (!show) continue;
+    seen.add(p.id);
+
+    const cfg = PIN_TYPES[p.category] || PIN_TYPES.tree_planting;
+    const icon = L.divIcon({
+      className: 'pin-div-icon',
+      html: `<div class="custom-pin-marker ${cfg.cls}" style="width:34px;height:34px"><span class="pin-badge">${cfg.icon}</span></div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+      popupAnchor: [0, -18]
+    });
+
+    const popup = `<div dir="rtl" style="min-width:220px">
+      <span class="pin-cat-pill ${cfg.pill}">${cfg.title}</span>
+      <h4 style="margin:4px 0 6px;font-size:15px;color:var(--forest)">${esc(p.title)}</h4>
+      <p style="margin:0 0 8px;font-size:13px;color:var(--soft);line-height:1.4">${esc(p.description)}</p>
+      <table class="figures" style="margin-bottom:8px">
+        <tr><td>ئامانج</td><td>${toKu(p.target_count)}</td></tr>
+        <tr><td>بەشداربووان</td><td><strong style="color:var(--forest)">👥 ${toKu(p.participant_count || 0)} کەس</strong></td></tr>
+        <tr><td>پاداشت</td><td><strong>+${toKu(p.reward_points)} خاڵ</strong></td></tr>
+        ${p.neighbourhood_name ? `<tr><td>گەڕەک</td><td>${esc(p.neighbourhood_name)}</td></tr>` : ''}
+        <tr><td>ئاگاداری</td><td>${p.send_notification ? '🔔 نێردراوە' : 'نەنێردراوە'}</td></tr>
+      </table>
+      <button class="secondary small" style="width:100%;margin-bottom:6px" data-view-participants="${p.id}">👥 بینینی بەشداربووان (${toKu(p.participant_count || 0)})</button>
+      <button class="danger small" style="width:100%" data-delete-pin="${p.id}">سڕینەوەی پین</button>
+    </div>`;
+
+    let m = pinMarkers.get(p.id);
+    if (m) {
+      m.setLatLng([p.lat, p.lon]);
+      if (m.getPopup().getContent() !== popup) m.setPopupContent(popup);
+    } else {
+      m = L.marker([p.lat, p.lon], { icon }).bindPopup(popup).addTo(pinLayer);
+      pinMarkers.set(p.id, m);
+    }
+  }
+
+  for (const [id, m] of pinMarkers) {
+    if (!seen.has(id)) { pinLayer.removeLayer(m); pinMarkers.delete(id); }
+  }
+}
+
+async function loadMap() {
+  const spots = await api('/reports');
+  lastSpots = spots;
+  spotsLoaded = true;
+  renderSpots();
   fitOnce();
 }
+
+async function loadAdminPins() {
+  const pins = await api('/admin/pins');
+  customPins = pins;
+  const countBadge = document.getElementById('pin-count-badge');
+  if (countBadge) countBadge.textContent = toKu(pins.length);
+  renderCustomPins();
+  fitOnce();
+
+  const box = document.getElementById('pins-list');
+  if (!box) return;
+  if (!pins.length) {
+    box.innerHTML = '<div class="empty">هیچ کەمپین یان شوێنێکی دیاریکراو دانەنراوە. لەسەر نەخشە کلیک بکە بۆ دانانی پینی نەمام ناشتن یان شوێنی پیس.</div>';
+    return;
+  }
+  box.innerHTML = `<div class="table-wrap"><table><thead><tr>
+    <th>جۆر</th><th>ناونیشان</th><th>وەسف</th><th>ئامانج</th><th>بەشداربووان</th><th>پاداشت</th><th>گەڕەک</th><th>ئاگاداری</th><th>کردار</th>
+  </tr></thead><tbody>` + pins.map(p => {
+    const cfg = PIN_TYPES[p.category] || PIN_TYPES.tree_planting;
+    return `<tr>
+      <td><span class="pin-cat-pill ${cfg.pill}">${cfg.title}</span></td>
+      <td><strong>${esc(p.title)}</strong></td>
+      <td class="desc">${esc(p.description)}</td>
+      <td>${toKu(p.target_count)}</td>
+      <td>
+        <button class="ghost small" data-view-participants="${p.id}" style="font-weight:700;color:var(--forest);white-space:nowrap" title="کلیک بکە بۆ بینینی ناو و زانیاری بەشداربووان">
+          👥 ${toKu(p.participant_count || 0)} کەس
+        </button>
+      </td>
+      <td><strong style="color:var(--green)">+${toKu(p.reward_points)}</strong></td>
+      <td>${esc(p.neighbourhood_name || '—')}</td>
+      <td>${p.send_notification ? '🔔 نێردراوە' : '—'}</td>
+      <td><button class="danger small" data-delete-pin="${p.id}">سڕینەوە</button></td>
+    </tr>`;
+  }).join('') + '</tbody></table></div>';
+}
+
+// ---- trash bins and QR codes management
+const BIN_TYPES_INFO = {
+  general: { title: 'پاشماوەی گشتی', icon: '🗑️', cls: 'bin-type-general', border: '#4B5563' },
+  recycle: { title: 'ڕیسایکڵین', icon: '♻️', cls: 'bin-type-recycle', border: '#2563EB' },
+  organic: { title: 'ئەندامی و خۆراک', icon: '🍏', cls: 'bin-type-organic', border: '#059669' },
+  glass_metal: { title: 'شووشە و کانزا', icon: '🍾', cls: 'bin-type-glass_metal', border: '#D97706' },
+};
+const BIN_STATUS_LABELS = {
+  active: { text: 'چالاک', cls: 'active' },
+  full: { text: 'پڕبووە', cls: 'full' },
+  maintenance: { text: 'چاککردنەوە', cls: 'maintenance' },
+};
+
+const binMarkers = new Map();
+function renderBinMarkers() {
+  const seen = new Set();
+  const showBins = currentMapFilter === 'all' || currentMapFilter === 'bins';
+  if (showBins) {
+    for (const b of customBins) {
+      seen.add(b.id);
+      const typeInfo = BIN_TYPES_INFO[b.bin_type] || BIN_TYPES_INFO.general;
+      const statusLabel = BIN_STATUS_LABELS[b.status] || BIN_STATUS_LABELS.active;
+
+      const icon = L.divIcon({
+        className: 'bin-div-icon',
+        html: `<div class="bin-map-marker ${b.status === 'full' ? 'marker-full' : ''}" style="border-color:${typeInfo.border}">
+          <span style="font-size:16px">${typeInfo.icon}</span>
+        </div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+        popupAnchor: [0, -20]
+      });
+
+      const popup = `<div dir="rtl" style="min-width:240px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="bin-code-pill" style="font-size:12px">${esc(b.code)}</span>
+          <span class="bin-status-badge ${statusLabel.cls}">${statusLabel.text}</span>
+        </div>
+        <h4 style="margin:2px 0 6px;font-size:15px;color:var(--forest)">${esc(b.name)}</h4>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          ${(b.qr_data_url || b.qr_code_data) ? `<img src="${b.qr_data_url || b.qr_code_data}" style="width:60px;height:60px;border-radius:6px;border:1px solid var(--line);cursor:pointer;background:#fff;padding:2px" onclick="openBinQrById(${b.id})" title="کلیک بکە بۆ گەورەکردن و چاپ">` : ''}
+          <div style="font-size:12px;color:var(--soft);line-height:1.5">
+            <div>جۆر: <strong>${typeInfo.title}</strong></div>
+            <div>قەبارە: <strong>${toKu(b.capacity_liters)}L</strong></div>
+            <div>فڕێدان: <strong style="color:var(--green)">${toKu(b.disposal_count || 0)} جار</strong></div>
+            ${b.neighbourhood_name ? `<div>گەڕەک: <strong>${esc(b.neighbourhood_name)}</strong></div>` : ''}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <button class="primary small" onclick="openBinQrById(${b.id})">🔍 کۆدی QR</button>
+          <a class="secondary small" href="/admin/bins/${b.id}/sticker" download="sticker-${esc(b.code)}.png" style="text-align:center;text-decoration:none;padding:5px 8px;display:inline-block">📥 ستیکەر</a>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="ghost small" style="flex:1" onclick="toggleBinStatus(${b.id}, '${b.status === 'full' ? 'active' : 'full'}')">
+            ${b.status === 'full' ? '✅ بەتاڵکردنەوە' : '⚠️ دیاریکردن وەک پڕ'}
+          </button>
+          <button class="danger small" data-delete-bin="${b.id}">سڕینەوە</button>
+        </div>
+      </div>`;
+
+      let m = binMarkers.get(b.id);
+      if (m) {
+        m.setLatLng([b.lat, b.lon]);
+        if (m.getPopup().getContent() !== popup) m.setPopupContent(popup);
+      } else {
+        m = L.marker([b.lat, b.lon], { icon }).bindPopup(popup).addTo(binLayer);
+        binMarkers.set(b.id, m);
+      }
+    }
+  }
+  for (const [id, m] of binMarkers) {
+    if (!seen.has(id)) { binLayer.removeLayer(m); binMarkers.delete(id); }
+  }
+}
+
+async function loadAdminBins() {
+  const data = await api('/admin/bins');
+  customBins = data.bins || [];
+  const stats = data.stats || {};
+
+  const totalEl = document.getElementById('stat-bin-total');
+  const activeEl = document.getElementById('stat-bin-active');
+  const fullEl = document.getElementById('stat-bin-full');
+  const dispEl = document.getElementById('stat-bin-disposals');
+  const badgeEl = document.getElementById('bin-count');
+
+  if (totalEl) totalEl.textContent = toKu(stats.total || 0);
+  if (activeEl) activeEl.textContent = toKu(stats.active || 0);
+  if (fullEl) fullEl.textContent = toKu(stats.full || 0);
+  if (dispEl) dispEl.textContent = toKu(stats.disposals || 0);
+  if (badgeEl) badgeEl.textContent = toKu(customBins.length);
+
+  renderBinsTable();
+  renderBinMarkers();
+  fitOnce();
+}
+
+function renderBinsTable() {
+  const box = document.getElementById('bins-table-wrap');
+  if (!box) return;
+
+  const filtered = customBins.filter(b => currentBinFilter === 'all' || b.bin_type === currentBinFilter);
+  if (!filtered.length) {
+    box.innerHTML = '<div class="empty">هیچ تەنەکەیەکی خۆڵ نەدۆزرایەوە بەپێی ئەم فلتەرە. دەتوانیت لە ڕێگەی دوگمەی «زیادکردنی تەنەکەی نوێ» یان لەسەر نەخشە تەنەکە دابنێیت.</div>';
+    return;
+  }
+
+  box.innerHTML = `<div class="table-wrap"><table><thead><tr>
+    <th>کۆدی QR</th><th>کۆد</th><th>ناو</th><th>جۆری پاشماوە</th><th>قەبارە</th><th>گەڕەک</th><th>دۆخ</th><th>فڕێدان</th><th>کردارەکان</th>
+  </tr></thead><tbody>` + filtered.map(b => {
+    const typeInfo = BIN_TYPES_INFO[b.bin_type] || BIN_TYPES_INFO.general;
+    const statusLabel = BIN_STATUS_LABELS[b.status] || BIN_STATUS_LABELS.active;
+    return `<tr>
+      <td>
+        <img class="qr-table-thumb" src="${b.qr_data_url || b.qr_code_data}" alt="QR" onclick="openBinQrById(${b.id})" title="کلیک بکە بۆ پیشاندان و چاپکردن">
+      </td>
+      <td><span class="bin-code-pill">${esc(b.code)}</span></td>
+      <td><strong>${esc(b.name)}</strong></td>
+      <td><span class="bin-type-badge ${typeInfo.cls}">${typeInfo.title}</span></td>
+      <td>${toKu(b.capacity_liters)} لیتر</td>
+      <td>${esc(b.neighbourhood_name || '—')}</td>
+      <td>
+        <span class="bin-status-badge ${statusLabel.cls}">${statusLabel.text}</span>
+      </td>
+      <td><strong style="color:var(--green)">${toKu(b.disposal_count || 0)} جار</strong></td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="secondary small" onclick="openBinQrById(${b.id})" title="پیشاندانی کۆدی QR بۆ چاپ">🔍 بینینی QR</button>
+          <a class="ghost small" href="/admin/bins/${b.id}/sticker" download="sticker-${esc(b.code)}.png" title="داگرتنی ستیکەری فەرمی" style="text-decoration:none;display:inline-flex;align-items:center;padding:4px 8px">📥 ستیکەر</a>
+          <button class="ghost small" onclick="toggleBinStatus(${b.id}, '${b.status === 'full' ? 'active' : 'full'}')" title="گۆڕینی دۆخ">
+            ${b.status === 'full' ? 'بەتاڵکردنەوە' : 'پڕبوون'}
+          </button>
+          <button class="danger small" data-delete-bin="${b.id}" title="سڕینەوە">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') + '</tbody></table></div>';
+}
+
+// Global helpers for bins
+window.openBinQrById = function(id) {
+  const bin = customBins.find(b => b.id === id);
+  if (bin) openQrModal(bin);
+};
+
+window.toggleBinStatus = async function(id, newStatus) {
+  try {
+    await api(`/admin/bins/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status: newStatus })
+    });
+    loadAdminBins();
+  } catch (err) {
+    alert(err.message || 'هەڵە لە گۆڕینی دۆخی تەنەکە');
+  }
+};
+
+// Filter chips for bins table
+document.querySelectorAll('[data-bin-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-bin-filter]').forEach(b => b.classList.toggle('active', b === btn));
+    currentBinFilter = btn.dataset.binFilter;
+    renderBinsTable();
+  });
+});
+
+// Bin Form & Modals Handling
+const btnOpenAddBin = document.getElementById('btn-open-add-bin');
+if (btnOpenAddBin) {
+  btnOpenAddBin.addEventListener('click', () => {
+    if (!document.getElementById('bin-coords').value) {
+      document.getElementById('bin-coords').value = '35.56130, 45.43730';
+    }
+    if (binModal) binModal.hidden = false;
+  });
+}
+
+function closeBinModal() {
+  if (binModal) binModal.hidden = true;
+  if (tempBinMarker) { map.removeLayer(tempBinMarker); tempBinMarker = null; }
+}
+document.getElementById('close-bin-modal')?.addEventListener('click', closeBinModal);
+document.getElementById('btn-cancel-bin')?.addEventListener('click', closeBinModal);
+
+const binForm = document.getElementById('bin-form');
+if (binForm) {
+  binForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = document.getElementById('bin-name').value.trim();
+    const bin_type = document.getElementById('bin-type').value;
+    const capacity_liters = parseInt(document.getElementById('bin-capacity').value) || 240;
+    const coordsStr = document.getElementById('bin-coords').value;
+    const coords = coordsStr.split(',').map(s => parseFloat(s.trim()));
+    const code = document.getElementById('bin-custom-code').value.trim() || undefined;
+
+    const btn = document.getElementById('btn-submit-bin');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await api('/admin/bins', {
+        method: 'POST',
+        body: JSON.stringify({
+          name, bin_type, capacity_liters,
+          lat: coords[0], lon: coords[1],
+          code
+        })
+      });
+      closeBinModal();
+      document.getElementById('bin-name').value = '';
+      document.getElementById('bin-custom-code').value = '';
+      await refresh();
+      if (res.bin) {
+        openQrModal(res.bin);
+      }
+    } catch (err) {
+      alert(err.message || 'هەڵەیەک ڕوویدا لە کاتی دروستکردنی تەنەکەکە');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+}
+
+// QR View & Print Modal
+const qrModal = document.getElementById('qr-view-modal');
+const qmImg = document.getElementById('qm-img');
+const qmCode = document.getElementById('qm-code');
+const qmTitle = document.getElementById('qm-title');
+const qmDesc = document.getElementById('qm-desc');
+const qmDownload = document.getElementById('qm-download-sticker');
+const qmPrint = document.getElementById('qm-print');
+
+function closeQrModal() {
+  if (qrModal) qrModal.hidden = true;
+}
+document.getElementById('close-qr-modal')?.addEventListener('click', closeQrModal);
+document.getElementById('btn-close-qr')?.addEventListener('click', closeQrModal);
+
+function openQrModal(bin) {
+  if (!qrModal) return;
+  qmCode.textContent = bin.code;
+  qmTitle.textContent = `کۆدی QR - ${bin.name}`;
+  const typeInfo = BIN_TYPES_INFO[bin.bin_type] || BIN_TYPES_INFO.general;
+  qmDesc.textContent = `${typeInfo.title} · ${toKu(bin.capacity_liters)} لیتر ${bin.neighbourhood_name ? `· ${bin.neighbourhood_name}` : ''}`;
+  qmImg.src = bin.qr_data_url || bin.qr_code_data;
+  qmDownload.href = `/admin/bins/${bin.id}/sticker`;
+  qmDownload.setAttribute('download', `sticker-${bin.code}.png`);
+  qrModal.hidden = false;
+}
+
+if (qmPrint) {
+  qmPrint.addEventListener('click', () => {
+    const w = window.open('', '_blank', 'width=620,height=750');
+    if (!w) { window.print(); return; }
+    w.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head>
+        <title>چاپکردنی کۆدی QR - \${qmCode.textContent}</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 40px; margin: 0; background: #fff; }
+          .sticker { border: 4px dashed #0D5C3A; border-radius: 18px; padding: 32px; display: inline-block; max-width: 420px; box-sizing: border-box; }
+          h2 { margin: 0 0 6px; color: #0D5C3A; font-size: 22px; font-weight: 800; }
+          .subtitle { font-size: 15px; color: #444; margin: 0 0 16px; }
+          .code { font-family: monospace; font-size: 24px; font-weight: 800; background: #E8F5E9; color: #0D5C3A; padding: 8px 18px; border-radius: 8px; display: inline-block; margin: 14px 0; letter-spacing: 1.5px; border: 1px solid #C8E6C9; }
+          img { width: 260px; height: 260px; display: block; margin: 12px auto; }
+          .info { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0; }
+          .instruction { font-size: 13px; color: #666; margin-top: 14px; border-top: 1px solid #E0E0E0; padding-top: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="sticker">
+          <h2>شارەوانی سلێمانی</h2>
+          <div class="subtitle">پڕۆژەی گرین لێگاسی · پشکنینی فڕێدانی پاشماوە</div>
+          <img src="\${qmImg.src}" alt="QR Code">
+          <div class="code">\${qmCode.textContent}</div>
+          <div class="info">\${qmDesc.textContent}</div>
+          <div class="instruction">💡 هاوڵاتی بەڕێز: لە کاتی فڕێدانی پاشماوە لەم تەنەکەیە، ئەم کۆدە بە مۆبایلەکەت سکان بکە بۆ وەرگرتنی خاڵی سەوز (+١٥).</div>
+        </div>
+        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }<\/script>
+      </body>
+      </html>
+    `);
+    w.document.close();
+  });
+}
+
+// Global bin deletion handler
+document.addEventListener('click', async e => {
+  const delBtn = e.target.closest('[data-delete-bin]');
+  if (!delBtn) return;
+  const id = delBtn.dataset.deleteBin;
+  if (!confirm('ئایا دڵنیایت لە سڕینەوەی ئەم تەنەکەی خۆڵە؟ کۆدی QR کەشی لەکاردەکەوێت.')) return;
+  delBtn.disabled = true;
+  try {
+    await api(`/admin/bins/${id}`, { method: 'DELETE' });
+    refresh();
+  } catch (err) {
+    delBtn.disabled = false;
+    alert(err.message || 'هەڵە لە سڕینەوەی تەنەکە');
+  }
+});
 
 // ---- priority list: dirtiest and oldest first
 async function loadPriority() {
@@ -448,7 +1399,7 @@ async function loadStats() {
 async function refresh() {
   if (!token) { showLogin(); return; }
   try {
-    await Promise.all([loadStats(), loadMap(), loadHoods(), loadPeople(), loadPriority(), loadLog(),
+    await Promise.all([loadStats(), loadMap(), loadAdminPins(), loadAdminBins(), loadHoods(), loadPeople(), loadPriority(), loadLog(),
                        loadReview(), loadVouchers()]);
   }
   catch (e) { /* the login form opens on auth errors */ }

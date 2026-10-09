@@ -3,7 +3,7 @@
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
-DROP TABLE IF EXISTS point_ledger, cleanups, challenges, reports, users, neighbourhoods CASCADE;
+DROP TABLE IF EXISTS pin_registrations, notifications, pins, point_ledger, cleanups, challenges, reports, users, neighbourhoods CASCADE;
 
 CREATE TABLE neighbourhoods (
     id          SERIAL PRIMARY KEY,
@@ -81,10 +81,11 @@ CREATE TABLE point_ledger (
     id          SERIAL PRIMARY KEY,
     user_id     INTEGER NOT NULL REFERENCES users(id),
     amount      INTEGER NOT NULL,
-    kind        TEXT NOT NULL CHECK (kind IN ('report', 'confirmation', 'cleanup', 'task', 'redeem')),
+    kind        TEXT NOT NULL CHECK (kind IN ('report', 'confirmation', 'cleanup', 'task', 'redeem', 'bin_disposal')),
     status      TEXT NOT NULL CHECK (status IN ('pending', 'released', 'revoked')),
     report_id   INTEGER REFERENCES reports(id),
     cleanup_id  INTEGER REFERENCES cleanups(id),
+    bin_id      INTEGER,
     release_at  TIMESTAMPTZ,                       -- NULL = waits for an event (confirmation, review)
     detail      TEXT,                              -- task: 'task:<code>:<day>'; redeem: reward code + voucher
     honoured_at TIMESTAMPTZ,                       -- redeem: when staff handed the reward over (once)
@@ -93,3 +94,73 @@ CREATE TABLE point_ledger (
 CREATE INDEX point_ledger_user_idx ON point_ledger (user_id);
 -- a daily task bonus can be claimed once per person per day
 CREATE UNIQUE INDEX point_ledger_task_once ON point_ledger (user_id, detail) WHERE kind = 'task';
+
+CREATE TABLE pins (
+    id                  SERIAL PRIMARY KEY,
+    creator_id          INTEGER REFERENCES users(id),
+    title               TEXT NOT NULL,
+    description         TEXT NOT NULL,
+    category            TEXT NOT NULL CHECK (category IN ('tree_planting', 'cleanup_target', 'watering_point')),
+    location            GEOGRAPHY(POINT, 4326) NOT NULL,
+    target_count        INTEGER NOT NULL DEFAULT 1,
+    reward_points       INTEGER NOT NULL DEFAULT 50,
+    status              TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+    neighbourhood_id    INTEGER REFERENCES neighbourhoods(id),
+    send_notification   BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX pins_location_idx ON pins USING GIST (location);
+CREATE INDEX pins_status_idx ON pins (status);
+
+CREATE TABLE notifications (
+    id                      SERIAL PRIMARY KEY,
+    title                   TEXT NOT NULL,
+    message                 TEXT NOT NULL,
+    category                TEXT NOT NULL,
+    pin_id                  INTEGER REFERENCES pins(id) ON DELETE CASCADE,
+    target_neighbourhood_id INTEGER REFERENCES neighbourhoods(id),
+    is_read                 BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX notifications_created_idx ON notifications (created_at DESC);
+
+CREATE TABLE pin_registrations (
+    id                  SERIAL PRIMARY KEY,
+    pin_id              INTEGER NOT NULL REFERENCES pins(id) ON DELETE CASCADE,
+    user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    notes               TEXT,
+    status              TEXT NOT NULL DEFAULT 'registered' CHECK (status IN ('registered', 'attended', 'cancelled')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT pin_registrations_user_pin_unique UNIQUE (pin_id, user_id)
+);
+CREATE INDEX pin_registrations_pin_idx ON pin_registrations (pin_id);
+CREATE INDEX pin_registrations_user_idx ON pin_registrations (user_id);
+
+CREATE TABLE trash_bins (
+    id               SERIAL PRIMARY KEY,
+    code             TEXT NOT NULL UNIQUE,
+    name             TEXT NOT NULL,
+    bin_type         TEXT NOT NULL DEFAULT 'general' CHECK (bin_type IN ('general', 'recycle', 'organic', 'glass_metal')),
+    capacity_liters  INTEGER NOT NULL DEFAULT 240,
+    status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'full', 'maintenance')),
+    location         GEOGRAPHY(POINT, 4326) NOT NULL,
+    neighbourhood_id INTEGER REFERENCES neighbourhoods(id),
+    qr_code_data     TEXT NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX trash_bins_location_idx ON trash_bins USING GIST (location);
+CREATE INDEX trash_bins_code_idx ON trash_bins (code);
+
+CREATE TABLE bin_disposals (
+    id               SERIAL PRIMARY KEY,
+    bin_id           INTEGER NOT NULL REFERENCES trash_bins(id) ON DELETE CASCADE,
+    user_id          INTEGER NOT NULL REFERENCES users(id),
+    points_awarded   INTEGER NOT NULL DEFAULT 15,
+    location         GEOGRAPHY(POINT, 4326),
+    notes            TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX bin_disposals_bin_idx ON bin_disposals (bin_id);
+CREATE INDEX bin_disposals_user_idx ON bin_disposals (user_id);
+
+

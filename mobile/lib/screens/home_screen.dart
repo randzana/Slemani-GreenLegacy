@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../notification_service.dart';
 import '../strings.dart';
 import '../theme.dart';
+import '../widgets/notification_banner.dart';
 import 'dashboard_screen.dart';
 import 'garden_screen.dart';
 import 'league_screen.dart';
@@ -20,9 +23,25 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late int _tab = widget.initialTab;
   final _refresh = ValueNotifier<int>(0); // bump to reload every tab (map, home, profile, league)
+  StreamSubscription<Map<String, dynamic>>? _notifSub;
+  Map<String, dynamic>? _activeBanner;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.instance.init();
+    _notifSub = NotificationService.instance.onNewNotification.listen((notif) {
+      if (mounted) {
+        setState(() {
+          _activeBanner = notif;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _notifSub?.cancel();
     _refresh.dispose();
     super.dispose();
   }
@@ -87,7 +106,36 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         ],
       ),
-      body: IndexedStack(index: _tab, children: pages),
+      body: Stack(
+        children: [
+          IndexedStack(index: _tab, children: pages),
+          if (_activeBanner != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: InAppNotificationBanner(
+                notification: _activeBanner!,
+                onTap: () {
+                  final notif = _activeBanner;
+                  setState(() {
+                    _activeBanner = null;
+                    _tab = 1; // switch to Map tab
+                  });
+                  if (notif != null && notif['id'] != null) {
+                    NotificationService.instance.markRead(notif['id'] as int);
+                  }
+                  _refresh.value++;
+                },
+                onDismiss: () {
+                  setState(() {
+                    _activeBanner = null;
+                  });
+                },
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: Container(
         height: 70,
         width: 70,
