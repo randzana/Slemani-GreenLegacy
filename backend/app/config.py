@@ -18,6 +18,8 @@ class Config:
     DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://gl:gl@localhost:5432/greenlegacy")
     UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(BASE_DIR / "uploads"))
     JWT_DAYS = _int("JWT_DAYS", 7)
+    # Lifetime of a sign-up step token (email verified, or a new Google sign-in): app/auth.py
+    STEP_TOKEN_MINUTES = _int("STEP_TOKEN_MINUTES", 10)
 
     # Accounts. Phones are stored in E.164 (app/phones.py); a number without a country code is
     # read as PHONE_REGION's, and only these country calling codes are accepted.

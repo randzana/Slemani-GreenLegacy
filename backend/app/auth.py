@@ -18,14 +18,41 @@ def error(code, status):
     return jsonify({"error": code, "message": reason(code)}), status
 
 
+# Every token says what it is for (typ). Only an access token is a login; a step token proves one step
+# of signing up (the email was verified, or who Google says this new person is), lives a few minutes,
+# carries this audience, and is accepted only by the endpoint for that step. One SECRET_KEY signs them
+# all, so without typ a step token would pass wherever any valid signature does.
+ACCESS = "access"
+STEP_AUDIENCE = "gl-step"
+MAX_USER_ID = 2**31 - 1        # users.id is an INTEGER; a bigger number is not one of ours
+
+
 def make_token(user):
     payload = {
+        "typ": ACCESS,
         "sub": str(user["id"]),
         "role": user["role"],
         "iat": dt.datetime.now(dt.timezone.utc),
         "exp": dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=current_app.config["JWT_DAYS"]),
     }
     return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+
+
+def make_step_token(typ, **claims):
+    now = dt.datetime.now(dt.timezone.utc)
+    payload = {**claims, "typ": typ, "aud": STEP_AUDIENCE, "iat": now,
+               "exp": now + dt.timedelta(minutes=current_app.config["STEP_TOKEN_MINUTES"])}
+    return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+
+
+def read_step_token(token, typ):
+    """The claims of an unexpired step token of exactly this typ, else None."""
+    try:
+        payload = jwt.decode(str(token or ""), current_app.config["SECRET_KEY"], algorithms=["HS256"],
+                             audience=STEP_AUDIENCE, options={"require": ["typ", "aud", "exp"]})
+    except jwt.PyJWTError:
+        return None
+    return payload if payload["typ"] == typ else None
 
 
 def login_required(fn):
@@ -35,10 +62,15 @@ def login_required(fn):
         if not header.startswith("Bearer "):
             return error("unauthorized", 401)
         try:
+            # a token with an audience (every step token) is refused here, as no audience is expected
             payload = jwt.decode(header[7:], current_app.config["SECRET_KEY"], algorithms=["HS256"])
-        except jwt.PyJWTError:
+            user_id = int(payload["sub"])
+        except (jwt.PyJWTError, KeyError, TypeError, ValueError):
             return error("unauthorized", 401)
-        user = query("SELECT * FROM users WHERE id = %s", (int(payload["sub"]),), one=True)
+        # tokens from before typ existed are logins; any other typ is not
+        if payload.get("typ", ACCESS) != ACCESS or not 0 < user_id <= MAX_USER_ID:
+            return error("unauthorized", 401)
+        user = query("SELECT * FROM users WHERE id = %s", (user_id,), one=True)
         # After a re-seed the same id belongs to someone else: a token issued before this account
         # existed must not log in as them (2 s of slack for the clock and the rounding of iat).
         if user is None or payload.get("iat", 0) + 2 < user["created_at"].timestamp():
