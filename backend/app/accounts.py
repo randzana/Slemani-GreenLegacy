@@ -6,7 +6,8 @@ live in one place:
   so a check that failed after the user row was written would leave half an account behind.
 - The user and their places are written in one savepoint: a phone or email that is already taken
   undoes all of it and comes back as an error code.
-- A place's neighbourhood comes from its location when boundaries are loaded, else from the form.
+- A place's neighbourhood comes from its location when boundaries are loaded, else from the form,
+  else (a household only) from its owner: a home is in the neighbourhood its family lives in.
 - A household's location is private. It leaves the server only in its owner's /me and in staff
   pages; nothing public lists places at all.
 - Changing what staff checked (REVIEWED_FIELDS) sends a verified place back to the queue, and any
@@ -36,9 +37,13 @@ PLACE_COLUMNS = """p.id, p.kind, p.name, p.address, p.residents_count, p.categor
     p.neighbourhood_id, n.name AS neighbourhood, p.verification_status, p.rejection_reason,
     p.verified_at, p.created_at, p.updated_at,
     ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lon"""
-# the neighbourhood whose boundary covers a point (%s = lon, lat), when boundaries are loaded
-COVERING = """(SELECT id FROM neighbourhoods WHERE boundary IS NOT NULL
-               AND ST_Covers(boundary, ST_MakePoint(%s, %s)::geography) ORDER BY id LIMIT 1)"""
+# a place's neighbourhood: the one whose boundary covers it (when boundaries are loaded), else the form's,
+# else for a household its owner's. Parameters: lon, lat, the form's id, kind, owner id.
+PLACE_NEIGHBOURHOOD = """COALESCE(
+    (SELECT id FROM neighbourhoods WHERE boundary IS NOT NULL
+     AND ST_Covers(boundary, ST_MakePoint(%s, %s)::geography) ORDER BY id LIMIT 1),
+    %s,
+    CASE WHEN %s = 'household' THEN (SELECT neighbourhood_id FROM users WHERE id = %s) END)"""
 
 
 # ---------------------------------------------------------------- checking what the phone sent
@@ -183,11 +188,11 @@ def _insert_place(owner_id, place):
     row = query(
         f"""INSERT INTO places (owner_id, kind, name, address, location, neighbourhood_id,
                                 residents_count, category, license_number)
-            VALUES (%s, %s, %s, %s, ST_MakePoint(%s, %s)::geography, COALESCE({COVERING}, %s), %s, %s, %s)
+            VALUES (%s, %s, %s, %s, ST_MakePoint(%s, %s)::geography, {PLACE_NEIGHBOURHOOD}, %s, %s, %s)
             RETURNING id""",
         (owner_id, place["kind"], place["name"], place["address"], place["lon"], place["lat"],
-         place["lon"], place["lat"], place["neighbourhood_id"], place["residents_count"],
-         place["category"], place["license_number"]), one=True)
+         place["lon"], place["lat"], place["neighbourhood_id"], place["kind"], owner_id,
+         place["residents_count"], place["category"], place["license_number"]), one=True)
     query("INSERT INTO place_reviews (place_id, status, changed_by) VALUES (%s, 'pending', %s)",
           (row["id"], owner_id))
     return row["id"]
@@ -203,8 +208,9 @@ def save_place(owner_id, place):
     """Add the person's household or business, or change it. Returns (place as the owner sees it,
     created?). Edits by one person take turns, so two taps cannot add the same kind twice."""
     query("SELECT 1 FROM users WHERE id = %s FOR UPDATE", (owner_id,))
+    # FOR UPDATE: a staff decision waits for this edit (and then sees its new updated_at)
     existing = query(f"""SELECT {PLACE_COLUMNS} FROM places p LEFT JOIN neighbourhoods n ON n.id = p.neighbourhood_id
-                         WHERE p.owner_id = %s AND p.kind = %s""", (owner_id, place["kind"]), one=True)
+                         WHERE p.owner_id = %s AND p.kind = %s FOR UPDATE OF p""", (owner_id, place["kind"]), one=True)
     if existing is None:
         place_id = _insert_place(owner_id, place)
         return owner_place(place_id), True
@@ -214,7 +220,7 @@ def save_place(owner_id, place):
         status == "verified" and any(_changed(existing, place, f) for f in REVIEWED_FIELDS[place["kind"]]))
     query(
         f"""UPDATE places SET name = %s, address = %s, location = ST_MakePoint(%s, %s)::geography,
-                   neighbourhood_id = COALESCE({COVERING}, %s), residents_count = %s, category = %s,
+                   neighbourhood_id = {PLACE_NEIGHBOURHOOD}, residents_count = %s, category = %s,
                    license_number = %s, updated_at = now(),
                    verification_status = CASE WHEN %s THEN 'pending' ELSE verification_status END,
                    verified_by = CASE WHEN %s THEN NULL ELSE verified_by END,
@@ -222,7 +228,8 @@ def save_place(owner_id, place):
                    rejection_reason = CASE WHEN %s THEN NULL ELSE rejection_reason END
             WHERE id = %s""",
         (place["name"], place["address"], place["lon"], place["lat"], place["lon"], place["lat"],
-         place["neighbourhood_id"], place["residents_count"], place["category"], place["license_number"],
+         place["neighbourhood_id"], place["kind"], owner_id, place["residents_count"], place["category"],
+         place["license_number"],
          resubmit, resubmit, resubmit, resubmit, existing["id"]))
     if resubmit:
         query("INSERT INTO place_reviews (place_id, status, changed_by) VALUES (%s, 'pending', %s)",

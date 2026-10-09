@@ -61,6 +61,14 @@ REASONS = {
     "task_already_claimed": "خەڵاتی ئەم ئەرکەت ئەمڕۆ وەرگرتووە",
     "task_claimed": "دەستخۆش! خاڵی ئەرکەکە دوای ٢٤ کاتژمێر ئازاد دەبێت",
     "voucher_used": "ئەم کۆدە پێشتر بەکارهاتووە یان بوونی نییە",
+    # staff: households, businesses and their monthly money
+    "bad_decision": "بڕیارەکە دەبێت پەسەندکردن یان ڕەتکردنەوە بێت",
+    "reason_required": "بۆ ڕەتکردنەوە هۆکارێک بنووسە؛ خاوەنەکەی لە ئەپەکەدا دەیبینێت",
+    "place_not_verified": "تەنها بۆ ماڵ یان شوێنێکی پەسەندکراو پارە تۆمار دەکرێت",
+    "already_paid": "پارەی ئەم مانگە بۆ ئەم شوێنە پێشتر تۆمار کراوە",
+    "place_changed": "خاوەنەکەی دوای ئەوەی بینیت گۆڕانکاری تێدا کرد؛ لیستەکە نوێ بکەرەوە و دووبارە بیپشکنە",
+    "invalid_month": "مانگەکە دروست نییە (نابێت دوای ئەم مانگە بێت)",
+    "invalid_amount": "بڕی پارەکە دروست نییە",
 }
 
 # The email with the sign-up code (app/otp.py); {code} and {minutes} are filled in

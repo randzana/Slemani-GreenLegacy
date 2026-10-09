@@ -95,6 +95,16 @@
   #voucher-note { margin: 0 0 10px; min-height: 1.4em; font-size: 14px; }
   #voucher-note.bad { color: var(--red); font-weight: 600; }
   button.small { padding: 4px 12px; }
+  /* households and businesses, monthly money */
+  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .toolbar input, .toolbar select, .row-form input { font: inherit; padding: 6px 10px; border-radius: 10px;
+                                                    border: 1px solid var(--line); background: var(--card); }
+  .toolbar input[type="number"], .row-form input[type="number"] { width: 110px; direction: ltr; }
+  .row-actions, .row-form { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+  .row-form[hidden] { display: none; }
+  .row-form input[name="reason"] { min-width: 220px; }
+  td small { display: block; color: var(--soft); white-space: normal; }
+  #places-note.bad, #money-note.bad { color: var(--red); font-weight: 600; }
 
   /* Map toolbar & Pin controls */
   .map-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -366,6 +376,8 @@
     <button role="tab" aria-selected="false" data-tab="priority">لیستی ئەولەویەت</button>
     <button role="tab" aria-selected="false" data-tab="log">تۆماری پاککردنەوە</button>
     <button role="tab" aria-selected="false" data-tab="review">پشکنین<span class="badge" id="review-count">٠</span></button>
+    <button role="tab" aria-selected="false" data-tab="places">ماڵ و بازرگانی<span class="badge" id="places-count">٠</span></button>
+    <button role="tab" aria-selected="false" data-tab="money">پارەی مانگانە</button>
     <button role="tab" aria-selected="false" data-tab="vouchers">خەڵاتەکان</button>
     <button role="tab" aria-selected="false" data-tab="league">لیگ</button>
   </nav>
@@ -435,6 +447,31 @@
   <section class="panel" id="panel-priority"><div id="priority"></div></section>
   <section class="panel" id="panel-log"><div id="log"></div></section>
   <section class="panel" id="panel-review"><div id="review"></div></section>
+  <section class="panel" id="panel-places">
+    <div class="toolbar">
+      <label>پیشاندان:
+        <select id="places-filter">
+          <option value="pending">چاوەڕێی پەسەندکردن</option>
+          <option value="verified">پەسەندکراو</option>
+          <option value="rejected">ڕەتکراوە</option>
+          <option value="all">هەموو</option>
+        </select>
+      </label>
+      <span class="muted">شوێنی ماڵەکان تەنها بۆ پشکنینە و لەسەر نەخشەی داشبۆرد پیشان نادرێت.</span>
+    </div>
+    <p class="note" id="places-note" role="status"></p>
+    <div id="places"></div>
+  </section>
+  <section class="panel" id="panel-money">
+    <div class="toolbar">
+      <label>مانگ: <input type="month" id="money-month"></label>
+      <label>ماڵ: <input type="number" id="money-household" min="1" step="1000"> دینار</label>
+      <label>بازرگانی: <input type="number" id="money-business" min="1" step="1000"> دینار</label>
+      <button class="primary" id="money-all">تۆمارکردن بۆ هەموو ئەوانەی ماونەتەوە</button>
+    </div>
+    <p class="note" id="money-note" role="status"></p>
+    <div id="money"></div>
+  </section>
   <section class="panel" id="panel-vouchers"><p class="note" id="voucher-note" role="status"></p><div id="vouchers"></div></section>
   <section class="panel" id="panel-league">
     <div class="league">
@@ -1344,6 +1381,156 @@ document.getElementById('vouchers').addEventListener('click', async e => {
   loadVouchers().catch(() => {});
 });
 
+// ---- households and businesses: staff check each one before it counts (a rejection's reason shows in
+// the owner's app), then credit verified ones a monthly amount. The 10-second refresh redraws these two
+// tables only when their data changed and nobody is typing in them, so a reason or an amount being
+// typed is never wiped.
+const KIND = { household: 'ماڵ', business: 'شوێنی بازرگانی' };
+const PLACE_STATUS = { pending: ['چاوەڕێی پەسەندکردن', 'review'], verified: ['پەسەندکراو', 'verified'],
+                       rejected: ['ڕەتکراوە', 'rejected'] };
+const dinar = n => toKu(Number(n).toLocaleString('en-US')) + ' دینار';
+const typing = box => (box.contains(document.activeElement) && document.activeElement.matches('input, select'))
+  || !!box.querySelector('[data-dirty]') || !!box.querySelector('.reject-form:not([hidden])');
+const osm = p => `https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}`;
+
+function say(id, message, bad) {
+  const note = document.getElementById(id);
+  note.textContent = message || '';
+  note.classList.toggle('bad', !!bad);
+}
+
+let lastPlaces = '';
+async function loadPlaces() {
+  const box = document.getElementById('places');
+  const status = document.getElementById('places-filter').value;
+  const rows = await api(`/admin/places?status=${status}`);
+  const key = status + JSON.stringify(rows);
+  if (key === lastPlaces || typing(box)) return;
+  lastPlaces = key;
+  box.innerHTML = rows.length
+    ? `<div class="table-wrap"><table><thead><tr><th>جۆر</th><th>ناو</th><th>وردەکاری</th><th>گەڕەک</th>
+        <th>خاوەن</th><th>مۆبایل</th><th>مۆڵەت</th><th>تۆمارکراو</th><th>شوێن</th><th>دۆخ</th></tr></thead><tbody>` +
+      rows.map(p => {
+        const [text, cls] = PLACE_STATUS[p.verification_status];
+        const detail = p.kind === 'household' ? `${toKu(p.residents_count)} کەس` : esc(p.category_name);
+        const buttons = (p.verification_status !== 'verified'
+            ? `<button class="primary small" data-decide="verify">پەسەندکردن</button>` : '') +
+          (p.verification_status !== 'rejected' ? `<button class="danger small" data-decide="reject">ڕەتکردنەوە</button>` : '');
+        return `<tr data-place="${esc(p.id)}" data-updated="${esc(p.updated_at)}">
+          <td>${KIND[p.kind]}</td>
+          <td><strong>${esc(p.name)}</strong>${p.address ? `<small>${esc(p.address)}</small>` : ''}</td>
+          <td>${detail}</td><td>${esc(p.neighbourhood || '—')}</td>
+          <td>${esc(p.owner_name)}${p.owner_email ? `<small class="voucher">${esc(p.owner_email)}</small>` : ''}</td>
+          <td><span class="voucher">${esc(p.owner_phone)}</span></td>
+          <td>${p.license_number ? `<span class="voucher">${esc(p.license_number)}</span>` : '—'}</td>
+          <td>${stamp(p.created_at)}</td>
+          <td><a href="${osm(p)}" target="_blank" rel="noopener noreferrer">نەخشە</a></td>
+          <td><span class="verdict ${cls}">${text}</span>
+            ${p.rejection_reason ? `<small>${esc(p.rejection_reason)}</small>` : ''}
+            <div class="row-actions">${buttons}</div>
+            <form class="row-form reject-form" hidden>
+              <input name="reason" maxlength="500" placeholder="هۆکار (خاوەنەکەی دەیبینێت)" required>
+              <button class="danger small">ناردن</button><button type="button" class="small" data-cancel>پاشگەزبوونەوە</button>
+            </form></td></tr>`;
+      }).join('') + '</tbody></table></div>'
+    : '<div class="empty">هیچ ماڵ یان شوێنێکی بازرگانی لەم بەشەدا نییە</div>';
+}
+
+async function decide(row, decision, reason) {
+  const data = await api(`/admin/places/${row.dataset.place}/review`, { method: 'POST',
+    body: JSON.stringify({ decision, reason, updated_at: row.dataset.updated }) });
+  say('places-note', data.error ? data.message : (decision === 'verify' ? 'پەسەندکرا' : 'ڕەتکرایەوە'), !!data.error);
+  lastPlaces = '';
+  row.querySelector('.reject-form').hidden = true;
+  await Promise.all([loadPlaces(), loadStats(), loadMoney()]);
+}
+
+document.getElementById('places-filter').addEventListener('change', () => { lastPlaces = ''; loadPlaces().catch(() => {}); });
+document.getElementById('places').addEventListener('click', e => {
+  const row = e.target.closest('[data-place]');
+  if (!row) return;
+  if (e.target.matches('[data-decide="verify"]')) { e.target.disabled = true; decide(row, 'verify').catch(() => {}); }
+  if (e.target.matches('[data-decide="reject"]')) {
+    const form = row.querySelector('.reject-form');
+    form.hidden = false;
+    form.reason.focus();
+  }
+  if (e.target.matches('[data-cancel]')) {
+    const form = row.querySelector('.reject-form');
+    form.reset();
+    form.hidden = true;
+  }
+});
+document.getElementById('places').addEventListener('submit', e => {
+  e.preventDefault();
+  const reason = e.target.reason.value.trim();
+  if (!reason) return;
+  e.target.querySelector('button').disabled = true;
+  decide(e.target.closest('[data-place]'), 'reject', reason).catch(() => {});
+});
+
+// monthly money: one row per verified place; already credited months show the amount instead of a field
+const monthField = document.getElementById('money-month');
+let lastMoney = '';
+async function loadMoney() {
+  const box = document.getElementById('money');
+  const data = await api('/admin/payments' + (monthField.value ? `?month=${monthField.value}` : ''));
+  if (data.error) { say('money-note', data.message, true); return; }
+  if (!monthField.value) { monthField.value = data.month; monthField.max = data.month; }   // the server's month
+  for (const kind of ['household', 'business']) {
+    const field = document.getElementById(`money-${kind}`);
+    if (!field.value) field.value = data.defaults[kind];
+  }
+  const key = JSON.stringify(data);
+  if (key === lastMoney || typing(box)) return;
+  lastMoney = key;
+  box.innerHTML = data.places.length
+    ? `<div class="table-wrap"><table><thead><tr><th>جۆر</th><th>ناو</th><th>خاوەن</th><th>مۆبایل</th><th>گەڕەک</th>
+        <th>پارەی ئەم مانگە</th></tr></thead><tbody>` +
+      data.places.map(p => `<tr data-place="${esc(p.id)}"><td>${KIND[p.kind]}</td><td>${esc(p.name)}</td>
+        <td>${esc(p.owner_name)}</td><td><span class="voucher">${esc(p.owner_phone)}</span></td>
+        <td>${esc(p.neighbourhood || '—')}</td>
+        <td>${p.paid_iqd !== null ? `<span class="verdict verified">${dinar(p.paid_iqd)}</span>`
+          : `<div class="row-form"><input type="number" min="1" step="1000" value="${esc(data.defaults[p.kind])}">
+             <button class="primary small" data-credit>تۆمارکردن</button></div>`}</td></tr>`).join('') +
+      `<tr><td colspan="5"><strong>کۆی ئەم مانگە</strong></td><td><strong>${dinar(data.total_iqd)}</strong></td></tr>` +
+      '</tbody></table></div>'
+    : '<div class="empty">هێشتا هیچ ماڵ یان شوێنێکی پەسەندکراو نییە</div>';
+}
+
+async function afterMoney(data, done) {
+  say('money-note', data.error ? data.message : done, !!data.error);
+  lastMoney = '';
+  await loadMoney();
+}
+
+monthField.addEventListener('change', () => { lastMoney = ''; say('money-note', ''); loadMoney().catch(() => {}); });
+document.getElementById('money').addEventListener('input', e => e.target.setAttribute('data-dirty', ''));
+document.getElementById('money').addEventListener('click', async e => {
+  if (!e.target.matches('[data-credit]')) return;
+  const row = e.target.closest('[data-place]');
+  e.target.disabled = true;
+  const amount = parseInt(row.querySelector('input').value, 10);
+  row.querySelector('input').removeAttribute('data-dirty');
+  try {
+    const data = await api(`/admin/places/${row.dataset.place}/payments`, { method: 'POST',
+      body: JSON.stringify({ month: monthField.value, amount_iqd: amount }) });
+    await afterMoney(data, `${dinar(amount)} تۆمارکرا`);
+  } catch (err) { e.target.disabled = false; }
+});
+document.getElementById('money-all').addEventListener('click', async e => {
+  const household = parseInt(document.getElementById('money-household').value, 10);
+  const business = parseInt(document.getElementById('money-business').value, 10);
+  if (!confirm(`پارەی ${toKu(monthField.value)} بۆ هەموو ماڵ و شوێنە پەسەندکراوەکان کە هێشتا وەریان نەگرتووە تۆمار بکرێت؟\n` +
+               `ماڵ: ${dinar(household)} · بازرگانی: ${dinar(business)}`)) return;
+  e.target.disabled = true;
+  try {
+    const data = await api('/admin/payments', { method: 'POST',
+      body: JSON.stringify({ month: monthField.value, household_iqd: household, business_iqd: business }) });
+    await afterMoney(data, `بۆ ${toKu(data.credited)} شوێن تۆمارکرا`);
+  } finally { e.target.disabled = false; }
+});
+
 // ---- league: neighbourhoods by points (the app's /leaderboard rule), spots counted inside each boundary
 const rankOf = (rows, i) => 1 + rows.filter(r => r.points > rows[i].points).length;   // equal points, equal rank
 
@@ -1354,14 +1541,15 @@ function renderLeague(hoods) {
   // without a boundary the spot counts are unknown, not zero
   const count = (h, n) => h.boundary ? toKu(n) : '<span class="muted" title="سنووری ئەم گەڕەکە بارنەکراوە">—</span>';
   box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>ڕیز</th><th>گەڕەک</th><th>خاڵ</th><th>هاوڵاتی</th>
-    <th>شوێنی کراوە</th><th>پاککراوە</th></tr></thead><tbody>` +
+    <th>ماڵ</th><th>شوێنی کراوە</th><th>پاککراوە</th></tr></thead><tbody>` +
     hoods.map((h, i) => {
       const rank = rankOf(hoods, i);
       return `<tr><td><span class="rank ${rank === 1 && h.points > 0 ? 'first' : ''}">${toKu(rank)}</span></td>
         <td>${esc(h.name)}</td>
         <td class="pts-cell"><strong>${toKu(h.points)}</strong>${h.points > 0
           ? `<div class="bar" style="width:${(100 * h.points / top).toFixed(1)}%"></div>` : ''}</td>
-        <td>${toKu(h.citizens)}</td><td>${count(h, h.open)}</td><td>${count(h, h.cleaned)}</td></tr>`;
+        <td>${toKu(h.citizens)}</td><td>${toKu(h.households)}</td><td>${count(h, h.open)}</td>
+        <td>${count(h, h.cleaned)}</td></tr>`;
     }).join('') +
     '</tbody></table></div>' +
     (hoods.some(h => !h.boundary)
@@ -1391,16 +1579,19 @@ async function loadPeople() {
 async function loadStats() {
   const s = await api('/admin/stats');
   const tiles = [['reported', 'شوێنی ڕاپۆرتکراو'], ['open', 'کراوە'], ['cleaned', 'پاککراوە'],
-                 ['litter_removed', 'پاشماوەی لابراو'], ['needs_review', 'چاوەڕوانی پشکنین'], ['citizens', 'هاوڵاتی']];
+                 ['litter_removed', 'پاشماوەی لابراو'], ['needs_review', 'چاوەڕوانی پشکنین'], ['citizens', 'هاوڵاتی'],
+                 ['households', 'ماڵی پەسەندکراو'], ['businesses', 'بازرگانیی پەسەندکراو'],
+                 ['pending_places', 'ماڵ و بازرگانیی چاوەڕێ']];
   document.getElementById('stats').innerHTML = tiles.map(([k, label]) =>
     `<div class="stat"><div class="num">${toKu(s[k])}</div><div class="label">${label}</div></div>`).join('');
+  document.getElementById('places-count').textContent = toKu(s.pending_places);
 }
 
 async function refresh() {
   if (!token) { showLogin(); return; }
   try {
     await Promise.all([loadStats(), loadMap(), loadAdminPins(), loadAdminBins(), loadHoods(), loadPeople(), loadPriority(), loadLog(),
-                       loadReview(), loadVouchers()]);
+                       loadReview(), loadVouchers(), loadPlaces(), loadMoney()]);
   }
   catch (e) { /* the login form opens on auth errors */ }
 }

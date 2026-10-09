@@ -74,6 +74,13 @@ def test_the_place_neighbourhood_comes_from_its_location_when_boundaries_are_loa
     assert r.json["user"]["neighbourhood_id"] == 3               # none chosen: the household's
 
 
+def test_without_boundaries_a_home_is_in_its_familys_neighbourhood(client, api):
+    r = client.post("/auth/signup", json=form(api, neighbourhood_id=2, household=HOME, business=SHOP))
+    places = {p["kind"]: p for p in client.get("/me", headers=bearer(r)).json["places"]}
+    assert places["household"]["neighbourhood_id"] == 2          # the family's
+    assert places["business"]["neighbourhood_id"] is None        # a shop can be anywhere
+
+
 def test_the_email_comes_from_the_code_never_from_the_form(client, api):
     body = form(api)
     body["email"] = "evil@example.com"

@@ -54,6 +54,11 @@ class Config:
     # is the Web one: the app gets it from /auth/config and asks Google for tokens issued to it.
     GOOGLE_CLIENT_IDS = tuple(c.strip() for c in os.environ.get("GOOGLE_CLIENT_IDS", "").split(",") if c.strip())
     GOOGLE_SERVER_CLIENT_ID = os.environ.get("GOOGLE_SERVER_CLIENT_ID", "")
+    # The monthly money staff credit to a verified household or business: the dashboard fills these in
+    # and staff can change each one. Demo values: agree the real ones with the municipality.
+    HOUSEHOLD_MONTHLY_IQD = _int("HOUSEHOLD_MONTHLY_IQD", 10000)
+    BUSINESS_MONTHLY_IQD = _int("BUSINESS_MONTHLY_IQD", 25000)
+    MAX_MONTHLY_IQD = _int("MAX_MONTHLY_IQD", 1000000)      # a typo with extra zeros is refused
     # Households and businesses must be inside this box (min_lat,min_lon,max_lat,max_lon): roughly
     # Sulaimani governorate, so a pin dropped in the sea or a simulator's Cupertino is caught.
     SERVICE_AREA_BBOX = tuple(float(v) for v in os.environ.get("SERVICE_AREA_BBOX", "34.3,44.3,36.6,46.4").split(","))
