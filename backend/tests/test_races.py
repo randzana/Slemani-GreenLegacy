@@ -95,9 +95,10 @@ def test_a_token_from_before_a_reseed_is_refused(tmp_path):
 
     from app import create_app
     from app.ai.detector import ColorBlobDetector
+    from app.otp import FakeOtpSender
     seed(TEST_DB, *STAFF)
     app = create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path), "TESTING": True},
-                     detector=ColorBlobDetector())
+                     detector=ColorBlobDetector(), otp_sender=FakeOtpSender())
     Api(app.test_client()).signup("داریا")                    # users.id 2, at the evening rehearsal
     now = dt.datetime.now(dt.timezone.utc)
     rehearsal_token = jwt.encode({"sub": "2", "role": "citizen", "iat": now - dt.timedelta(hours=1),

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+import requests
 from werkzeug.serving import make_server
 
 from app import create_app
@@ -18,6 +19,7 @@ MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
 # what the demo laptop has: the model and staff password from .env, not the public defaults
 TERMINAL = {"MODEL_PATH": "models/slemani.pt"}
 STAFF_PASSWORD = "from-the-env-file"
+STAFF_PHONE = "+9647500000000"     # seed.py stores STAFF[0] in E.164 (app/phones.py)
 
 
 def marks(results):
@@ -40,7 +42,7 @@ def test_seeded_database_is_ready(db):
     results = preflight.check_database(db)
     assert {mark for mark, _, _ in results} == {OK}
     found = marks(results)
-    assert STAFF[0] in found["هەژماری شارەوانی"][1]
+    assert STAFF_PHONE in found["هەژماری شارەوانی"][1]
     assert found["گەڕەکەکان"][1].startswith("6 neighbourhoods")
 
 
@@ -96,7 +98,7 @@ def test_public_default_staff_password_warns(db):
     assert marks(preflight.check_database(db))["وشەی نهێنیی شارەوانی"][0] == OK
     seed(db, *STAFF)
     mark, detail = marks(preflight.check_database(db))["وشەی نهێنیی شارەوانی"]
-    assert mark == WARN and STAFF[0] in detail and "STAFF_PASSWORD" in detail
+    assert mark == WARN and STAFF_PHONE in detail and "STAFF_PASSWORD" in detail
 
 
 def test_polygon_boundaries_name_migration_002(db):
@@ -168,6 +170,40 @@ def test_settings_that_must_not_reach_the_stage(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "a-long-random-value")
     found = marks(preflight.check_settings({"SIM_CAMERA": False, "DESCRIBE_WITH_CLAUDE": False}))
     assert {mark for mark, _ in found.values()} == {OK}
+
+
+def test_email_code_settings():
+    smtp = {"SMTP_HOST": "smtp.example.com", "SMTP_PORT": 587, "SMTP_USER": "bot@example.com",
+            "SMTP_PASSWORD": "pw", "SMTP_FROM": "", "SMTP_SECURITY": "starttls", "OTP_TTL_SECONDS": 300,
+            "OTP_REQUIRED": True}
+    found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "console", "OTP_PEPPER": ""}))
+    assert found["کۆدی ئیمەیڵ"][0] == WARN and "server log" in found["کۆدی ئیمەیڵ"][1]
+    assert found["کلیلی کۆدەکان"][0] == WARN
+    found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "smtp", "OTP_PEPPER": "x" * 32}))
+    assert {mark for mark, _ in found.values()} == {OK} and "smtp.example.com:587" in found["کۆدی ئیمەیڵ"][1]
+    for broken in ({"OTP_SENDER": "smtp", "SMTP_HOST": ""}, {"OTP_SENDER": "fake"}, {"OTP_SENDER": "sms"}):
+        found = marks(preflight.check_email_codes({**smtp, "OTP_PEPPER": "x", **broken}))
+        assert found["کۆدی ئیمەیڵ"][0] == FAIL, broken
+    found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "smtp", "OTP_PEPPER": "x", "OTP_REQUIRED": False}))
+    assert found["ئیمەیڵی پێویست"][0] == WARN and "rehearsal" in found["ئیمەیڵی پێویست"][1]
+
+
+def test_google_settings():
+    def answers(status):
+        def get(url, timeout):
+            if status is None:
+                raise requests.ConnectionError("offline")
+            return type("Answer", (), {"status_code": status})()
+        return get
+    web, android = "web.apps.googleusercontent.com", "android.apps.googleusercontent.com"
+    found = marks(preflight.check_google({"GOOGLE_CLIENT_IDS": (), "GOOGLE_SERVER_CLIENT_ID": ""}, answers(None)))
+    assert found == {"Google": (OK, found["Google"][1])} and "off" in found["Google"][1]   # no network needed
+    ready = {"GOOGLE_CLIENT_IDS": (web, android), "GOOGLE_SERVER_CLIENT_ID": web}
+    assert {m for m, _ in marks(preflight.check_google(ready, answers(200))).values()} == {OK}
+    found = marks(preflight.check_google(ready, answers(None)))
+    assert found["کلیلەکانی Google"][0] == WARN and "internet" in found["کلیلەکانی Google"][1]
+    assert marks(preflight.check_google({**ready, "GOOGLE_SERVER_CLIENT_ID": "x"}, answers(200)))["Google"][0] == FAIL
+    assert marks(preflight.check_google({**ready, "GOOGLE_SERVER_CLIENT_ID": ""}, answers(200)))["Google"][0] == WARN
 
 
 def test_phone_url_uses_the_port():

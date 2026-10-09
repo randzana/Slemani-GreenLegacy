@@ -26,9 +26,15 @@ def claimed(api, report_id):
     return cleaner, c.json
 
 
-def test_signup_login_and_duplicate_phone(client):
-    r = client.post("/auth/signup", json={"name": "ڕەند", "phone": "07701234567", "password": "secret123"})
-    assert r.status_code == 201
+def test_old_app_builds_sign_up_without_an_email_only_when_allowed(client, app):
+    """US-8: an old build sends name, phone and password only. Refused by default; OTP_REQUIRED=0 (an
+    offline rehearsal) lets it through, and its login, duplicate check and /me work as before."""
+    old_build = {"name": "ڕەند", "phone": "07701234567", "password": "secret123"}
+    refused = client.post("/auth/signup", json=old_build)
+    assert refused.status_code == 401 and refused.json["error"] == "email_not_verified"
+    app.config["OTP_REQUIRED"] = False
+    r = client.post("/auth/signup", json=old_build)
+    assert r.status_code == 201 and r.json["user"]["email"] is None
     assert client.post("/auth/signup", json={"name": "x", "phone": "07701234567",
                                              "password": "secret123"}).status_code == 409
     assert client.post("/auth/login", json={"phone": "07701234567", "password": "wrong!!"}).status_code == 401

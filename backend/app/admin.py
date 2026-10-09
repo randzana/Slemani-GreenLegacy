@@ -1,14 +1,16 @@
 """Municipality endpoints (staff only) and the dashboard page."""
+import datetime as dt
 import json
+import re
 
-from flask import Blueprint, g, jsonify, render_template, request
+from flask import Blueprint, current_app, g, jsonify, render_template, request
 
-from . import points
+from . import accounts, points
 from .db import housekeeping, query
-from .auth import staff_required
+from .auth import error, json_body, staff_required
 from .routes import REPORT_COLUMNS, report_json
 from .storage import url_of
-from .strings import REWARDS, reason
+from .strings import CATEGORY_NAMES, REWARDS, reason
 from .bins import BIN_COLUMNS, bin_json, generate_sticker_png
 
 bp = Blueprint("admin", __name__)
@@ -112,7 +114,10 @@ def stats():
              (SELECT count(*) FROM reports WHERE status = 'clean') AS cleaned,
              (SELECT COALESCE(SUM(GREATEST(litter_count_before - COALESCE(litter_count_after, 0), 0)), 0)
                 FROM cleanups WHERE verdict = 'verified') AS litter_removed,
-             (SELECT count(*) FROM users WHERE role = 'citizen') AS citizens""",
+             (SELECT count(*) FROM users WHERE role = 'citizen') AS citizens,
+             (SELECT count(*) FROM places WHERE kind = 'household' AND verification_status = 'verified') AS households,
+             (SELECT count(*) FROM places WHERE kind = 'business' AND verification_status = 'verified') AS businesses,
+             (SELECT count(*) FROM places WHERE verification_status = 'pending') AS pending_places""",
         one=True))
 
 
@@ -127,6 +132,9 @@ def neighbourhood_league():
         """SELECT n.id, n.name, ST_AsGeoJSON(n.boundary, 6)::json AS boundary,
                   (SELECT count(*) FROM users u
                    WHERE u.neighbourhood_id = n.id AND u.role = 'citizen') AS citizens,
+                  -- homes are counted, never drawn: their locations stay off the dashboard map
+                  (SELECT count(*) FROM places pl WHERE pl.neighbourhood_id = n.id AND pl.kind = 'household'
+                     AND pl.verification_status = 'verified') AS households,
                   (SELECT COALESCE(SUM(p.amount), 0) FROM point_ledger p JOIN users u ON u.id = p.user_id
                    WHERE u.neighbourhood_id = n.id AND p.status = 'released' AND p.kind <> 'redeem') AS points,
                   s.open, s.cleaned, s.avg_dirtiness
@@ -447,3 +455,136 @@ def update_bin_status(bin_id):
     query("UPDATE trash_bins SET status = %s WHERE id = %s", (new_status, bin_id))
     return jsonify({"ok": True, "status": new_status})
 
+
+# ---------------------------------------------------------------- households and businesses
+# Staff check each place before it counts and credit verified ones a monthly amount (app/accounts.py).
+# Staff see a household's location here, to check it, but homes are never drawn on the dashboard map.
+STAFF_PLACE_COLUMNS = accounts.PLACE_COLUMNS + """, u.id AS owner_id, u.name AS owner_name,
+    u.phone AS owner_phone, u.email AS owner_email"""
+PLACES_FROM = """places p JOIN users u ON u.id = p.owner_id LEFT JOIN neighbourhoods n ON n.id = p.neighbourhood_id"""
+
+
+def staff_place_json(row):
+    out = accounts.place_json(row)
+    out.update({k: row[k] for k in ("owner_id", "owner_name", "owner_phone", "owner_email")})
+    if row["kind"] == "business":
+        out["category_name"] = CATEGORY_NAMES.get(row["category"], row["category"])
+    return out
+
+
+@bp.get("/admin/places")
+@staff_required
+def places_queue():
+    """?status=pending (the default), verified, rejected or all; oldest first."""
+    status = request.args.get("status", "pending")
+    statuses = ["pending", "verified", "rejected"] if status == "all" else [status]
+    rows = query(f"""SELECT {STAFF_PLACE_COLUMNS} FROM {PLACES_FROM}
+                     WHERE p.verification_status = ANY(%s) ORDER BY p.created_at, p.id LIMIT 500""", (statuses,))
+    return jsonify([staff_place_json(r) for r in rows])
+
+
+@bp.post("/admin/places/<int:place_id>/review")
+@staff_required
+def review_place(place_id):
+    """{decision: verify|reject, reason?, updated_at?}. Rejecting needs a reason: the owner reads it in the
+    app. A place can be reviewed again (a mistake, a fixed licence); every decision stays in place_reviews.
+    updated_at is the version the staff member looked at: if the owner changed the place since, the
+    answer is 409 place_changed instead of approving something nobody has seen."""
+    data = json_body()
+    decision = data.get("decision")
+    if decision not in ("verify", "reject"):
+        return error("bad_decision", 400)
+    note = str(data.get("reason") or "").strip()[:500] or None
+    if decision == "reject" and not note:
+        return error("reason_required", 400)
+    status = "verified" if decision == "verify" else "rejected"
+    seen = data.get("updated_at")
+    row = query("""UPDATE places SET verification_status = %s, verified_by = %s, verified_at = now(),
+                          rejection_reason = %s, updated_at = now()
+                   WHERE id = %s AND (%s::timestamptz IS NULL OR updated_at = %s::timestamptz) RETURNING id""",
+                (status, g.user["id"], note if status == "rejected" else None, place_id, seen, seen), one=True)
+    if row is None:
+        exists = query("SELECT 1 FROM places WHERE id = %s", (place_id,), one=True)
+        return error("place_changed", 409) if exists else error("not_found", 404)
+    query("INSERT INTO place_reviews (place_id, status, reason, changed_by) VALUES (%s, %s, %s, %s)",
+          (place_id, status, note, g.user["id"]))
+    return jsonify(staff_place_json(query(f"SELECT {STAFF_PLACE_COLUMNS} FROM {PLACES_FROM} WHERE p.id = %s",
+                                          (place_id,), one=True)))
+
+
+def _month(value):
+    """The first day of a 'YYYY-MM' month from 2024 up to this one, else None (no paying ahead)."""
+    text = str(value or "")
+    if not re.fullmatch(r"20\d\d-(0[1-9]|1[0-2])", text):
+        return None
+    month = dt.date(int(text[:4]), int(text[5:]), 1)
+    return month if dt.date(2024, 1, 1) <= month <= dt.date.today().replace(day=1) else None
+
+
+def _amount(value):
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if 0 < value <= current_app.config["MAX_MONTHLY_IQD"] else None
+
+
+@bp.get("/admin/payments")
+@staff_required
+def monthly_money():
+    """?month=YYYY-MM (default: this month): every verified place and what it was credited that month
+    (null: not yet), the amounts the dashboard fills in, and the month's total."""
+    month = _month(request.args.get("month") or dt.date.today().strftime("%Y-%m"))
+    if month is None:
+        return error("invalid_month", 400)
+    rows = query(f"""SELECT {STAFF_PLACE_COLUMNS}, pp.amount_iqd AS paid_iqd
+                     FROM {PLACES_FROM} LEFT JOIN place_payments pp ON pp.place_id = p.id AND pp.month = %s
+                     -- a place paid this month and rejected later still shows, so the total adds up
+                     WHERE p.verification_status = 'verified' OR pp.id IS NOT NULL
+                     ORDER BY p.kind DESC, p.name""", (month,))
+    places = [{**staff_place_json(r), "paid_iqd": r["paid_iqd"]} for r in rows]
+    cfg = current_app.config
+    return jsonify({"month": month.strftime("%Y-%m"),
+                    "defaults": {"household": cfg["HOUSEHOLD_MONTHLY_IQD"], "business": cfg["BUSINESS_MONTHLY_IQD"]},
+                    "places": places, "total_iqd": sum(p["paid_iqd"] or 0 for p in places)})
+
+
+@bp.post("/admin/places/<int:place_id>/payments")
+@staff_required
+def credit_place(place_id):
+    """{month: YYYY-MM, amount_iqd, note?}: this month's money for one verified place, once."""
+    data = json_body()
+    month, amount = _month(data.get("month")), _amount(data.get("amount_iqd"))
+    if month is None:
+        return error("invalid_month", 400)
+    if amount is None:
+        return error("invalid_amount", 400)
+    place = query("SELECT verification_status FROM places WHERE id = %s FOR SHARE", (place_id,), one=True)
+    if place is None:
+        return error("not_found", 404)
+    if place["verification_status"] != "verified":
+        return error("place_not_verified", 409)
+    row = query("""INSERT INTO place_payments (place_id, month, amount_iqd, note, created_by)
+                   VALUES (%s, %s, %s, %s, %s) ON CONFLICT (place_id, month) DO NOTHING RETURNING id""",
+                (place_id, month, amount, str(data.get("note") or "").strip()[:300] or None, g.user["id"]), one=True)
+    if row is None:
+        return error("already_paid", 409)
+    return jsonify({"id": row["id"], "place_id": place_id, "month": month.strftime("%Y-%m"), "amount_iqd": amount}), 201
+
+
+@bp.post("/admin/payments")
+@staff_required
+def credit_every_place():
+    """{month, household_iqd, business_iqd}: every verified place not yet credited that month gets its
+    kind's amount. Pressing it twice credits nobody twice."""
+    data = json_body()
+    month = _month(data.get("month"))
+    household, business = _amount(data.get("household_iqd")), _amount(data.get("business_iqd"))
+    if month is None:
+        return error("invalid_month", 400)
+    if household is None or business is None:
+        return error("invalid_amount", 400)
+    rows = query("""INSERT INTO place_payments (place_id, month, amount_iqd, created_by)
+                    SELECT id, %s, CASE kind WHEN 'household' THEN %s ELSE %s END, %s
+                    FROM places WHERE verification_status = 'verified'
+                    ON CONFLICT (place_id, month) DO NOTHING RETURNING id""",
+                 (month, household, business, g.user["id"]))
+    return jsonify({"month": month.strftime("%Y-%m"), "credited": len(rows)})

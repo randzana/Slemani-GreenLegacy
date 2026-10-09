@@ -8,6 +8,7 @@ import pytest
 from app import create_app
 from app.ai.describe import template_description
 from app.ai.detector import ColorBlobDetector
+from app.otp import FakeOtpSender
 from app.config import Config
 from conftest import STAFF, TEST_DB, Api
 from seed import seed
@@ -63,7 +64,7 @@ def test_vision_description_replaces_the_template(tmp_path):
     seed(TEST_DB, *STAFF)
     describer = FakeDescriber()
     app = create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path / "uploads"), "TESTING": True},
-                     detector=ColorBlobDetector(), describer=describer)
+                     detector=ColorBlobDetector(), describer=describer, otp_sender=FakeOtpSender())
     api = Api(app.test_client())
     citizen = api.signup()
     r = api.report(citizen, synthetic.with_litter(synthetic.place(61), 5))

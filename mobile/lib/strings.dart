@@ -21,6 +21,89 @@ class S {
   static const welcomeBack = 'بەخێربێیتەوە بۆ گەشتی پاراستنی ژینگە';
   static const joinUs = 'بەشداربە لە سەوزکردنی سلێمانی';
   static const fillAllFields = 'تکایە هەموو خانەکان پڕبکەرەوە';
+  static const loginField = 'ئیمەیڵ یان ژمارەی مۆبایل';
+  static const continueWithGoogle = 'بەردەوامبوون بە Google';
+  static const or = 'یان';
+  static const googleNotSetUp = 'چوونەژوورەوە بە Google لەم بیلدەی ئەپەکەدا ڕێک نەخراوە';
+  static const googleRestartApp = 'ئەم سێرڤەرە هەژماری Google ی جیاوازی هەیە؛ ئەپەکە دابخە و دووبارە بیکەرەوە';
+  static const googleFailed = 'چوونەژوورەوە بە Google سەرکەوتوو نەبوو';
+
+  // sign-up: what the person registers (a citizen always; a household and a business if they have one)
+  static const whatToRegister = 'چی تۆمار دەکەیت؟';
+  static const whatToRegisterHint =
+      'هەموو کەسێک وەک هاوڵاتی تۆمار دەکرێت. ئەگەر ماڵ یان شوێنی بازرگانیت هەیە، ئەویش زیاد بکە؛ شارەوانی دەیپشکنێت.';
+  static const typeCitizen = 'هاوڵاتی';
+  static const typeCitizenAbout = 'بۆ تاکەکەس: ڕاپۆرت بکە، پاکی بکەرەوە، خاڵ کۆبکەرەوە';
+  static const typeHousehold = 'ماڵ';
+  static const typeHouseholdAbout = 'ماڵێک لە گەڕەکەکەت؛ شوێنی ماڵەکەت نهێنی دەمێنێتەوە';
+  static const typeBusiness = 'شوێنی بازرگانی';
+  static const typeBusinessAbout = 'بۆ دوکان، چێشتخانە، کافێ و شوێنە بازرگانییەکان';
+  static const alwaysIncluded = 'هەمیشە';
+  static const next = 'دواتر';
+  static const placeKinds = {'household': typeHousehold, 'business': typeBusiness};
+
+  // sign-up form
+  static const yourDetails = 'زانیارییەکانی خۆت';
+  static const householdSection = 'ماڵەکەت';
+  static const businessSection = 'شوێنە بازرگانییەکەت';
+  static const householdName = 'ناوی ماڵ (بۆ نموونە: ماڵی ئەحمەد)';
+  static const businessName = 'ناوی شوێنی بازرگانی';
+  static const residents = 'ژمارەی دانیشتووان';
+  static const address = 'ناونیشان (ئارەزوومەندانە)';
+  static const category = 'جۆری بازرگانی';
+  static const license = 'ژمارەی مۆڵەت (ئارەزوومەندانە)';
+  static const location = 'شوێن لەسەر نەخشە';
+  static const chooseOnMap = 'هەڵبژاردن لەسەر نەخشە';
+  static const locationChosen = 'شوێنەکە دیاریکرا';
+  static const householdPrivacyNote = 'شوێنی ماڵەکەت تەنها بۆ دیاریکردنی گەڕەکەکەت بەکاردێت و بە کەس پیشان نادرێت';
+  static const businessLocationNote = 'شارەوانی شوێن و زانیارییەکانی بازرگانییەکەت دەپشکنێت';
+  static const createAccount = 'دروستکردنی هەژمار';
+  static String googleAccount(String email) => 'هەژماری Google: $email';
+  // one problem per field, by the code the server (or the form) gives it
+  static const fieldErrors = {
+    'required': 'ئەم خانەیە پێویستە',
+    'invalid': 'دروست نییە',
+    'too_short': 'زۆر کورتە',
+    'too_long': 'زۆر درێژە',
+    'outside_service_area': 'دەبێت لەناو سنووری پارێزگای سلێمانیدا بێت',
+    'unknown': 'نەناسراوە',
+    'unknown_field': 'ئەم ئەپە ئەم خانەیەی نەناردووە؛ ئەپەکە نوێ بکەرەوە',
+    'invalid_phone': 'ژمارەی مۆبایل دروست نییە',
+    'phone_not_allowed': 'تەنها ژمارەی مۆبایلی عێراق قبووڵ دەکرێت',
+    'phone_taken': 'ئەم ژمارە مۆبایلە پێشتر تۆمار کراوە',
+  };
+  static String? fieldError(String? code) => code == null ? null : (fieldErrors[code] ?? fieldErrors['invalid']);
+
+  // picking a place on the map
+  static const pickLocationTitle = 'شوێنەکە دیاری بکە';
+  static const pickLocationHint = 'لەسەر نەخشەکە دابگرە بۆ دانانی شوێنەکە';
+  static const confirmLocation = 'ئەم شوێنە';
+  static const outsideServiceArea = 'ئەم شوێنە لە دەرەوەی سنووری پارێزگای سلێمانییە';
+  static const myLocation = 'شوێنی ئێستام';
+
+  // the email code
+  static const emailTitle = 'پشتڕاستکردنەوەی ئیمەیڵ';
+  static const emailWhy = 'کۆدێکت بۆ دەنێرین بۆ ئەوەی بزانین ئەم ئیمەیڵە هی خۆتە';
+  static const email = 'ئیمەیڵ';
+  static const sendCode = 'ناردنی کۆد';
+  static String codeSent(String email, int length) => 'کۆدێکی ${digits(length)} ژمارەیی نێردرا بۆ $email';
+  static const code = 'کۆد';
+  static const verify = 'پشتڕاستکردنەوە';
+  static const resend = 'ناردنەوەی کۆد';
+  static String resendIn(int seconds) => 'دەتوانیت دوای ${digits(seconds)} چرکە دووبارە بینێریت';
+  static String attemptsLeft(Object n) => '${digits(n)} هەوڵت ماوە';
+  static const requestNewCode = 'کۆدێکی نوێ داوا بکە';
+  static const changeEmail = 'گۆڕینی ئیمەیڵ';
+  static const checkSpam = 'ئەگەر نەگەیشت، فۆڵدەری Spam بپشکنە';
+
+  // linking Google to an account that already exists
+  static const linkTitle = 'بەستنەوەی Google بە هەژمارەکەتەوە';
+  static const linkEmailHasAccount =
+      'ئەم ئیمەیڵە پێشتر هەژمارێکی هەیە؛ دەتەوێت Google بەو هەژمارەوە ببەستیتەوە؟ وشەی نهێنیی ئەو هەژمارە بنووسە.';
+  static const linkPhoneHasAccount =
+      'ئەم ژمارەیە پێشتر هەژمارێکی هەیە؛ دەتەوێت Google بەو هەژمارەوە ببەستیتەوە؟ وشەی نهێنیی ئەو هەژمارە بنووسە.';
+  static const link = 'بەستنەوە';
+  static const passwordOnly = 'وشەی نهێنی';
 
   // tabs
   static const map = 'نەخشە';
@@ -172,6 +255,26 @@ class S {
   static String activities(Object n) => '${digits(n)} چالاکی';
   static const noHistory = 'هیچ تۆمارێکی خاڵ بەردەست نییە';
   static const logoutOfAccount = 'چوونەدەرەوە لە هەژمار';
+  static const myPlaces = 'ماڵ و شوێنی بازرگانیم';
+  static const addHousehold = 'زیادکردنی ماڵ';
+  static const addBusiness = 'زیادکردنی شوێنی بازرگانی';
+  static const placeStatuses = {
+    'pending': 'چاوەڕێی پەسەندکردنی شارەوانی',
+    'verified': 'پەسەندکراو',
+    'rejected': 'ڕەتکرایەوە',
+  };
+  static String rejectedBecause(String reason) => 'هۆکار: $reason';
+  static const fixAndResend = 'زانیارییەکان چاک بکە و پاشەکەوتی بکە؛ دووبارە دەنێردرێتەوە بۆ شارەوانی';
+  static const save = 'پاشەکەوتکردن';
+  static const placeSaved = 'پاشەکەوتکرا';
+  static const placeBackToReview = 'پاشەکەوتکرا؛ شارەوانی گۆڕانکارییەکە دەپشکنێت';
+  static const monthlyMoney = 'پارەی مانگانە';
+  static const moneyHint = 'بۆ ماڵ و شوێنی پەسەندکراو؛ دواتر لە ڕێگەی بانکی دیجیتاڵییەوە دەدرێت';
+  static const moneyNone = 'هێشتا پارەیەک تۆمار نەکراوە';
+  static String dinar(num n) => '${digits(_thousands(n))} دینار';
+  static String month(String isoDate) => digits(isoDate.length >= 7 ? isoDate.substring(0, 7) : isoDate);
+  static String _thousands(num n) =>
+      n.round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
 
   // league tab
   static const hoodsTab = 'گەڕەکەکان 🏘️';

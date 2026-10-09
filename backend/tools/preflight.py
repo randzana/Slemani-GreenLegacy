@@ -34,12 +34,18 @@ NEWER_COLUMNS = {("reports", "description"): "001_shop_tasks_description.sql",
                  ("reports", "description_source"): "001_shop_tasks_description.sql",
                  ("point_ledger", "detail"): "001_shop_tasks_description.sql",
                  ("point_ledger", "honoured_at"): "003_voucher_honoured.sql",
-                 ("point_ledger", "bin_id"): "006_trash_bins.sql"}
+                 ("point_ledger", "bin_id"): "006_trash_bins.sql",
+                 ("users", "email"): "007_accounts_email_google.sql",
+                 ("users", "email_key"): "007_accounts_email_google.sql",
+                 ("users", "email_verified_at"): "007_accounts_email_google.sql"}
 # Tables added after the first schema.sql, and the migration that creates them
 NEWER_TABLES = {"pins": "004_custom_pins_and_notifications.sql",
                 "notifications": "004_custom_pins_and_notifications.sql",
                 "pin_registrations": "005_pin_registrations.sql",
-                "trash_bins": "006_trash_bins.sql", "bin_disposals": "006_trash_bins.sql"}
+                "trash_bins": "006_trash_bins.sql", "bin_disposals": "006_trash_bins.sql",
+                "user_identities": "007_accounts_email_google.sql", "places": "007_accounts_email_google.sql",
+                "place_reviews": "007_accounts_email_google.sql", "place_payments": "007_accounts_email_google.sql",
+                "otp_codes": "007_accounts_email_google.sql"}
 STOCK_MODEL = "yolov8n.pt"
 MIN_FREE_MB, LOW_FREE_MB = 200, 1000    # a report photo plus an 8-frame video is a few MB
 
@@ -80,10 +86,10 @@ def check_database(url):
             names = ", ".join(".".join(col) for col in old)
             out.append((FAIL, "ستوونە نوێکان", f"missing {names}: {migrate(NEWER_COLUMNS[c] for c in old)}"))
         else:
-            out.append((OK, "ستوونە نوێکان", ", ".join(".".join(col) for col in NEWER_COLUMNS)))
+            out.append((OK, "ستوونە نوێکان", f"all {len(NEWER_COLUMNS)}, up to {max(NEWER_COLUMNS.values())}"))
         absent = [t for t in NEWER_TABLES if t not in tables]
         out.append((FAIL, "خشتە نوێکان", f"missing {', '.join(absent)}: {migrate(NEWER_TABLES[t] for t in absent)}")
-                   if absent else (OK, "خشتە نوێکان", ", ".join(NEWER_TABLES)))
+                   if absent else (OK, "خشتە نوێکان", f"all {len(NEWER_TABLES)}, up to {max(NEWER_TABLES.values())}"))
         shape = conn.execute("""SELECT type FROM geography_columns
                                 WHERE f_table_schema = current_schema() AND f_table_name = 'neighbourhoods'
                                   AND f_geography_column = 'boundary'""").fetchone()
@@ -197,6 +203,53 @@ def check_settings(cfg, rehearsal=False):
     return out
 
 
+def check_email_codes(cfg):
+    """Who delivers the sign-up codes (app/otp.py), and what keys their stored hashes."""
+    from app.otp import make_otp_sender
+    sender = cfg["OTP_SENDER"]
+    if sender == "console":
+        out = [(WARN, "کۆدی ئیمەیڵ", "OTP_SENDER=console: codes appear in the server log; fine for the demo, "
+                                       "never for a pilot")]
+    elif sender == "fake":
+        out = [(FAIL, "کۆدی ئیمەیڵ", "OTP_SENDER=fake is for tests: nobody would receive a code")]
+    else:
+        try:
+            make_otp_sender(cfg)
+            out = [(OK, "کۆدی ئیمەیڵ", f"smtp via {cfg['SMTP_HOST']}:{cfg['SMTP_PORT']} ({cfg['SMTP_SECURITY']})")]
+        except ValueError as exc:
+            out = [(FAIL, "کۆدی ئیمەیڵ", str(exc))]
+    out.append((OK, "ئیمەیڵی پێویست", "every new account verifies an email") if cfg["OTP_REQUIRED"] else
+               (WARN, "ئیمەیڵی پێویست", "OTP_REQUIRED=0: anyone can sign up without an email; offline "
+                                          "rehearsal only (tools/rehearse.py)"))
+    out.append((OK, "کلیلی کۆدەکان", "OTP_PEPPER set") if cfg["OTP_PEPPER"] else
+               (WARN, "کلیلی کۆدەکان", "OTP_PEPPER is not set: the code hashes are keyed from SECRET_KEY; "
+                                        "export OTP_PEPPER=<random>"))
+    return out
+
+
+def check_google(cfg, http_get=requests.get):
+    """Sign in with Google: off, or set up so Android tokens are accepted and Google's keys reachable."""
+    from app.google_auth import CERTS_URL
+    ids, web = cfg["GOOGLE_CLIENT_IDS"], cfg["GOOGLE_SERVER_CLIENT_ID"]
+    if not ids:
+        return [(OK, "Google", "off (GOOGLE_CLIENT_IDS is empty): the app hides the Google button")]
+    if not web:
+        out = [(WARN, "Google", "GOOGLE_SERVER_CLIENT_ID is empty: Android cannot get a token for this server")]
+    elif web not in ids:
+        out = [(FAIL, "Google", "GOOGLE_SERVER_CLIENT_ID is not in GOOGLE_CLIENT_IDS: tokens issued for it "
+                                "would be refused")]
+    else:
+        out = [(OK, "Google", f"{len(ids)} client IDs accepted")]
+    try:
+        reachable = http_get(CERTS_URL, timeout=5).status_code == 200
+    except requests.RequestException:
+        reachable = False
+    out.append((OK, "کلیلەکانی Google", "reachable") if reachable else
+               (WARN, "کلیلەکانی Google", "cannot reach Google's keys: Google sign-in needs this laptop's "
+                                          "internet; email and password sign-up still work"))
+    return out
+
+
 def lan_addresses():
     """IPv4 addresses the phones can reach. The UDP connect sends nothing: it only asks the system
     which interface it would use, which on a hotspot is the hotspot one."""
@@ -284,7 +337,8 @@ def main(argv=None):
 
     checks = [lambda: check_database(cfg["DATABASE_URL"]), lambda: check_uploads(cfg["UPLOAD_DIR"]),
               lambda: check_detector(cfg, args.rehearsal, args.model), check_files,
-              lambda: check_settings(cfg, args.rehearsal), lambda: check_network(port)]
+              lambda: check_settings(cfg, args.rehearsal), lambda: check_email_codes(cfg), lambda: check_google(cfg),
+              lambda: check_network(port)]
     if args.server:
         checks.append(lambda: check_server(args.server, cfg, args.rehearsal))
     print("GreenLegacy preflight" + (" (rehearsal)" if args.rehearsal else ""))

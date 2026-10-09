@@ -27,7 +27,27 @@ REASONS = {
     "rejected_by_staff": "پاککردنەوەکە لە لایەن شارەوانییەوە ڕەت کرایەوە",
     # auth
     "phone_taken": "ئەم ژمارە مۆبایلە پێشتر تۆمار کراوە",
-    "bad_login": "ژمارە یان وشەی نهێنی هەڵەیە",
+    "invalid_phone": "ژمارەی مۆبایل دروست نییە",
+    "phone_not_allowed": "تەنها ژمارەی مۆبایلی عێراق قبووڵ دەکرێت",
+    # email codes
+    "invalid_email": "ئیمەیڵەکە دروست نییە",
+    "otp_invalid": "کۆدەکە هەڵەیە",
+    "otp_expired": "کاتی کۆدەکە بەسەرچووە؛ کۆدێکی نوێ داوا بکە",
+    "otp_locked": "هەوڵی زۆر درا؛ کۆدێکی نوێ داوا بکە",
+    "otp_too_soon": "تکایە چەند چرکەیەک چاوەڕێ بکە",
+    "otp_rate_limited": "داواکاریی زۆر کرا؛ دواتر هەوڵ بدەرەوە",
+    "otp_send_failed": "نەتوانرا ئیمەیڵەکە بنێردرێت؛ دواتر هەوڵ بدەرەوە",
+    "bad_login": "ئیمەیڵ، ژمارە یان وشەی نهێنی هەڵەیە",
+    "email_not_verified": "سەرەتا ئیمەیڵەکەت پشتڕاست بکەرەوە؛ ئەگەر کاتی زۆری برد، کۆدێکی نوێ داوا بکە",
+    "email_taken": "ئەم ئیمەیڵە پێشتر تۆمار کراوە",
+    "invalid_profile": "هەندێک زانیاری هەڵەیە یان کەمە؛ خانە دیاریکراوەکان بپشکنە",
+    # Google
+    "google_token_invalid": "چوونەژوورەوە بە Google سەرکەوتوو نەبوو",
+    "google_email_unverified": "ئیمەیڵی هەژمارە Google ەکەت پشتڕاست نەکراوەتەوە",
+    "google_unavailable": "ناتوانرێت پەیوەندی بە Google بکرێت؛ ئینتەرنێتەکەت بپشکنە",
+    "google_disabled": "چوونەژوورەوە بە Google لەم سێرڤەرەدا چالاک نییە",
+    "google_signup_expired": "کاتی خۆتۆمارکردنەکە بەسەرچوو؛ دووبارە بە Google بچۆرە ژوورەوە",
+    "google_already_linked": "ئەم هەژمارە Google ە پێشتر بە هەژمارێکەوە بەستراوە",
     "missing_fields": "هەموو خانەکان پڕ بکەرەوە",
     "unauthorized": "کاتی چوونەژوورەوەکەت بەسەرچووە؛ دووبارە بچۆرە ژوورەوە",
     "forbidden": "ئەم بەشە تەنها بۆ شارەوانییە",
@@ -41,6 +61,31 @@ REASONS = {
     "task_already_claimed": "خەڵاتی ئەم ئەرکەت ئەمڕۆ وەرگرتووە",
     "task_claimed": "دەستخۆش! خاڵی ئەرکەکە دوای ٢٤ کاتژمێر ئازاد دەبێت",
     "voucher_used": "ئەم کۆدە پێشتر بەکارهاتووە یان بوونی نییە",
+    # staff: households, businesses and their monthly money
+    "bad_decision": "بڕیارەکە دەبێت پەسەندکردن یان ڕەتکردنەوە بێت",
+    "reason_required": "بۆ ڕەتکردنەوە هۆکارێک بنووسە؛ خاوەنەکەی لە ئەپەکەدا دەیبینێت",
+    "place_not_verified": "تەنها بۆ ماڵ یان شوێنێکی پەسەندکراو پارە تۆمار دەکرێت",
+    "already_paid": "پارەی ئەم مانگە بۆ ئەم شوێنە پێشتر تۆمار کراوە",
+    "place_changed": "خاوەنەکەی دوای ئەوەی بینیت گۆڕانکاری تێدا کرد؛ لیستەکە نوێ بکەرەوە و دووبارە بیپشکنە",
+    "invalid_month": "مانگەکە دروست نییە (نابێت دوای ئەم مانگە بێت)",
+    "invalid_amount": "بڕی پارەکە دروست نییە",
+}
+
+# The email with the sign-up code (app/otp.py); {code} and {minutes} are filled in
+EMAIL_CODE_SUBJECT = "کۆدی پشتڕاستکردنەوەی GreenLegacy"
+EMAIL_CODE_BODY = """سڵاو،
+
+کۆدی پشتڕاستکردنەوەی ئیمەیڵەکەت: {code}
+
+ئەم کۆدە بۆ {minutes} خولەک کار دەکات. ئەگەر تۆ داوات نەکردووە، ئەم ئیمەیڵە پشتگوێ بخە.
+
+GreenLegacy سلێمانی
+"""
+
+# Kinds of business a person can register (codes in accounts.CATEGORIES)
+CATEGORY_NAMES = {
+    "restaurant": "چێشتخانە", "cafe": "کافێ", "shop": "دوکان", "supermarket": "سوپەرمارکێت",
+    "bakery": "نانەواخانە", "hotel": "هوتێل", "workshop": "وەرشە", "other": "هی تر",
 }
 
 # Points shop: names and one-line descriptions (costs are in config.REWARDS)

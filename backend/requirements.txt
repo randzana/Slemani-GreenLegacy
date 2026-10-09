@@ -1,6 +1,8 @@
 flask>=3.0
 psycopg[binary]>=3.1
 pyjwt>=2.8
+phonenumbers>=8.13      # phones stored in one form (E.164)
+google-auth>=2.40       # checks Google sign-in ID tokens
 imagehash>=4.3
 pillow>=10.0
 numpy>=1.26

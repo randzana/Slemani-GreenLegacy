@@ -18,6 +18,50 @@ class Config:
     DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://gl:gl@localhost:5432/greenlegacy")
     UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(BASE_DIR / "uploads"))
     JWT_DAYS = _int("JWT_DAYS", 7)
+    # Lifetime of a sign-up step token (email verified, or a new Google sign-in): app/auth.py
+    STEP_TOKEN_MINUTES = _int("STEP_TOKEN_MINUTES", 10)
+
+    # Email codes for signing up (app/otp.py). OTP_SENDER: console writes the code to the server log
+    # (the demo laptop: no mail account needed, works offline; never for a pilot), fake (tests), or
+    # smtp (real mail through SMTP_*). OTP_PEPPER keys the stored code hashes; without it a key is
+    # derived from SECRET_KEY (preflight warns).
+    OTP_SENDER = os.environ.get("OTP_SENDER", "console")
+    OTP_PEPPER = os.environ.get("OTP_PEPPER", "")
+    OTP_LENGTH = _int("OTP_LENGTH", 6)
+    OTP_TTL_SECONDS = _int("OTP_TTL_SECONDS", 300)
+    OTP_MAX_ATTEMPTS = _int("OTP_MAX_ATTEMPTS", 5)
+    OTP_RESEND_SECONDS = _int("OTP_RESEND_SECONDS", 60)
+    OTP_MAX_PER_EMAIL_HOUR = _int("OTP_MAX_PER_EMAIL_HOUR", 5)
+    OTP_MAX_PER_IP_HOUR = _int("OTP_MAX_PER_IP_HOUR", 20)
+    OTP_MAX_PER_HOUR = _int("OTP_MAX_PER_HOUR", 200)        # all mail together: protects the mail account
+    SMTP_HOST = os.environ.get("SMTP_HOST", "")
+    SMTP_PORT = _int("SMTP_PORT", 587)
+    SMTP_USER = os.environ.get("SMTP_USER", "")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", "")             # empty: SMTP_USER
+    SMTP_SECURITY = os.environ.get("SMTP_SECURITY", "starttls")   # starttls (587), ssl (465) or none
+
+    # Accounts. Phones are stored in E.164 (app/phones.py); a number without a country code is
+    # read as PHONE_REGION's, and only these country calling codes are accepted.
+    PHONE_REGION = os.environ.get("PHONE_REGION", "IQ")
+    PHONE_ALLOWED_COUNTRY_CODES = tuple(
+        c.strip().lstrip("+") for c in os.environ.get("PHONE_ALLOWED_COUNTRY_CODES", "964").split(",") if c.strip())
+    # A new account needs a verified email. 0 lets old app builds sign up without one: an offline
+    # rehearsal only (preflight warns).
+    OTP_REQUIRED = os.environ.get("OTP_REQUIRED", "1") != "0"
+    # Sign in with Google (app/google_auth.py); off while GOOGLE_CLIENT_IDS is empty. The IDs are the
+    # OAuth clients whose tokens are accepted (Web, Android, iOS; comma-separated). GOOGLE_SERVER_CLIENT_ID
+    # is the Web one: the app gets it from /auth/config and asks Google for tokens issued to it.
+    GOOGLE_CLIENT_IDS = tuple(c.strip() for c in os.environ.get("GOOGLE_CLIENT_IDS", "").split(",") if c.strip())
+    GOOGLE_SERVER_CLIENT_ID = os.environ.get("GOOGLE_SERVER_CLIENT_ID", "")
+    # The monthly money staff credit to a verified household or business: the dashboard fills these in
+    # and staff can change each one. Demo values: agree the real ones with the municipality.
+    HOUSEHOLD_MONTHLY_IQD = _int("HOUSEHOLD_MONTHLY_IQD", 10000)
+    BUSINESS_MONTHLY_IQD = _int("BUSINESS_MONTHLY_IQD", 25000)
+    MAX_MONTHLY_IQD = _int("MAX_MONTHLY_IQD", 1000000)      # a typo with extra zeros is refused
+    # Households and businesses must be inside this box (min_lat,min_lon,max_lat,max_lon): roughly
+    # Sulaimani governorate, so a pin dropped in the sea or a simulator's Cupertino is caught.
+    SERVICE_AREA_BBOX = tuple(float(v) for v in os.environ.get("SERVICE_AREA_BBOX", "34.3,44.3,36.6,46.4").split(","))
 
     # AI
     # "yolo" for real use; "colorblob" counts red paper as litter (rehearsal without a model)

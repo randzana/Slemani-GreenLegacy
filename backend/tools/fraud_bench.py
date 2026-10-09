@@ -238,8 +238,9 @@ def synthetic_bench(database_url, force, uploads=None):
                          "(set TEST_DATABASE_URL, or pass --force)")
     seed(database_url)
     with tempfile.TemporaryDirectory() as temporary:
+        # the bench is about cleanups, not sign-up: its people sign up the old way, without an email
         app = create_app({"DATABASE_URL": database_url, "UPLOAD_DIR": uploads or temporary, "TESTING": True,
-                          "DESCRIBE_WITH_CLAUDE": False}, detector=ColorBlobDetector())
+                          "DESCRIBE_WITH_CLAUDE": False, "OTP_REQUIRED": False}, detector=ColorBlobDetector())
         bench = Bench(app.test_client(), database_url)
         rows = []
         for i, (label, verdict, code, method) in enumerate(SCENARIOS, start=1):

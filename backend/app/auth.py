@@ -1,30 +1,70 @@
-"""Sign up, log in and the JWT decorators."""
+"""Sign up, log in and the JWT decorators.
+
+A new account needs a verified email (app/otp.py gives the step token) unless OTP_REQUIRED=0, which
+keeps old app builds signing up during an offline rehearsal. Log in with the email or the phone.
+"""
 import datetime as dt
 from functools import wraps
 
 import jwt
-import psycopg
 from flask import Blueprint, current_app, g, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from . import accounts, emails, phones
 from .db import query
-from .strings import reason
+from .strings import CATEGORY_NAMES, reason
 
 bp = Blueprint("auth", __name__)
 
 
-def error(code, status):
-    return jsonify({"error": code, "message": reason(code)}), status
+def json_body():
+    """The request's JSON object, or {} for anything else (no body, a list, a bare string)."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def error(code, status, **extra):
+    """{"error": code, "message": its Kurdish text} plus any extra fields (retry_after, attempts_left)."""
+    return jsonify({"error": code, "message": reason(code), **extra}), status
+
+
+# Every token says what it is for (typ). Only an access token is a login; a step token proves one step
+# of signing up (the email was verified, or who Google says this new person is), lives a few minutes,
+# carries this audience, and is accepted only by the endpoint for that step. One SECRET_KEY signs them
+# all, so without typ a step token would pass wherever any valid signature does.
+ACCESS = "access"
+EMAIL_VERIFIED = "email_verified"      # step: this mailbox answered a code (app/otp.py)
+GOOGLE_SIGNUP = "google_signup"        # step: Google vouched for a person who has no account yet
+STEP_AUDIENCE = "gl-step"
+MAX_USER_ID = 2**31 - 1        # users.id is an INTEGER; a bigger number is not one of ours
 
 
 def make_token(user):
     payload = {
+        "typ": ACCESS,
         "sub": str(user["id"]),
         "role": user["role"],
         "iat": dt.datetime.now(dt.timezone.utc),
         "exp": dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=current_app.config["JWT_DAYS"]),
     }
     return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+
+
+def make_step_token(typ, **claims):
+    now = dt.datetime.now(dt.timezone.utc)
+    payload = {**claims, "typ": typ, "aud": STEP_AUDIENCE, "iat": now,
+               "exp": now + dt.timedelta(minutes=current_app.config["STEP_TOKEN_MINUTES"])}
+    return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+
+
+def read_step_token(token, typ):
+    """The claims of an unexpired step token of exactly this typ, else None."""
+    try:
+        payload = jwt.decode(str(token or ""), current_app.config["SECRET_KEY"], algorithms=["HS256"],
+                             audience=STEP_AUDIENCE, options={"require": ["typ", "aud", "exp"]})
+    except jwt.PyJWTError:
+        return None
+    return payload if payload["typ"] == typ else None
 
 
 def login_required(fn):
@@ -34,10 +74,15 @@ def login_required(fn):
         if not header.startswith("Bearer "):
             return error("unauthorized", 401)
         try:
+            # a token with an audience (every step token) is refused here, as no audience is expected
             payload = jwt.decode(header[7:], current_app.config["SECRET_KEY"], algorithms=["HS256"])
-        except jwt.PyJWTError:
+            user_id = int(payload["sub"])
+        except (jwt.PyJWTError, KeyError, TypeError, ValueError):
             return error("unauthorized", 401)
-        user = query("SELECT * FROM users WHERE id = %s", (int(payload["sub"]),), one=True)
+        # tokens from before typ existed are logins; any other typ is not
+        if payload.get("typ", ACCESS) != ACCESS or not 0 < user_id <= MAX_USER_ID:
+            return error("unauthorized", 401)
+        user = query("SELECT * FROM users WHERE id = %s", (user_id,), one=True)
         # After a re-seed the same id belongs to someone else: a token issued before this account
         # existed must not log in as them (2 s of slack for the clock and the rounding of iat).
         if user is None or payload.get("iat", 0) + 2 < user["created_at"].timestamp():
@@ -58,34 +103,87 @@ def staff_required(fn):
 
 
 def public_user(user):
-    return {k: user[k] for k in ("id", "name", "phone", "neighbourhood_id", "role")}
+    """The account as its owner sees it after signing up or in (never sent to anyone else)."""
+    return {k: user[k] for k in ("id", "name", "phone", "email", "neighbourhood_id", "role")}
 
 
 @bp.post("/auth/signup")
 def signup():
-    data = request.get_json(silent=True) or {}
-    name, phone, password = (data.get(k, "").strip() for k in ("name", "phone", "password"))
+    """{name, phone, password, email_verification_token, neighbourhood_id?, household?, business?}.
+    The email comes from the step token, never from the body."""
+    data = json_body()
+    name, phone, password = (str(data.get(k) or "").strip() for k in ("name", "phone", "password"))
     if not (name and phone and len(password) >= 6):
         return error("missing_fields", 400)
-    try:
-        user = query(
-            """INSERT INTO users (name, phone, password_hash, neighbourhood_id)
-               VALUES (%s, %s, %s, %s) RETURNING *""",
-            (name, phone, generate_password_hash(password), data.get("neighbourhood_id")),
-            one=True,
-        )
-    except psycopg.errors.UniqueViolation:
-        return error("phone_taken", 409)
+    phone, problem = phones.normalise(phone)
+    if problem:
+        return error(problem, 400)
+    email = email_key = None
+    token = data.get("email_verification_token")
+    if token or current_app.config["OTP_REQUIRED"]:      # a token that is sent must be good, either way
+        claims = read_step_token(token, EMAIL_VERIFIED)
+        if claims is None:
+            return error("email_not_verified", 401)
+        email, email_key = claims["email"], claims["email_key"]
+    profile, problems = accounts.validate_signup(data)
+    if problems:
+        return error("invalid_profile", 400, fields=problems)
+    user, taken = accounts.create_account(name, phone, generate_password_hash(password), profile["neighbourhood_id"],
+                                          email, email_key, profile["places"])
+    if taken:
+        return error(taken, 409)
     return jsonify({"token": make_token(user), "user": public_user(user)}), 201
+
+
+def find_login(who):
+    """The account for what was typed in the login field: an email (any spelling of the mailbox) or
+    a phone (any way of writing it, or exactly as typed for the few rows 007 left alone)."""
+    text = str(who or "").strip()
+    if "@" in text:
+        _, key, problem = emails.normalise(text)
+        return None if problem else query("SELECT * FROM users WHERE email_key = %s", (key,), one=True)
+    for phone in phones.login_candidates(text):
+        user = query("SELECT * FROM users WHERE phone = %s", (phone,), one=True)
+        if user:
+            return user
+    return None
+
+
+def password_user(who, password):
+    """The account for this login and password, else None. A Google-only account has no password, so
+    no password opens it."""
+    user = find_login(who)
+    if user is None or not user["password_hash"] or not check_password_hash(user["password_hash"],
+                                                                               str(password or "")):
+        return None
+    return user
 
 
 @bp.post("/auth/login")
 def login():
-    data = request.get_json(silent=True) or {}
-    user = query("SELECT * FROM users WHERE phone = %s", (data.get("phone", "").strip(),), one=True)
-    if user is None or not check_password_hash(user["password_hash"], data.get("password", "")):
+    """{login, password}; old builds send {phone, password}."""
+    data = json_body()
+    user = password_user(data.get("login") or data.get("email") or data.get("phone"), data.get("password"))
+    if user is None:
         return error("bad_login", 401)
     return jsonify({"token": make_token(user), "user": public_user(user)})
+
+
+@bp.get("/auth/config")
+def auth_config():
+    """What the app needs to draw sign-in and sign-up for this server; asked once the server address is
+    set. Nothing secret: a Google client ID is public by design (it ships inside every app build)."""
+    cfg = current_app.config
+    return jsonify({
+        "google": {"enabled": current_app.google_verifier is not None,
+                   "server_client_id": cfg["GOOGLE_SERVER_CLIENT_ID"] or None},
+        "otp": {"required": cfg["OTP_REQUIRED"], "length": cfg["OTP_LENGTH"],
+                "ttl_seconds": cfg["OTP_TTL_SECONDS"], "resend_seconds": cfg["OTP_RESEND_SECONDS"]},
+        "place_kinds": list(accounts.KINDS),
+        "business_categories": [{"code": c, "name": CATEGORY_NAMES[c]} for c in accounts.CATEGORIES],
+        "service_area": list(cfg["SERVICE_AREA_BBOX"]),          # min_lat, min_lon, max_lat, max_lon
+        "map_center": list(cfg["MAP_CENTER"]),
+    })
 
 
 @bp.get("/neighbourhoods")

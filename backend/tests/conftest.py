@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from app import create_app                       # noqa: E402
 from app.ai.detector import ColorBlobDetector    # noqa: E402
+from app.otp import FakeOtpSender                # noqa: E402
 from seed import seed                            # noqa: E402
 from tools import synthetic                      # noqa: E402
 
@@ -18,11 +19,16 @@ STAFF = ("07500000000", "staff1234")
 SLEMANI = (35.5613, 45.4373)
 
 
+# Every test request comes from 127.0.0.1, so the per-IP and overall hourly email-code caps would
+# stop tests that sign up many people; tests/test_otp.py sets its own caps where it tests them.
+TEST_SETTINGS = {"TESTING": True, "OTP_MAX_PER_IP_HOUR": 10_000, "OTP_MAX_PER_HOUR": 10_000}
+
+
 @pytest.fixture()
 def app(tmp_path):
     seed(TEST_DB, *STAFF)
-    return create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path / "uploads"),
-                       "TESTING": True}, detector=ColorBlobDetector())
+    return create_app({"DATABASE_URL": TEST_DB, "UPLOAD_DIR": str(tmp_path / "uploads"), **TEST_SETTINGS},
+                      detector=ColorBlobDetector(), otp_sender=FakeOtpSender())
 
 
 @pytest.fixture()
@@ -37,13 +43,23 @@ class Api:
         self.client = client
         self._phone = 7700000000
 
-    def signup(self, name="هاوڵاتی", neighbourhood_id=1):
+    def signup(self, name="هاوڵاتی", neighbourhood_id=1, **places):
+        """A new account the way the app makes one: email code first, then the form (places are
+        household= / business= objects)."""
         self._phone += 1
-        r = self.client.post("/auth/signup", json={"name": name, "phone": f"0{self._phone}",
-                                                   "password": "secret123",
-                                                   "neighbourhood_id": neighbourhood_id})
+        r = self.client.post("/auth/signup", json={
+            "name": name, "phone": f"0{self._phone}", "password": "secret123", "neighbourhood_id": neighbourhood_id,
+            "email_verification_token": self.email_token(f"person{self._phone}@example.com"), **places})
         assert r.status_code == 201, r.json
         return {"Authorization": f"Bearer {r.json['token']}"}
+
+    def email_token(self, email):
+        """Ask for a code, read it from the fake sender, answer it: the step token for signing up."""
+        assert self.client.post("/auth/otp/request", json={"email": email}).status_code == 200
+        code = self.client.application.otp_sender.last_code(email.strip().lower())
+        r = self.client.post("/auth/otp/verify", json={"email": email, "code": code})
+        assert r.status_code == 200, r.json
+        return r.json["email_verification_token"]
 
     def staff(self):
         r = self.client.post("/auth/login", json={"phone": STAFF[0], "password": STAFF[1]})

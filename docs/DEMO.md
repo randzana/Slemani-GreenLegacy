@@ -32,10 +32,13 @@
   EOF
   echo "export SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> .env
   echo "export STAFF_PASSWORD=$(python -c 'import secrets; print(secrets.token_hex(6))')" >> .env
+  echo "export OTP_PEPPER=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> .env
   grep STAFF_PASSWORD .env       # ئەم وشە نهێنییە لەسەر کارتی شارەوانی (هی زانکۆ) بنووسە
   ```
 
-  `DETECTOR_KIND` و `SIM_CAMERA` **نابێت** لەم فایلەدا بن.
+  `DETECTOR_KIND`، `SIM_CAMERA` و `OTP_REQUIRED=0` **نابێت** لەم فایلەدا بن. `OTP_SENDER` دامەنێن: بنەڕەتەکەی `console` ە،
+  واتە کۆدی ئیمەیڵی هەژماری نوێ لە پەنجەرەی سێرڤەردا دەردەکەوێت و ئینتەرنێتی ناوێت (بەشی ٢، هەنگاوی ٥).
+  Google بە ئارەزووە و ئینتەرنێتی دەوێت؛ ئەگەر دەتانەوێت، `GOOGLE_CLIENT_IDS` و `GOOGLE_SERVER_CLIENT_ID` لێرە (README بەشی ١٠).
 - **ستیکەری QR:** `python tools/make_qr_stickers.py 12` ← `qr_stickers.png` لەسەر A4 چاپ بکە، ببڕە، `GL-BIN-001`
   بلکێنە بە زبڵدانی دیمۆوە (ستیکەرەکان ~٩ سمن؛ بە قەبارەی ١٠٠٪ چاپیان بکە). بە مۆبایلی B لە ~٣٠ سمەوە تاقی بکەرەوە و یەک چرکە بیوەستێنە؛ شوێنەکە لە ١٫٥ مەتر یان زیاترەوە تۆمار بکە، بۆ ئەوەی ستیکەرەکە زوو نەخوێندرێتەوە.
 - **کەرەستە:** ٦–١٠ بوتڵ، قوتوو و کیسەی بەتاڵ و پاک، کیسەیەکی زبڵ و دەستکێش بۆ پاککەرەوە، و کۆمەڵەیەکی بچووکتر
@@ -80,7 +83,8 @@
    python tools/preflight.py --model --server http://localhost:5000
    ```
 
-   دەبێت دوا هێڵ `0 ✗ ... ئامادەیە` بێت. هێڵی «IP ی لاپتۆپ» و «ناونیشان بۆ مۆبایلەکان» ئەو ناونیشانەن کە لە مۆبایل دەنووسرێن
+   دەبێت دوا هێڵ `0 ✗ ... ئامادەیە` بێت. «کۆدی ئیمەیڵ ⚠ OTP_SENDER=console» لە دیمۆدا چاوەڕوانکراوە (کۆدەکان لە پەنجەرەی
+   سێرڤەردان)؛ «کلیلی کۆدەکان ⚠» واتە `OTP_PEPPER` لە `.env` دا نییە. هێڵی «IP ی لاپتۆپ» و «ناونیشان بۆ مۆبایلەکان» ئەو ناونیشانەن کە لە مۆبایل دەنووسرێن
    (ئەگەر چەند دانەیەک بوون، ئەوەی هۆتسپۆتەکە: زۆرجار `192.168.x.x`، هۆتسپۆتی iPhone `172.20.10.x`).
 
 ٤. **مۆبایلەکان:** لە وێبگەڕی مۆبایل `http://<IP>:5000/health` بکەرەوە، دەبێت `"ok": true` نیشان بدات.
@@ -88,7 +92,9 @@
 
 ٥. **هەژمار:** `seed.py` هەموو هەژمارەکانی سڕییەوە، بۆیە لە ئەپەکە **دەربچن** و دووبارە هەژماری نوێ دروست بکەن:
    مۆبایلی A دەریا، مۆبایلی B دادیار، دوو هاوڵاتیی جیاواز (باشترە لە دوو گەڕەکی جیاواز، بۆ ئەوەی لیگ بجووڵێت).
-   ژمارە و وشەی نهێنیی هەردووکیان لەسەر کارتێک بنووسن.
+   هەر هەژمارێکی نوێ ئیمەیڵێکی جیاوازی دەوێت. دوای «ناردنی کۆد»، کۆدەکە لە **پەنجەرەی یەکەم** (سێرڤەر) دەردەکەوێت:
+   `EMAIL CODE for da***@gmail.com: 123456`. ڕەند دەیخوێنێتەوە و لە مۆبایلەکە دەنووسرێت. کۆد ٥ خولەک کار دەکات و ٥ هەوڵی
+   هەیە؛ کۆدێکی تر بۆ هەمان ئیمەیڵ دوای ٦٠ چرکە. ئیمەیڵ، ژمارە و وشەی نهێنیی هەردووکیان لەسەر کارتێک بنووسن.
 
 ٦. **شوێنی دیمۆ:** زبڵدانەکە بە ستیکەری QR، کەرەستەکان لە دەوری. شوێنێک هەڵبژێرن کە نەخش و وردەکاریی تێدابێت
    (کاشی، پۆستەر، کورسی)، نەک دیواری سپی: پشکنینی «هەمان شوێن» (ORB) پێویستی بە گۆشە هەیە.
@@ -132,17 +138,21 @@
 python - http://localhost:5000 <<'EOF'
 import random, sys
 import psycopg, requests
+from werkzeug.security import generate_password_hash
 from app.config import Config
 base = sys.argv[1]
+phone = "+9647" + random.choice("5789") + "".join(random.choices("0123456789", k=8))
 with psycopg.connect(Config.DATABASE_URL) as db:
     done = db.execute("SELECT frame_paths FROM cleanups WHERE verdict = 'verified' ORDER BY id DESC LIMIT 1").fetchone()
     spot = db.execute("SELECT id, ST_Y(location::geometry), ST_X(location::geometry) FROM reports "
                       "WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
-if not done or not spot:
-    sys.exit("need one verified cleanup and one open spot")
-phone = "07" + "".join(random.choices("0123456789", k=9))
-auth = {"Authorization": "Bearer " + requests.post(f"{base}/auth/signup", json={
-    "name": "فێڵباز", "phone": phone, "password": "secret123", "neighbourhood_id": 1}).json()["token"]}
+    if not done or not spot:
+        sys.exit("need one verified cleanup and one open spot")
+    # the new account goes straight into the database: the server asks new accounts for an email code
+    db.execute("INSERT INTO users (name, phone, password_hash, neighbourhood_id) VALUES ('فێڵباز', %s, %s, 1)",
+               (phone, generate_password_hash("secret123")))
+auth = {"Authorization": "Bearer " + requests.post(f"{base}/auth/login", json={
+    "phone": phone, "password": "secret123"}).json()["token"]}
 challenge = requests.post(f"{base}/reports/{spot[0]}/claim", headers=auth).json()
 files = [("frames", (n, open(f"{Config.UPLOAD_DIR}/{n}", "rb"), "image/jpeg")) for n in done[0]]
 r = requests.post(f"{base}/reports/{spot[0]}/cleanup", headers=auth, files=files,
@@ -165,6 +175,9 @@ QR هەموو کاتێک لە وێنەدا نەبێت. لە خولی ئێوار�
 | کێشەی ئەپ لەسەر یەک مۆبایل | مۆبایلە باشەکە هەردوو ڕۆڵ: ڕاپۆرت بە هەژماری A، دەرچوون، چوونەژوورەوە بە هەژماری B (کارتەکە)، پاککردنەوە. ~٣٠ چرکە زیاتر. |
 | GPS لە ناو هۆڵ (`too_far`) | هەردوو مۆبایل لە هەمان خاڵ، نزیک دەرگا/پەنجەرە، چاوەڕێی GPS؛ پێش دیمۆ تاقی بکەنەوە. |
 | سێرڤەر وەستا | `python run.py` لە پەنجەرەی یەکەم (هەمان `.env`): داتا لە PostgreSQL دایە و مۆبایلەکان دەرناکرێن. |
+| کۆدی ئیمەیڵ نەگەیشت | لە پەنجەرەی سێرڤەر بگەڕێ بۆ `EMAIL CODE for`؛ کۆد ناچێتە سندوقی ئیمەیڵ (`console`). «تکایە چەند چرکەیەک چاوەڕێ بکە» = ٦٠ چرکە؛ «هەوڵی زۆر درا» = کۆدێکی نوێ داوا بکە. |
+| دوگمەی Google دیار نییە | سێرڤەر Google ی چالاک نەکردووە، یان ناونیشانی سێرڤەر لە ئەپدا هەڵەیە. پێویست نییە: ئیمەیڵ و وشەی نهێنی بەکاربهێنن. |
+| «Google لەم بیلدەدا ڕێک نەخراوە» | بیلدەکە بێ ناسنامەی Google ی iOS/Android دروست کراوە (README بەشی ١٠). لەسەر شانۆ چاکی مەکەن: ئیمەیڵ بەکاربهێنن. |
 | دیمۆی زیندوو سەرکەوتوو نەبوو | تەنها یەک هەوڵی تر. پاشان ڕەند: «دوێنێ هەمان خولمان تۆمار کرد» و ڤیدیۆی یەدەگ. لەسەر شانۆ هەڵە چاک مەکەن. |
 
 ## ٦. هەرگیز لەسەر شانۆ
@@ -175,6 +188,8 @@ QR هەموو کاتێک لە وێنەدا نەبێت. لە خولی ئێوار�
   دیمۆ لە ڕیپۆی هاکاسۆنەوە، کۆد و commit ی ئێرە لەسەر شاشە نا.
 - `tools/rehearse.py` یان `tools/fraud_bench.py` لەسەر سێرڤەر یان داتابەیسی دیمۆ: شوێن و هاوڵاتیی دروستکراو دەخەنە سەر نەخشەی ڕاستەقینە.
 - `seed.py` دوای ئەوەی مۆبایلەکان هەژماریان دروست کرد: هەمووی دەسڕێتەوە.
+- **`OTP_REQUIRED=0`** — هەر کەسێک بێ ئیمەیڵ هەژمار دروست دەکات؛ تەنها بۆ `rehearse.py`. preflight ⚠ دەدات.
+- **`OTP_SENDER=fake`** — بۆ تاقیکردنەوەیە: کەس کۆد وەرناگرێت. preflight ✗ دەدات.
 
 ## ٧. ڕاهێنان بێ مۆبایل (پێش ڕۆژی دیمۆ)
 
@@ -186,14 +201,14 @@ QR هەموو کاتێک لە وێنەدا نەبێت. لە خولی ئێوار�
 cd backend
 export DATABASE_URL=postgresql://gl:gl@localhost:5432/greenlegacy_rehearsal   # CREATE DATABASE + CREATE EXTENSION postgis
 python seed.py
-DETECTOR_KIND=colorblob python run.py
+OTP_REQUIRED=0 DETECTOR_KIND=colorblob python run.py     # خەڵکی rehearse.py بێ کۆدی ئیمەیڵ تۆمار دەبن
 ```
 
 پەنجەرەی دووەم (`export` ی پەنجەرەی یەکەم لێرە نییە، بۆیە preflight بێ `DATABASE_URL` داتابەیسی دیمۆ دەپشکنێت نەک ئەم):
 
 ```bash
 cd backend
-DATABASE_URL=postgresql://gl:gl@localhost:5432/greenlegacy_rehearsal DETECTOR_KIND=colorblob \
+DATABASE_URL=postgresql://gl:gl@localhost:5432/greenlegacy_rehearsal DETECTOR_KIND=colorblob OTP_REQUIRED=0 \
     python tools/preflight.py --rehearsal --server http://localhost:5000     # دەبێت 0 ✗ بێت
 python tools/rehearse.py http://localhost:5000
 ```

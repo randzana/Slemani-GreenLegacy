@@ -1,4 +1,6 @@
 """One PostgreSQL connection per request; committed at the end unless the request failed."""
+from contextlib import contextmanager
+
 import psycopg
 from flask import current_app, g
 from psycopg.rows import dict_row
@@ -19,6 +21,21 @@ def close_db(error=None):
     else:
         db.rollback()
     db.close()
+
+
+@contextmanager
+def savepoint():
+    """Undo only this block when it raises (a duplicate phone, say), so the request can still answer
+    and write. Never commits: the request's one transaction still ends in close_db. (psycopg's own
+    transaction() would BEGIN and COMMIT here if no statement had run yet in this request.)"""
+    db = get_db()
+    db.execute("SAVEPOINT block")
+    try:
+        yield
+    except Exception:
+        db.execute("ROLLBACK TO SAVEPOINT block")
+        raise
+    db.execute("RELEASE SAVEPOINT block")
 
 
 def query(sql, params=(), one=False):
