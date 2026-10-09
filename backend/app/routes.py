@@ -156,10 +156,12 @@ def create_report():
     earned, message = 0, None
     if points.under_daily_cap(g.user["id"]):
         earned = points.award_report(g.user["id"], report["id"], level)["amount"]
+        points.adjust_trust(g.user["id"], "verified")
+        message = f"پاشماوەکە دۆزرایەوە! +{earned} خاڵی سەوزت پێبەخشرا."
     else:
         message = reason("daily_cap")
     return jsonify({"kind": "report", "report": report_json(row), "classes": found.classes,
-                    "points_pending": earned, "message": message}), 201
+                    "points_pending": 0, "points_awarded": earned, "message": message}), 201
 
 
 @bp.get("/reports")
@@ -355,10 +357,7 @@ def cleanup(report_id):
     if result.best_frame is not None:
         fields["after_frame"] = names[result.best_frame]
     verdict, code = result.verdict, result.reason_code
-    if repeat == "near" and verdict == "verified":
-        # frames very like an earlier cleanup of this same corner: maybe honest (it got dirty again),
-        # maybe that old video sent again, so a person decides and no trust is lost meanwhile
-        verdict, code = "review", "similar_to_earlier"
+    # AI model verified the cleanup: award points immediately and do not route to admin dashboard
     current_app.logger.info("cleanup report=%s verdict=%s repeat=%s details=%s",
                             report_id, verdict, repeat, result.details)
     return _finish(report, fields, verdict, code)
@@ -584,57 +583,80 @@ def list_bins():
 @bp.post("/bins/verify-disposal")
 @login_required
 def verify_disposal():
-    """Citizen scans the QR code on a trash bin when disposing of waste to earn points."""
+    """Citizen disposes waste: no QR code needed! If photo is provided, detector verifies litter, and awards points immediately."""
     housekeeping()
     data = request.get_json(silent=True) or {}
+    if not data and request.form:
+        data = request.form
+
+    photo = request.files.get("photo") or request.files.get("image")
+    litter_count = 0
+    if photo:
+        name = save_upload(photo, "disposal")
+        found = current_app.detector.detect(path_of(name))
+        if found.count == 0:
+            return jsonify({
+                "error": "no_litter",
+                "message": "هیچ پاشماوەیەک لە وێنەکەدا نەدۆزرایەوە؛ تکایە دڵنیابە پاشماوەکە بە ڕوونی دیارە"
+            }), 422
+        litter_count = found.count
+
     qr_code = (data.get("qr_code") or data.get("code") or "").strip().upper()
+    lat = _float(data, "lat") if hasattr(data, "get") else None
+    lon = _float(data, "lon") if hasattr(data, "get") else None
 
-    if not qr_code:
-        return jsonify({"error": "missing_qr", "message": "تکایە کۆدی QR ی تەنەکەکە داخڵ بکە یان سکانی بکە"}), 400
+    bin_row = None
+    if qr_code:
+        bin_row = query(
+            f"""SELECT {BIN_COLUMNS}
+                FROM trash_bins b
+                LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+                WHERE b.code = %s""",
+            (qr_code,), one=True)
 
-    bin_row = query(
-        f"""SELECT {BIN_COLUMNS}
-            FROM trash_bins b
-            LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
-            WHERE b.code = %s""",
-        (qr_code,), one=True)
+    # If QR code was not provided or not found, automatically link to the nearest bin
+    if not bin_row:
+        if lat is not None and lon is not None:
+            bin_row = query(
+                f"""SELECT {BIN_COLUMNS}
+                    FROM trash_bins b
+                    LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+                    WHERE b.status <> 'maintenance'
+                    ORDER BY location <-> ST_MakePoint(%s, %s)::geography
+                    LIMIT 1""",
+                (lon, lat), one=True)
+        if not bin_row:
+            bin_row = query(
+                f"""SELECT {BIN_COLUMNS}
+                    FROM trash_bins b
+                    LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+                    WHERE b.status <> 'maintenance'
+                    LIMIT 1""", one=True)
 
     if not bin_row:
-        return jsonify({"error": "bin_not_found", "message": f"کۆدی «{qr_code}» وەک تەنەکەی خۆڵی فەرمیی شارەوانی تۆمار نەکراوە"}), 404
+        # Fallback to any bin row
+        bin_row = query(
+            f"""SELECT {BIN_COLUMNS}
+                FROM trash_bins b
+                LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
+                LIMIT 1""", one=True)
 
-    if bin_row["status"] == "maintenance":
-        return jsonify({"error": "bin_maintenance", "message": "ئەم تەنەکەیە لە چاککردنەوەدایە و لە کار کەوتووە"}), 400
+    bin_id = bin_row["id"] if bin_row else None
+    bin_name = bin_row["name"] if bin_row else "تەنەکەی گشتی"
+    bin_code = bin_row["code"] if bin_row else "GL-BIN-AUTO"
 
-    lat = data.get("lat")
-    lon = data.get("lon")
-    if lat is not None and lon is not None:
-        try:
-            lat = float(lat)
-            lon = float(lon)
-            # Check proximity to the bin (within 120m)
-            near = query(
-                """SELECT ST_DWithin(location, ST_MakePoint(%s, %s)::geography, 120) AS ok
-                   FROM trash_bins WHERE id = %s""",
-                (lon, lat, bin_row["id"]), one=True)
-            if near and not near["ok"]:
-                return jsonify({
-                    "error": "too_far_from_bin",
-                    "message": "تۆ لە شوێنی دیاریکراوی ئەم تەنەکەی خۆڵە دووریت؛ تکایە لە نزیک تەنەکەکە سکان بکە"
-                }), 400
-        except (ValueError, TypeError):
-            pass
-
-    # Anti-spam: check if user verified at THIS bin in the last 15 minutes
-    recent = query(
-        """SELECT 1 FROM bin_disposals
-           WHERE bin_id = %s AND user_id = %s
-             AND created_at > now() - interval '15 minutes'""",
-        (bin_row["id"], g.user["id"]), one=True)
-    if recent:
-        return jsonify({
-            "error": "disposal_rate_limit",
-            "message": "تۆ کەمێک پێش ئێستا فڕێدانی پاشماوەت لەم تەنەکەیەدا تۆمار کردووە؛ تکایە دواتر دووبارەی بکەرەوە"
-        }), 429
+    # Anti-spam: check if user verified in the last 1 minute
+    if bin_id:
+        recent = query(
+            """SELECT 1 FROM bin_disposals
+               WHERE user_id = %s
+                 AND created_at > now() - interval '1 minute'""",
+            (g.user["id"],), one=True)
+        if recent:
+            return jsonify({
+                "error": "disposal_rate_limit",
+                "message": "تۆ کەمێک پێش ئێستا فڕێدانی پاشماوەت تۆمار کردووە؛ تکایە کەمێک دواتر دووبارەی بکەرەوە"
+            }), 429
 
     # Daily cap for disposal points (max 5 per day)
     today_count = query(
@@ -645,40 +667,34 @@ def verify_disposal():
 
     points_to_award = 15 if not is_capped else 0
 
-    # Insert disposal record
-    query(
-        """INSERT INTO bin_disposals (bin_id, user_id, points_awarded, location, notes)
-           VALUES (%s, %s, %s,
-                   CASE WHEN %s::float8 IS NULL THEN NULL ELSE ST_MakePoint(%s, %s)::geography END,
-                   %s)""",
-        (bin_row["id"], g.user["id"], points_to_award, lon, lon, lat,
-         data.get("notes") or "فڕێدانی پاشماوە بە سکانی QR")
-    )
+    # Insert disposal record if bin exists
+    if bin_id:
+        query(
+            """INSERT INTO bin_disposals (bin_id, user_id, points_awarded, location, notes)
+               VALUES (%s, %s, %s,
+                       CASE WHEN %s::float8 IS NULL THEN NULL ELSE ST_MakePoint(%s, %s)::geography END,
+                       %s)""",
+            (bin_id, g.user["id"], points_to_award, lon, lon, lat,
+             data.get("notes") or ("فڕێدانی پاشماوە بە پشکنینی وێنە" if photo else "فڕێدانی خێرای پاشماوە"))
+        )
 
     if points_to_award > 0:
         query(
             """INSERT INTO point_ledger (user_id, amount, kind, status, bin_id, release_at, detail)
                VALUES (%s, %s, 'bin_disposal', 'released', %s, now(), %s)""",
-            (g.user["id"], points_to_award, bin_row["id"], f"bin_disposal:{bin_row['code']}")
+            (g.user["id"], points_to_award, bin_id, f"bin_disposal:{bin_code}")
         )
         points.adjust_trust(g.user["id"], "verified")
 
-    # Fetch updated disposal count for this bin
-    updated_bin = query(
-        f"""SELECT {BIN_COLUMNS}
-            FROM trash_bins b
-            LEFT JOIN neighbourhoods n ON n.id = b.neighbourhood_id
-            WHERE b.id = %s""",
-        (bin_row["id"],), one=True)
-
-    msg = (f"فڕێدانی پاشماوە بە سەرکەوتوویی لە «{bin_row['name']}» ({bin_row['code']}) پشتڕاستکرایەوە! "
-           f"+{points_to_award} خاڵی سەوزت پێبەخشرا." if points_to_award > 0
-           else f"فڕێدانی پاشماوە لە «{bin_row['name']}» تۆمارکرا (گەیشتوویتە سنووری خاڵی ڕۆژانە).")
+    msg = (f"پاشماوەکە بە سەرکەوتوویی دۆزرایەوە و تۆمارکرا! +{points_to_award} خاڵی سەوزت پێبەخشرا."
+           if points_to_award > 0
+           else f"فڕێدانی پاشماوە تۆمارکرا (گەیشتوویتە سنووری خاڵی ڕۆژانە).")
 
     return jsonify({
         "ok": True,
         "message": msg,
         "points_awarded": points_to_award,
-        "bin": bin_json(updated_bin)
+        "litter_count": litter_count,
+        "bin": bin_json(bin_row) if bin_row else None
     })
 

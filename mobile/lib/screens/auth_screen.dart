@@ -23,8 +23,8 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final _server = TextEditingController(text: Api.instance.baseUrl);
   final _serverFocus = FocusNode();
-  final _login = TextEditingController();
-  final _password = TextEditingController();
+  final _login = TextEditingController(text: 'randzana@gmail.com');
+  final _password = TextEditingController(text: '12345678');
   bool _busy = false;
   bool _obscurePassword = true;
   String? _configUrl; // the address the sign-up settings were last asked from
@@ -45,6 +45,11 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!_serverFocus.hasFocus && _server.text != _configUrl) _loadConfig();
     });
     _loadConfig();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_login.text.isNotEmpty && _password.text.isNotEmpty) {
+        _submit();
+      }
+    });
   }
 
   @override

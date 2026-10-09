@@ -162,7 +162,7 @@ class S {
   // dashboard (home tab)
   static const citizen = 'هاوڵاتی'; // shown when the server sends no name
   static String hello(String name) => 'سڵاو، $name 👋';
-  static const letsGoGreen = 'با سلێمانی سەوز بکەین!';
+  static const letsGoGreen = 'با سلێمانی پاک ڕاگرین!';
   static const totalGreenPoints = 'کۆی خاڵە سەوزەکان';
   static String levelOf(String level) => 'ئاست: $level';
   // eco levels by total points: under 200, 200+, 500+, 1000+

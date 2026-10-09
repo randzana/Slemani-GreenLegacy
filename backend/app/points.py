@@ -48,13 +48,14 @@ def under_daily_cap(user_id):
 
 def award_report(user_id, report_id, dirtiness):
     amount = current_app.config["REPORT_POINTS"][dirtiness]
-    return add(user_id, amount, "report", "pending", report_id=report_id)   # waits for confirmation
+    # Litter was detected by AI: award points immediately
+    return add(user_id, amount, "report", "released", report_id=report_id)
 
 
 def award_confirmation(user_id, report_id):
     cfg = current_app.config
-    return add(user_id, cfg["CONFIRMATION_POINTS"], "confirmation", "pending",
-               report_id=report_id, release_in_hours=cfg["HOLD_HOURS"])
+    return add(user_id, cfg["CONFIRMATION_POINTS"], "confirmation", "released",
+               report_id=report_id)
 
 
 def release_report_points(report_id):
@@ -67,17 +68,15 @@ def release_report_points(report_id):
 
 
 def award_cleanup(user_id, report_id, cleanup_id, dirtiness, verified):
-    """Verified: a small share released now, the rest held 24 h. Review: everything waits for staff."""
+    """Verified: full points released immediately. Review: waits for staff."""
     cfg = current_app.config
     total = cfg["CLEANUP_POINTS"][dirtiness]
     if not verified:
         add(user_id, total, "cleanup", "pending", report_id, cleanup_id)
         return {"now": 0, "pending": total}
-    now_part = int(round(total * cfg["IMMEDIATE_SHARE"]))
-    add(user_id, now_part, "cleanup", "released", report_id, cleanup_id)
-    add(user_id, total - now_part, "cleanup", "pending", report_id, cleanup_id,
-        release_in_hours=cfg["HOLD_HOURS"])
-    return {"now": now_part, "pending": total - now_part}
+    # Award immediately
+    add(user_id, total, "cleanup", "released", report_id, cleanup_id)
+    return {"now": total, "pending": 0}
 
 
 def approve_reviewed_cleanup(cleanup_id):

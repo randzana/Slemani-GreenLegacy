@@ -404,7 +404,7 @@ class _MapScreenState extends State<MapScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  icon: const Icon(Icons.delete_sweep_rounded),
                   label: busy
                       ? const SizedBox(
                           width: 20,
@@ -424,7 +424,11 @@ class _MapScreenState extends State<MapScreen> {
                           final navigator = Navigator.of(ctx);
                           setSheetState(() => busy = true);
                           try {
-                            final res = await Api.instance.verifyDisposal(code, lat: (bin['lat'] as num).toDouble(), lon: (bin['lon'] as num).toDouble());
+                            final res = await Api.instance.verifyDisposal(
+                              qrCode: code,
+                              lat: (bin['lat'] as num).toDouble(),
+                              lon: (bin['lon'] as num).toDouble(),
+                            );
                             navigator.pop();
                             widget.refresh.value++;
                             _load();

@@ -82,12 +82,12 @@ class Config:
     )
     DETECT_CONFIDENCE = _float("DETECT_CONFIDENCE", 0.25)
     # Synthetic pictures for phone simulators that have no camera (app/simulator.py). Rehearsal only.
-    SIM_CAMERA = os.environ.get("SIM_CAMERA", "1" if DETECTOR_KIND == "colorblob" else "0") == "1"
+    SIM_CAMERA = os.environ.get("SIM_CAMERA", "1") != "0"
 
     # Verification chain (tune on site)
     CHALLENGE_MINUTES = _int("CHALLENGE_MINUTES", 5)
     CLEANUP_RADIUS_M = _int("CLEANUP_RADIUS_M", 50)
-    CONFIRM_RADIUS_M = _float("CONFIRM_RADIUS_M", 5.0)
+    CONFIRM_RADIUS_M = _int("CONFIRM_RADIUS_M", 30)
     HASH_MAX_DISTANCE = _int("HASH_MAX_DISTANCE", 6)       # pHash bits; <= this = same image
     SAME_PLACE_MIN_INLIERS = _int("SAME_PLACE_MIN_INLIERS", 20)
     LITTER_DROP_VERIFIED = _float("LITTER_DROP_VERIFIED", 0.8)

@@ -295,12 +295,30 @@ class Api {
   Future<List<Map<String, dynamic>>> trashBins() async =>
       List<Map<String, dynamic>>.from(await _get('/bins'));
 
-  Future<Map<String, dynamic>> verifyDisposal(String qrCode, {double? lat, double? lon, String? notes}) async =>
-      Map<String, dynamic>.from(await _post('/bins/verify-disposal', {
-        'qr_code': qrCode,
-        if (lat != null) 'lat': lat,
-        if (lon != null) 'lon': lon,
-        if (notes != null) 'notes': notes,
-      }));
+  Future<Map<String, dynamic>> verifyDisposal({
+    XFile? photo,
+    String? qrCode,
+    double? lat,
+    double? lon,
+    String? notes,
+  }) async {
+    if (photo != null) {
+      final req = http.MultipartRequest('POST', _uri('/bins/verify-disposal'))
+        ..headers['Authorization'] = 'Bearer $token';
+      if (lat != null) req.fields['lat'] = '$lat';
+      if (lon != null) req.fields['lon'] = '$lon';
+      if (qrCode != null && qrCode.isNotEmpty) req.fields['qr_code'] = qrCode;
+      if (notes != null) req.fields['notes'] = notes;
+      req.files.add(await _upload('photo', photo, 'photo.jpg'));
+      final res = await http.Response.fromStream(await req.send());
+      return Map<String, dynamic>.from(_decode(res));
+    }
+    return Map<String, dynamic>.from(await _post('/bins/verify-disposal', {
+      if (qrCode != null && qrCode.isNotEmpty) 'qr_code': qrCode,
+      if (lat != null) 'lat': lat,
+      if (lon != null) 'lon': lon,
+      if (notes != null) 'notes': notes,
+    }));
+  }
 }
 

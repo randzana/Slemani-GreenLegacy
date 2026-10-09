@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.qr_code_scanner_rounded, size: 28, color: Colors.white),
+              Icon(Icons.camera_alt_rounded, size: 28, color: Colors.white),
               Text(
                 S.reportButton,
                 style: TextStyle(

@@ -1,6 +1,8 @@
 """Trash bin management and QR code generation for waste disposal verification."""
 import base64
 import io
+from functools import lru_cache
+
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
 
@@ -18,6 +20,7 @@ BIN_TYPES_KU = {
 }
 
 
+@lru_cache(maxsize=2048)
 def generate_qr_data_url(code: str) -> str:
     """Generate high-resolution Base64 PNG data URL of the QR code for web and mobile display."""
     q = qrcode.QRCode(

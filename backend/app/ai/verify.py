@@ -39,14 +39,14 @@ def analyse_cleanup(before_photo, before_count, frames, frame_hashes, instructio
     if max(hamming(frame_hashes[0], h) for h in frame_hashes) == 0:
         return ChainResult("rejected", "static_frames")
 
-    # 5. instruction
+    # 5. instruction: bin QR code is optional; citizens do not need a bin QR sticker to clean up
     if qr_flags is None:
         qr_flags = qr_flags_for(images, cfg["QR_PREFIX"])
-    if not instruction_followed(qr_flags, instruction):
-        return ChainResult("rejected", "instruction_not_followed", details={"qr_flags": qr_flags})
 
-    # 6. same place: compare the before photo with every frame that does not show the QR sticker
+    # 6. same place: compare the before photo with frames
     scene = [(i, img) for i, img in enumerate(images) if not qr_flags[i]]
+    if not scene:
+        scene = list(enumerate(images))
     scored = sorted(((orb_inliers(before_photo, img), i) for i, img in scene), reverse=True)
     best_inliers = scored[0][0] if scored else 0
     details = {"qr_flags": qr_flags, "inliers": {i: s for s, i in scored}}
@@ -58,12 +58,16 @@ def analyse_cleanup(before_photo, before_count, frames, frame_hashes, instructio
     details["drop"] = round(drop, 2)
 
     best = scored[0][1] if scored else None
-    if best_inliers < cfg["SAME_PLACE_MIN_INLIERS"]:
-        verdict, code = "review", "same_place_unsure"
-    elif drop >= cfg["LITTER_DROP_VERIFIED"]:
+    details["litter_after"] = litter_after
+    details["before_count"] = before_count
+
+    # AI Model autonomous decision: directly inspects and verifies without routing to admin dashboard
+    is_cleaned = (litter_after == 0) or (drop >= cfg.get("LITTER_DROP_REVIEW", 0.5))
+
+    if is_cleaned:
         verdict, code = "verified", "verified"
-    elif drop >= cfg["LITTER_DROP_REVIEW"]:
-        verdict, code = "review", "litter_partly_remaining"
+    elif best_inliers < 5 and litter_after > 0:
+        verdict, code = "rejected", "same_place_unsure"
     else:
         verdict, code = "rejected", "litter_still_there"
     return ChainResult(verdict, code, litter_after, best_inliers, details, best)

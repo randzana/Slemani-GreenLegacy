@@ -1,1603 +1,300 @@
 <!doctype html>
-<html lang="ckb" dir="rtl">
+<html lang="ckb" dir="rtl" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>داشبۆردی شارەوانی · GreenLegacy Slemani</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@600;800&family=Noto+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
+<meta name="color-scheme" content="light dark">
+<title>داشبۆردی شارەوانی · GreenLegacy سلێمانی</title>
+<link rel="preload" href="/static/fonts/arkan.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/static/leaflet/leaflet.css">
-<style>
-  :root {
-    --forest: #0F2A1F; --paper: #F5F2EA; --paper-2: #ECE7DA; --card: #FFFDF8;
-    --line: #E2DDD0; --ink: #13261D; --soft: #4A5A51; --green: #1E7A4A;
-    --amber: #B5651D; --red: #9E2A2B;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--paper); color: var(--ink);
-         font-family: 'Noto Sans Arabic', Tahoma, sans-serif; font-size: 15px; }
-  h1, h2, h3, .num { font-family: 'Noto Kufi Arabic', 'Noto Sans Arabic', Tahoma, sans-serif; }
-  header { background: var(--forest); color: #F2EFE6; padding: 18px 24px; display: flex;
-           align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 20px; }
-  header small { color: #BFD3C6; }
-  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
-           background: var(--card); padding: 8px 14px; color: var(--ink); }
-  button.primary { background: var(--green); color: #fff; border-color: var(--green); }
-  button.danger { color: var(--red); border-color: #E8C9C9; }
-  main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
-  .stat .num { font-size: 30px; font-weight: 800; }
-  .stat .label { color: var(--soft); }
-  .tabs { display: flex; gap: 8px; margin: 20px 0 12px; flex-wrap: wrap; }
-  .tabs button[aria-selected="true"] { background: var(--forest); color: #fff; border-color: var(--forest); }
-  .badge { background: var(--amber); color: #fff; border-radius: 999px; padding: 0 8px; margin-inline-start: 6px; font-size: 12px; }
-  .panel { display: none; } .panel.active { display: block; }
-  #map { height: 560px; border-radius: 14px; border: 1px solid var(--line); }
-  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; color: var(--soft); }
-  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-inline-end: 6px; }
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 14px; overflow: hidden; }
-  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: middle; white-space: nowrap; }
-  th { background: var(--paper-2); font-weight: 600; }
-  td img { width: 72px; height: 54px; object-fit: cover; border-radius: 8px; }
-  .level { display: inline-block; min-width: 34px; text-align: center; border-radius: 8px; padding: 2px 8px; color: #fff; font-weight: 600; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
-  .pair figure { margin: 0; }
-  .pair img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; background: var(--paper-2); }
-  .pair figcaption { color: var(--soft); font-size: 13px; }
-  .verdict { border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 600; }
-  .verdict.verified { background: #E3F2E9; color: var(--green); }
-  .verdict.review { background: #FBEFD9; color: var(--amber); }
-  .verdict.rejected { background: #F6E1E1; color: var(--red); }
-  .muted { color: var(--soft); }
-  .empty { padding: 30px; text-align: center; color: var(--soft); background: var(--card); border-radius: 14px; border: 1px dashed var(--line); }
-  #login { position: fixed; inset: 0; background: rgba(15, 42, 31, .85); display: flex;
-           align-items: center; justify-content: center; padding: 16px; z-index: 2000; }
-  #login[hidden] { display: none; }
-  #login form { background: var(--card); padding: 24px; border-radius: 16px; width: 100%; max-width: 360px; display: grid; gap: 10px; }
-  #login input { font: inherit; padding: 10px; border-radius: 10px; border: 1px solid var(--line); direction: ltr; text-align: right; }
-  #login .error { color: var(--red); min-height: 1.4em; }
-  .actions { display: flex; gap: 8px; margin-top: 8px; }
-  .desc { white-space: normal; min-width: 220px; max-width: 360px; color: var(--soft); font-size: 13px; }
-  .trust { font-size: 12px; border-radius: 999px; padding: 1px 8px; background: var(--paper-2); color: var(--soft); }
-  .trust.low { background: #F6E1E1; color: var(--red); }
-  .voucher { font-family: ui-monospace, Menlo, Consolas, monospace; direction: ltr; display: inline-block; }
-  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle;
-            border: 1.5px solid #184F95; margin-inline-end: 4px; }
-  .swatch.none { background: transparent; border-style: dashed; }
-  #area-legend { display: inline-flex; align-items: center; gap: 4px 16px; flex-wrap: wrap; }
-  #area-legend[hidden] { display: none; }
-  #area-legend .step { white-space: nowrap; }
-  #map .leaflet-interactive:focus:not(:focus-visible) { outline: none; }   /* no box around a clicked area */
-  .figures { background: none; border-radius: 0; margin-top: 4px; width: auto; }
-  .figures td { padding: 1px 0; border: 0; font-size: 13px; }
-  .figures td:last-child { padding-inline-start: 14px; font-weight: 600; }
-  .pts-cell { min-width: 130px; }
-  @media (max-width: 860px) { .pts-cell { min-width: 80px; } }
-  .league { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
-  .league h2 { font-size: 16px; margin: 0 0 10px; }
-  @media (max-width: 860px) { .league { grid-template-columns: minmax(0, 1fr); } }
-  .bar { height: 5px; border-radius: 999px; background: var(--green); margin-top: 4px; }
-  .rank { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px;
-          border-radius: 50%; background: var(--paper-2); font-weight: 600; }
-  .rank.first { background: var(--forest); color: #fff; }
-  .people { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
-  .people li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .people li:last-child { border-bottom: 0; }
-  .people .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .people .who small { color: var(--soft); margin-inline-start: 6px; }
-  .people .pts { font-weight: 800; white-space: nowrap; }
-  .note { color: var(--soft); font-size: 13px; margin: 8px 0 0; }
-  #voucher-note { margin: 0 0 10px; min-height: 1.4em; font-size: 14px; }
-  #voucher-note.bad { color: var(--red); font-weight: 600; }
-  button.small { padding: 4px 12px; }
-  /* households and businesses, monthly money */
-  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-  .toolbar input, .toolbar select, .row-form input { font: inherit; padding: 6px 10px; border-radius: 10px;
-                                                    border: 1px solid var(--line); background: var(--card); }
-  .toolbar input[type="number"], .row-form input[type="number"] { width: 110px; direction: ltr; }
-  .row-actions, .row-form { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
-  .row-form[hidden] { display: none; }
-  .row-form input[name="reason"] { min-width: 220px; }
-  td small { display: block; color: var(--soft); white-space: normal; }
-  #places-note.bad, #money-note.bad { color: var(--red); font-weight: 600; }
-
-  /* Map toolbar & Pin controls */
-  .map-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-  .map-actions { display: flex; align-items: center; gap: 10px; }
-  .placement-hint { background: #FBEFD9; color: var(--amber); border: 1px solid #E8D3B0; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; animation: hintpulse 1.5s infinite; }
-  @keyframes hintpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-  .chip-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--ink); cursor: pointer; transition: all 0.2s; }
-  .chip.active { background: var(--forest); color: #fff; border-color: var(--forest); }
-  
-  /* Pin Modal */
-  #pin-modal { position: fixed; inset: 0; background: rgba(15, 42, 31, .75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 2500; }
-  #pin-modal[hidden] { display: none; }
-  .modal-card { background: var(--card); border-radius: 20px; width: 100%; max-width: 540px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); border: 1px solid var(--line); overflow: hidden; }
-  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--forest); color: #fff; }
-  .modal-head h3 { margin: 0; font-size: 17px; }
-  .close-btn { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 4px; }
-  #pin-form { padding: 20px; display: grid; gap: 14px; }
-  .field-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; display: block; color: var(--soft); }
-  #pin-form input, #pin-form textarea, #pin-form select { width: 100%; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); box-sizing: border-box; }
-  #pin-form input:focus, #pin-form textarea:focus { border-color: var(--green); outline: none; }
-  .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .cat-card input { display: none; }
-  .cat-content { border: 2px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--paper); }
-  .cat-card input:checked + .cat-content { border-color: var(--green); background: #E3F2E9; box-shadow: 0 4px 10px rgba(30,122,74,0.15); }
-  .cat-card input:checked + .cat-content.clean { border-color: var(--amber); background: #FBEFD9; }
-  .cat-card input:checked + .cat-content.water { border-color: #1E88E5; background: #E3F2FD; }
-  .cat-icon { font-size: 22px; display: block; margin-bottom: 4px; }
-  .cat-content strong { display: block; font-size: 12px; }
-  .cat-content small { display: block; font-size: 10px; color: var(--soft); margin-top: 2px; }
-  .form-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
-  .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #EAF3EE; border-radius: 10px; border: 1px solid #CDE2D6; }
-  .checkbox-row input { width: auto !important; margin: 0; }
-  .checkbox-row span { font-size: 13px; font-weight: 600; color: #174E31; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
-
-  /* Map markers */
-  .custom-pin-marker { display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,0.3); border: 2px solid #fff; cursor: pointer; transition: transform 0.2s; }
-  .custom-pin-marker:hover { transform: scale(1.15); }
-  .pin-tree { background: #1E7A4A; color: #fff; }
-  .pin-clean { background: #D9822B; color: #fff; }
-  .pin-water { background: #1E88E5; color: #fff; }
-  .pin-badge { font-size: 16px; line-height: 1; }
-  .pin-cat-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
-  .pin-cat-pill.tree_planting { background: #E3F2E9; color: var(--green); }
-  .pin-cat-pill.cleanup_target { background: #FBEFD9; color: var(--amber); }
-  .pin-cat-pill.watering_point { background: #E3F2FD; color: #1565C0; }
-
-  /* Trash Bins styling */
-  .bin-badge-type { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
-  .bin-badge-type.general { background: #E2DDD0; color: #334155; }
-  .bin-badge-type.recycle { background: #D1E7DD; color: #0F5132; }
-  .bin-badge-type.organic { background: #FFF3CD; color: #664D03; }
-  .bin-badge-type.glass_metal { background: #CFE2FF; color: #084298; }
-  .bin-status { border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: bold; }
-  .bin-status.active { background: #D1E7DD; color: #0F5132; }
-  .bin-status.full { background: #F8D7DA; color: #842029; }
-  .bin-status.maintenance { background: #FFF3CD; color: #664D03; }
-  .qr-thumb { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; transition: transform 0.15s; vertical-align: middle; background:#fff; }
-  .qr-thumb:hover { transform: scale(1.15); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-  .bin-code-pill { font-family: ui-monospace, monospace; background: var(--paper-2); padding: 3px 8px; border-radius: 6px; font-weight: bold; color: var(--forest); }
-  .qr-modal-preview { text-align: center; padding: 18px; background: #fff; border-radius: 14px; border: 2px dashed #0F2A1F; margin-bottom: 16px; }
-  .qr-modal-preview img { width: 240px; height: 240px; border-radius: 8px; display: block; margin: 0 auto; }
-  .custom-bin-marker { display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,0.3); border: 2px solid #fff; cursor: pointer; transition: transform 0.2s; background: #13261D; color: #fff; }
-  .custom-bin-marker:hover { transform: scale(1.15); }
-  /* Participants Modal */
-  #participants-modal { position: fixed; inset: 0; background: rgba(15, 42, 31, .75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 2500; }
-  #participants-modal[hidden] { display: none; }
-  .vol-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #E3F2E9; color: var(--forest); }
-</style>
+<link rel="stylesheet" href="/static/dashboard/dashboard.css?v=arkan">
+<script>
+  // the theme before the first paint, so a dark dashboard never flashes white
+  (function () {
+    var pref = 'system';
+    try { pref = localStorage.getItem('gl_theme') || 'system'; } catch (e) { /* storage blocked */ }
+    var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  })();
+</script>
 </head>
 <body>
-<div id="login" hidden>
-  <form id="login-form">
-    <h2 style="margin:0">چوونەژوورەوەی شارەوانی</h2>
-    <input id="phone" placeholder="ژمارەی مۆبایل" autocomplete="username" required>
-    <input id="password" type="password" placeholder="وشەی نهێنی" autocomplete="current-password" required>
-    <div class="error" id="login-error"></div>
-    <button class="primary" type="submit">چوونەژوورەوە</button>
+<!-- icons: drawn here so the dashboard needs no icon font from the internet -->
+<svg xmlns="http://www.w3.org/2000/svg" hidden>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 3 3 5.5V21l6-2.5 6 2.5 6-2.5V3l-6 2.5z"/><path d="M9 3v15.5M15 5.5V21"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-broom" viewBox="0 0 24 24"><path d="M19 3 12 10"/><path d="M8.5 11.5 12.5 15.5"/><path d="M8.5 11.5c-2.5 0-5 2-5.5 9 7-.5 9-3 9-5.5"/><path d="M6 17l2-2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-bin" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6l1.2 14a2 2 0 0 0 2 1.8h7.6a2 2 0 0 0 2-1.8L19 6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M5 6l1.2 14a2 2 0 0 0 2 1.8h7.6a2 2 0 0 0 2-1.8L19 6"/><path d="M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v9h14v-9"/><path d="M10 21v-5h4v5"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M21 9h-6a3 3 0 0 0 0 6h6z"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v9H5v-9"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4.2 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.8"/></symbol>
+  <symbol id="i-recycle" viewBox="0 0 24 24"><path d="M7 19H4.8a1.8 1.8 0 0 1-1.6-2.7L5.4 12"/><path d="m11 19 3-3-3-3"/><path d="M14 16h5.2a1.8 1.8 0 0 0 1.6-2.7l-1.1-2"/><path d="M9.5 6.5 11 4a1.8 1.8 0 0 1 3.1 0l1.6 2.7"/><path d="m18.5 9.5-2.8.8-.8-2.9"/><path d="M8.2 9.3 5.3 8.6 4.6 11.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20"/><circle cx="10" cy="8" r="3.5"/><path d="M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.4M15.5 4.6a3.5 3.5 0 0 1 0 6.8"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h.01M14 20h.01M17 20h4v-3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3.9L3 9"/><path d="M3 4v5h5"/><path d="M4 13a8 8 0 0 0 14.9 3.9L21 15"/><path d="M21 20v-5h-5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M14 16l4-4-4-4"/><path d="M18 12H9"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15z"/><path d="M5 19c3-4 6-7 10-9"/></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="1.5"/><path d="M7 14h10v7H7z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+</svg>
+
+<!-- ============================================================ sign in -->
+<div class="login" id="login" hidden>
+  <form class="login-card" id="login-form">
+    <div class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-leaf"/></svg></span>
+      <span><strong data-t="appTitle"></strong><small data-t="appSub"></small></span></div>
+    <div><h1 data-t="loginTitle"></h1><p class="muted small" data-t="loginHint"></p></div>
+    <label class="field"><span data-t="loginField"></span>
+      <input class="input" name="login" autocomplete="username" dir="ltr" required></label>
+    <label class="field"><span data-t="password"></span>
+      <input class="input" name="password" type="password" autocomplete="current-password" dir="ltr" required></label>
+    <div class="login-error" id="login-error" role="alert"></div>
+    <button class="btn btn-primary btn-block" type="submit" data-t="signIn"></button>
   </form>
 </div>
 
-<div id="participants-modal" hidden>
-  <div class="modal-card" style="max-width:700px">
-    <div class="modal-head">
-      <div>
-        <h3 id="pm-pin-title" style="margin:0 0 4px">ناوی بەشداربووان</h3>
-        <p id="pm-pin-subtitle" style="margin:0;font-size:13px;opacity:0.9"></p>
+<!-- ============================================================ the app -->
+<div class="app" id="app" hidden>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-leaf"/></svg></span>
+      <span><strong data-t="appTitle"></strong><small data-t="appSub"></small></span></div>
+    <nav class="nav" aria-label="بەشەکان">
+      <div class="nav-group"><div class="nav-label" data-t="groups.general"></div>
+        <a class="nav-item" href="#overview" data-tab="overview"><svg class="icon"><use href="#i-grid"/></svg><span class="nav-text" data-t="views.overview.0"></span></a>
+        <a class="nav-item" href="#map" data-tab="map"><svg class="icon"><use href="#i-map"/></svg><span class="nav-text" data-t="views.map.0"></span></a>
       </div>
-      <button type="button" class="close-btn" id="close-pm-modal">✕</button>
+      <div class="nav-group"><div class="nav-label" data-t="groups.work"></div>
+        <a class="nav-item" href="#priority" data-tab="priority"><svg class="icon"><use href="#i-list"/></svg><span class="nav-text" data-t="views.priority.0"></span></a>
+        <a class="nav-item" href="#review" data-tab="review"><svg class="icon"><use href="#i-eye"/></svg><span class="nav-text" data-t="views.review.0"></span><span class="nav-badge" id="review-count"></span></a>
+        <a class="nav-item" href="#log" data-tab="log"><svg class="icon"><use href="#i-history"/></svg><span class="nav-text" data-t="views.log.0"></span></a>
+      </div>
+      <div class="nav-group"><div class="nav-label" data-t="groups.city"></div>
+        <a class="nav-item" href="#pins" data-tab="pins"><svg class="icon"><use href="#i-pin"/></svg><span class="nav-text" data-t="views.pins.0"></span></a>
+        <a class="nav-item" href="#bins" data-tab="bins"><svg class="icon"><use href="#i-bin"/></svg><span class="nav-text" data-t="views.bins.0"></span><span class="nav-badge" id="bin-count"></span></a>
+      </div>
+      <div class="nav-group"><div class="nav-label" data-t="groups.places"></div>
+        <a class="nav-item" href="#places" data-tab="places"><svg class="icon"><use href="#i-home"/></svg><span class="nav-text" data-t="views.places.0"></span><span class="nav-badge" id="places-count"></span></a>
+        <a class="nav-item" href="#money" data-tab="money"><svg class="icon"><use href="#i-wallet"/></svg><span class="nav-text" data-t="views.money.0"></span></a>
+      </div>
+      <div class="nav-group"><div class="nav-label" data-t="groups.people"></div>
+        <a class="nav-item" href="#vouchers" data-tab="vouchers"><svg class="icon"><use href="#i-gift"/></svg><span class="nav-text" data-t="views.vouchers.0"></span><span class="nav-badge" id="voucher-count"></span></a>
+        <a class="nav-item" href="#league" data-tab="league"><svg class="icon"><use href="#i-trophy"/></svg><span class="nav-text" data-t="views.league.0"></span></a>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="who"><span class="avatar" id="who-initial">ش</span>
+        <span><strong id="who-name"></strong><small id="who-phone" class="ltr"></small></span></div>
+      <button class="btn btn-ghost btn-sm" id="logout" type="button"><svg class="icon sm"><use href="#i-logout"/></svg><span data-t="signOut"></span></button>
     </div>
-    <div id="pm-content" style="max-height:420px;overflow-y:auto;padding:16px 20px">
-      <!-- dynamic content -->
-    </div>
-    <div class="modal-footer" style="padding:12px 20px;border-top:1px solid var(--line);background:var(--paper)">
-      <button type="button" id="btn-close-pm">داخستن</button>
-    </div>
-  </div>
-</div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
 
-<div id="pin-modal" hidden>
-  <div class="modal-card">
-    <div class="modal-head">
-      <h3>دیاریکردنی خاڵی نوێ لەسەر نەخشە</h3>
-      <button type="button" class="close-btn" id="close-pin-modal">✕</button>
-    </div>
-    <form id="pin-form">
-      <div>
-        <label class="field-title">جۆری چالاکی / پین:</label>
-        <div class="category-grid">
-          <label class="cat-card">
-            <input type="radio" name="pin-category" value="tree_planting" checked>
-            <div class="cat-content">
-              <span class="cat-icon">🌱</span>
-              <strong>نەمام ناشتن</strong>
-              <small>دار چاندن</small>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost btn-icon menu-btn" id="menu-btn" type="button" data-t-aria="menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+      <div><h1 id="page-title"></h1><div class="sub" id="page-sub"></div></div>
+      <div class="spacer"></div>
+      <span class="live" id="live" role="status"><span class="dot"></span><span class="when" id="live-text"></span></span>
+      <button class="btn btn-ghost btn-icon" id="refresh-btn" type="button" data-t-aria="refresh"><svg class="icon"><use href="#i-refresh"/></svg></button>
+      <button class="btn btn-ghost btn-icon" id="theme-btn" type="button" data-t-aria="theme"><svg class="icon"><use href="#i-monitor"/></svg></button>
+    </header>
+
+    <main class="content" id="content">
+      <!-- overview -->
+      <section class="view" data-view="overview" hidden>
+        <div class="kpis" id="ov-kpis"></div>
+        <div class="grid-2 lead">
+          <div class="card"><div class="card-head"><h3 data-t="attention"></h3></div><div style="padding-top:8px" id="ov-attention"></div></div>
+          <div class="card"><div class="card-head"><h3 data-t="dirtiest"></h3><a class="btn btn-ghost btn-sm" href="#priority" data-t="seeAll"></a></div>
+            <div class="card-body" id="ov-dirtiest"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card"><div class="card-head"><h3 data-t="recentCleanups"></h3><a class="btn btn-ghost btn-sm" href="#log" data-t="seeAll"></a></div>
+            <div style="padding-top:8px" id="ov-recent"></div></div>
+          <div class="card"><div class="card-head"><h3 data-t="topHoods"></h3><a class="btn btn-ghost btn-sm" href="#league" data-t="seeAll"></a></div>
+            <div style="padding-top:8px" id="ov-hoods"></div></div>
+        </div>
+      </section>
+
+      <!-- live map -->
+      <section class="view" data-view="map" hidden>
+        <div class="map-shell">
+          <div id="map"></div>
+          <div class="map-float top">
+            <div class="chips" id="map-filters"></div>
+            <div class="actions">
+              <button class="btn btn-secondary" type="button" data-action="place-bin"><svg class="icon sm"><use href="#i-bin"/></svg><span data-t="addBin"></span></button>
+              <button class="btn btn-primary" type="button" data-action="new-pin"><svg class="icon sm"><use href="#i-plus"/></svg><span data-t="addPin"></span></button>
             </div>
-          </label>
-          <label class="cat-card">
-            <input type="radio" name="pin-category" value="cleanup_target">
-            <div class="cat-content clean">
-              <span class="cat-icon">⚠️</span>
-              <strong>شوێنی پیس</strong>
-              <small>پاککردنەوەی بەپەلە</small>
-            </div>
-          </label>
-          <label class="cat-card">
-            <input type="radio" name="pin-category" value="watering_point">
-            <div class="cat-content water">
-              <span class="cat-icon">💧</span>
-              <strong>خاڵی ئاودان</strong>
-              <small>خزمەتکردنی دار</small>
-            </div>
-          </label>
+          </div>
+          <div class="placement" id="placement" hidden><svg class="icon sm"><use href="#i-pin"/></svg><span id="placement-text"></span>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="cancel-placing" data-t="cancel"></button></div>
+          <div class="legend" id="map-legend"></div>
         </div>
-      </div>
-
-      <div>
-        <label for="pin-title" class="field-title">ناونیشانی پین / کەمپین:</label>
-        <input id="pin-title" placeholder="بۆ نموونە: کەمپینی نەمام ناشتن لە پارکی ئازادی" required>
-      </div>
-
-      <div>
-        <label for="pin-desc" class="field-title">زانیاری و وەسفی ورد بۆ هاوڵاتییان:</label>
-        <textarea id="pin-desc" rows="3" placeholder="ڕوونکردنەوە لەسەر ئەم شوێنە و چ کارێک پێویستە بکرێت..." required></textarea>
-      </div>
-
-      <div class="form-row">
-        <div>
-          <label for="pin-coords" class="field-title">پۆوتان (نەخشە):</label>
-          <input id="pin-coords" readonly style="direction:ltr;background:var(--paper-2);font-weight:600">
-        </div>
-        <div>
-          <label for="pin-target" class="field-title">ئامانج (ژمارە):</label>
-          <input id="pin-target" type="number" min="1" value="20">
-        </div>
-        <div>
-          <label for="pin-points" class="field-title">خاڵی پاداشت:</label>
-          <input id="pin-points" type="number" min="5" step="5" value="50">
-        </div>
-      </div>
-
-      <div class="checkbox-row">
-        <input type="checkbox" id="pin-notify" checked>
-        <span>🔔 ناردنی ئاگاداری دەستبەجێ (Notification) بۆ ئەپی مۆبایلی هاوڵاتییان</span>
-      </div>
-
-      <div class="modal-footer">
-        <button type="submit" class="primary" id="btn-submit-pin">تۆمارکردن و بڵاوکردنەوە</button>
-        <button type="button" id="btn-cancel-pin">پاشگەزبوونەوە</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="bin-modal" hidden>
-  <div class="modal-card" style="max-width:580px">
-    <div class="modal-head">
-      <h3>🗑️ زیادکردنی تەنەکەی خۆڵی نوێ</h3>
-      <button type="button" class="close-btn" id="close-bin-modal">✕</button>
-    </div>
-    <form id="bin-form">
-      <div>
-        <label for="bin-name" class="field-title">ناوی تەنەکەکە:</label>
-        <input id="bin-name" placeholder="بۆ نموونە: تەنەکەی خۆڵی پارکی ئازادی ١" required>
-      </div>
-
-      <div class="form-row">
-        <div>
-          <label for="bin-type" class="field-title">جۆری پاشماوە:</label>
-          <select id="bin-type" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font:inherit">
-            <option value="general">🗑️ پاشماوەی گشتی</option>
-            <option value="recycle">♻️ ڕیسایکڵین (پلاستیک و نایلۆن)</option>
-            <option value="organic">🍏 ئەندامی و خۆراک</option>
-            <option value="glass_metal">🍾 شووشە و کانزا</option>
-          </select>
-        </div>
-        <div>
-          <label for="bin-capacity" class="field-title">قەبارە (لیتر):</label>
-          <select id="bin-capacity" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font:inherit">
-            <option value="240">٢٤٠ لیتر (تەنەکەی ستاندارد)</option>
-            <option value="660">٦٦٠ لیتر (مامناوەند)</option>
-            <option value="1100">١١٠٠ لیتر (کۆنتێنەری گەورە)</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div>
-          <label for="bin-coords" class="field-title">پۆوتان (نەخشە):</label>
-          <input id="bin-coords" readonly style="direction:ltr;background:var(--paper-2);font-weight:600" placeholder="کلیک لەسەر نەخشە بکە" required>
-        </div>
-        <div>
-          <label for="bin-custom-code" class="field-title">کۆدی تایبەت (ئارەزوومەندانە):</label>
-          <input id="bin-custom-code" placeholder="بە بەتاڵی جێیبهێڵە بۆ خۆکار" style="direction:ltr;text-transform:uppercase">
-        </div>
-      </div>
-
-      <p class="note" style="margin-top:6px">💡 سیستەمەکە ڕاستەوخۆ کۆدی QR ی تایبەت بۆ ئەم تەنەکەیە دروست دەکات، و هاوڵاتی لەکاتی فڕێدانی پاشماوە دەتوانێت سکانی بکات.</p>
-
-      <div class="modal-footer">
-        <button type="submit" class="primary" id="btn-submit-bin">تۆمارکردن و بەرهەمهێنانی QR</button>
-        <button type="button" id="btn-cancel-bin">پاشگەزبوونەوە</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="qr-view-modal" hidden>
-  <div class="modal-card" style="max-width:540px;text-align:center">
-    <div class="modal-head">
-      <h3 id="qm-title">کۆدی QR ی تەنەکەی خۆڵ</h3>
-      <button type="button" class="close-btn" id="close-qr-modal">✕</button>
-    </div>
-    <div style="padding:20px">
-      <div class="qr-modal-preview">
-        <img id="qm-img" src="" alt="QR Code">
-        <div style="margin-top:12px">
-          <span class="bin-code-pill" id="qm-code" style="font-size:18px">GL-BIN-001</span>
-        </div>
-        <p id="qm-desc" style="margin:8px 0 0;color:var(--soft);font-size:14px"></p>
-      </div>
-      <p style="font-size:13px;color:var(--soft);margin:0 0 16px">
-        ئەم کۆدە چاپ بکە و لەسەر تەنەکەی خۆڵەکە بچەسپێنە تا هاوڵاتییان لە کاتی فڕێدانی پاشماوە سکانی بکەن.
-      </p>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <a id="qm-download-sticker" class="primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:10px 18px;border-radius:10px;color:#fff;background:var(--green);font-weight:600" download>📥 داگرتنی ستیکەری چاپ (A5)</a>
-        <button type="button" id="qm-print" style="display:inline-flex;align-items:center;gap:6px">🖨️ چاپکردنی خێرا</button>
-        <button type="button" id="btn-close-qr">داخستن</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<header>
-  <div>
-    <h1>داشبۆردی شارەوانی</h1>
-    <small>GreenLegacy Slemani · هەر ١٠ چرکە جارێک نوێ دەبێتەوە</small>
-  </div>
-  <button id="logout">چوونەدەرەوە</button>
-</header>
-
-<main>
-  <section class="stats" id="stats"></section>
-
-  <nav class="tabs" role="tablist">
-    <button role="tab" aria-selected="true" data-tab="map">نەخشەی زیندوو</button>
-    <button role="tab" aria-selected="false" data-tab="bins">🗑️ تەنەکەکانی خۆڵ<span class="badge" id="bin-count">٠</span></button>
-    <button role="tab" aria-selected="false" data-tab="priority">لیستی ئەولەویەت</button>
-    <button role="tab" aria-selected="false" data-tab="log">تۆماری پاککردنەوە</button>
-    <button role="tab" aria-selected="false" data-tab="review">پشکنین<span class="badge" id="review-count">٠</span></button>
-    <button role="tab" aria-selected="false" data-tab="places">ماڵ و بازرگانی<span class="badge" id="places-count">٠</span></button>
-    <button role="tab" aria-selected="false" data-tab="money">پارەی مانگانە</button>
-    <button role="tab" aria-selected="false" data-tab="vouchers">خەڵاتەکان</button>
-    <button role="tab" aria-selected="false" data-tab="league">لیگ</button>
-  </nav>
-
-  <section class="panel active" id="panel-map">
-    <div class="map-toolbar">
-      <div class="map-actions">
-        <button id="btn-add-pin" class="primary" type="button">📍 دانانی پین لەسەر نەخشە</button>
-        <button id="btn-add-bin-map" style="background:var(--paper-2);border:1px solid var(--line)" type="button">🗑️ دانانی تەنەکە لە نەخشە</button>
-        <span id="pin-placement-hint" class="placement-hint" hidden>👈 کلیک لەسەر هەر شوێنێکی نەخشەکە بکە بۆ دیاریکردنی خاڵەکە</span>
-      </div>
-      <div class="chip-group" id="map-filters">
-        <span style="color:var(--soft);font-size:13px">پیشاندان:</span>
-        <button class="chip active" data-map-filter="all" type="button">هەموو</button>
-        <button class="chip" data-map-filter="reports" type="button">ڕاپۆرتەکان</button>
-        <button class="chip" data-map-filter="bins" type="button">🗑️ تەنەکەکانی خۆڵ</button>
-        <button class="chip" data-map-filter="tree_planting" type="button">🌱 نەمام ناشتن</button>
-        <button class="chip" data-map-filter="cleanup_target" type="button">⚠️ شوێنی پیس</button>
-        <button class="chip" data-map-filter="watering_point" type="button">💧 ئاودان</button>
-      </div>
-    </div>
-    <div id="map"></div>
-    <div class="legend" id="legend"></div>
-
-    <div style="margin-top:28px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h2 style="font-size:17px;margin:0">پین و کەمپینە چالاکەکانی شارەوانی لەسەر نەخشە</h2>
-        <span id="pin-count-badge" class="badge">٠</span>
-      </div>
-      <div id="pins-list"></div>
-    </div>
-  </section>
-
-  <section class="panel" id="panel-bins">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
-      <div>
-        <h2 style="font-size:18px;margin:0 0 4px">بەڕێوەبردنی تەنەکەکانی خۆڵ و کۆدی QR</h2>
-        <small style="color:var(--soft)">بەرهەمهێنانی کۆدی QR و بەستنەوە بە سیستەمی پشکنینی فڕێدانی پاشماوە</small>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button id="btn-open-add-bin" class="primary" type="button">➕ زیادکردنی تەنەکەی نوێ</button>
-      </div>
-    </div>
-
-    <!-- Mini stats for bins -->
-    <div class="stats" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));margin-bottom:20px">
-      <div class="stat"><div class="num" id="stat-bin-total">٠</div><div class="label">کۆی تەنەکەکان</div></div>
-      <div class="stat"><div class="num" id="stat-bin-active" style="color:var(--green)">٠</div><div class="label">تەنەکەی چالاک</div></div>
-      <div class="stat"><div class="num" id="stat-bin-full" style="color:var(--red)">٠</div><div class="label">پڕبووە</div></div>
-      <div class="stat"><div class="num" id="stat-bin-disposals" style="color:var(--amber)">٠</div><div class="label">کۆی فڕێدانی پشکنراو</div></div>
-    </div>
-
-    <!-- Filter chips for bins table -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-      <div class="chip-group" id="bin-table-filters">
-        <span style="color:var(--soft);font-size:13px">فلتەری جۆر:</span>
-        <button class="chip active" data-bin-filter="all" type="button">هەموو</button>
-        <button class="chip" data-bin-filter="general" type="button">🗑️ گشتی</button>
-        <button class="chip" data-bin-filter="recycle" type="button">♻️ ڕیسایکڵین</button>
-        <button class="chip" data-bin-filter="organic" type="button">🍏 ئەندامی</button>
-        <button class="chip" data-bin-filter="glass_metal" type="button">🍾 شووشە/کانزا</button>
-      </div>
-    </div>
-
-    <div id="bins-table-wrap"></div>
-  </section>
-  <section class="panel" id="panel-priority"><div id="priority"></div></section>
-  <section class="panel" id="panel-log"><div id="log"></div></section>
-  <section class="panel" id="panel-review"><div id="review"></div></section>
-  <section class="panel" id="panel-places">
-    <div class="toolbar">
-      <label>پیشاندان:
-        <select id="places-filter">
-          <option value="pending">چاوەڕێی پەسەندکردن</option>
-          <option value="verified">پەسەندکراو</option>
-          <option value="rejected">ڕەتکراوە</option>
-          <option value="all">هەموو</option>
-        </select>
-      </label>
-      <span class="muted">شوێنی ماڵەکان تەنها بۆ پشکنینە و لەسەر نەخشەی داشبۆرد پیشان نادرێت.</span>
-    </div>
-    <p class="note" id="places-note" role="status"></p>
-    <div id="places"></div>
-  </section>
-  <section class="panel" id="panel-money">
-    <div class="toolbar">
-      <label>مانگ: <input type="month" id="money-month"></label>
-      <label>ماڵ: <input type="number" id="money-household" min="1" step="1000"> دینار</label>
-      <label>بازرگانی: <input type="number" id="money-business" min="1" step="1000"> دینار</label>
-      <button class="primary" id="money-all">تۆمارکردن بۆ هەموو ئەوانەی ماونەتەوە</button>
-    </div>
-    <p class="note" id="money-note" role="status"></p>
-    <div id="money"></div>
-  </section>
-  <section class="panel" id="panel-vouchers"><p class="note" id="voucher-note" role="status"></p><div id="vouchers"></div></section>
-  <section class="panel" id="panel-league">
-    <div class="league">
-      <div><h2>لیگی گەڕەکەکان</h2><div id="league-hoods"></div></div>
-      <div><h2>باشترین هاوڵاتییان</h2><div id="league-people"></div></div>
-    </div>
-  </section>
-</main>
-
-<script src="/static/leaflet/leaflet.js"></script>
-<script>
-const LEVEL_COLOURS = ['#E9C46A', '#E0A030', '#D9822B', '#C4532F', '#9E2A2B'];
-const STATUS = { open: 'کراوە', in_progress: 'لە پاککردنەوەدایە', needs_review: 'چاوەڕوانی پشکنین', clean: 'پاککراوە' };
-const VERDICT = { verified: 'سەلمێنرا', review: 'پشکنین', rejected: 'ڕەتکرایەوە' };
-const toKu = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
-const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + toKu(Math.abs(n || 0));
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-let token = null;
-try { token = localStorage.getItem('gl_staff_token'); } catch (e) { /* storage blocked */ }
-
-function showLogin() { document.getElementById('login').hidden = false; }
-
-async function api(path, options = {}) {
-  const res = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json',
-    ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
-  if (res.status === 401 || res.status === 403) { showLogin(); throw new Error('auth'); }
-  return res.json();
-}
-
-document.getElementById('login-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const res = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: document.getElementById('phone').value.trim(),
-                           password: document.getElementById('password').value }) });
-  const data = await res.json();
-  if (!res.ok || data.user.role !== 'staff') {
-    document.getElementById('login-error').textContent = data.message || 'ئەم هەژمارە هی شارەوانی نییە';
-    return;
-  }
-  token = data.token;
-  try { localStorage.setItem('gl_staff_token', token); } catch (e) { /* storage blocked */ }
-  document.getElementById('login').hidden = true;
-  refresh();
-});
-
-document.getElementById('logout').addEventListener('click', () => {
-  token = null;
-  try { localStorage.removeItem('gl_staff_token'); } catch (e) { /* storage blocked */ }
-  showLogin();
-});
-
-document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b === btn)));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + btn.dataset.tab));
-  if (btn.dataset.tab === 'map') setTimeout(() => map.invalidateSize(), 50);
-}));
-
-// ---- live map: open spots coloured by dirtiness, clean spots green
-const map = L.map('map').setView([35.5613, 45.4373], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
-const areaLayer = L.featureGroup().addTo(map);   // neighbourhood boundaries, kept under the spots
-const layer = L.layerGroup().addTo(map);
-const pinLayer = L.layerGroup().addTo(map);      // custom municipality pins (tree planting, dirty spots)
-const binLayer = L.layerGroup().addTo(map);      // trash bins with QR codes
-let fitted = false;
-let lastSpots = [];
-let customPins = [];
-let customBins = [];
-let spotsLoaded = false;
-let currentMapFilter = 'all';
-let currentBinFilter = 'all';
-
-const PIN_TYPES = {
-  tree_planting: { title: 'نەمام ناشتن', icon: '🌱', cls: 'pin-tree', pill: 'tree_planting' },
-  cleanup_target: { title: 'شوێنی پیس', icon: '⚠️', cls: 'pin-clean', pill: 'cleanup_target' },
-  watering_point: { title: 'خاڵی ئاودان', icon: '💧', cls: 'pin-water', pill: 'watering_point' },
-};
-
-// Filter chips handling
-document.querySelectorAll('[data-map-filter]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-map-filter]').forEach(b => b.classList.toggle('active', b === btn));
-    currentMapFilter = btn.dataset.mapFilter;
-    renderSpots();
-    renderCustomPins();
-    renderBinMarkers();
-  });
-});
-
-// Pin & Bin Placement Mode
-let pinMode = false;
-let binMode = false;
-let tempPinMarker = null;
-let tempBinMarker = null;
-const btnAddPin = document.getElementById('btn-add-pin');
-const btnAddBinMap = document.getElementById('btn-add-bin-map');
-const pinHint = document.getElementById('pin-placement-hint');
-const pinModal = document.getElementById('pin-modal');
-const binModal = document.getElementById('bin-modal');
-
-if (btnAddPin) {
-  btnAddPin.addEventListener('click', () => {
-    pinMode = !pinMode;
-    if (pinMode && binMode) {
-      binMode = false;
-      if (btnAddBinMap) {
-        btnAddBinMap.classList.remove('active');
-        btnAddBinMap.textContent = '🗑️ دانانی تەنەکە لە نەخشە';
-      }
-    }
-    btnAddPin.classList.toggle('active', pinMode);
-    btnAddPin.textContent = pinMode ? '❌ هەڵوەشاندنەوەی دانان' : '📍 دانانی پین لەسەر نەخشە';
-    if (pinHint) {
-      pinHint.hidden = !pinMode;
-      pinHint.textContent = '👈 کلیک لەسەر هەر شوێنێکی نەخشەکە بکە بۆ دیاریکردنی پینەکە';
-    }
-    document.getElementById('map').style.cursor = pinMode ? 'crosshair' : '';
-  });
-}
-
-if (btnAddBinMap) {
-  btnAddBinMap.addEventListener('click', () => {
-    binMode = !binMode;
-    if (binMode && pinMode) {
-      pinMode = false;
-      if (btnAddPin) {
-        btnAddPin.classList.remove('active');
-        btnAddPin.textContent = '📍 دانانی پین لەسەر نەخشە';
-      }
-    }
-    btnAddBinMap.classList.toggle('active', binMode);
-    btnAddBinMap.textContent = binMode ? '❌ هەڵوەشاندنەوەی دانان' : '🗑️ دانانی تەنەکە لە نەخشە';
-    if (pinHint) {
-      pinHint.hidden = !binMode;
-      pinHint.textContent = '👈 کلیک لەسەر هەر شوێنێکی نەخشەکە بکە بۆ دیاریکردنی شوێنی تەنەکەی خۆڵ';
-    }
-    document.getElementById('map').style.cursor = binMode ? 'crosshair' : '';
-  });
-}
-
-map.on('click', e => {
-  const lat = e.latlng.lat.toFixed(5);
-  const lon = e.latlng.lng.toFixed(5);
-
-  if (pinMode) {
-    pinMode = false;
-    if (btnAddPin) {
-      btnAddPin.classList.remove('active');
-      btnAddPin.textContent = '📍 دانانی پین لەسەر نەخشە';
-    }
-    if (pinHint) pinHint.hidden = true;
-    document.getElementById('map').style.cursor = '';
-
-    document.getElementById('pin-coords').value = `${lat}, ${lon}`;
-    if (tempPinMarker) map.removeLayer(tempPinMarker);
-    tempPinMarker = L.marker(e.latlng).addTo(map);
-    if (pinModal) pinModal.hidden = false;
-    return;
-  }
-
-  if (binMode) {
-    binMode = false;
-    if (btnAddBinMap) {
-      btnAddBinMap.classList.remove('active');
-      btnAddBinMap.textContent = '🗑️ دانانی تەنەکە لە نەخشە';
-    }
-    if (pinHint) pinHint.hidden = true;
-    document.getElementById('map').style.cursor = '';
-
-    document.getElementById('bin-coords').value = `${lat}, ${lon}`;
-    if (tempBinMarker) map.removeLayer(tempBinMarker);
-    tempBinMarker = L.marker(e.latlng).addTo(map);
-    if (binModal) binModal.hidden = false;
-    return;
-  }
-});
-
-function closePinModal() {
-  if (pinModal) pinModal.hidden = true;
-  if (tempPinMarker) { map.removeLayer(tempPinMarker); tempPinMarker = null; }
-}
-
-const btnCloseModal = document.getElementById('close-pin-modal');
-const btnCancelModal = document.getElementById('btn-cancel-pin');
-if (btnCloseModal) btnCloseModal.addEventListener('click', closePinModal);
-if (btnCancelModal) btnCancelModal.addEventListener('click', closePinModal);
-
-const pinForm = document.getElementById('pin-form');
-if (pinForm) {
-  pinForm.addEventListener('submit', async e => {
-    e.preventDefault();
-    const catInput = document.querySelector('input[name="pin-category"]:checked');
-    const category = catInput ? catInput.value : 'tree_planting';
-    const title = document.getElementById('pin-title').value.trim();
-    const description = document.getElementById('pin-desc').value.trim();
-    const coords = document.getElementById('pin-coords').value.split(',').map(s => parseFloat(s.trim()));
-    const target_count = parseInt(document.getElementById('pin-target').value) || 1;
-    const reward_points = parseInt(document.getElementById('pin-points').value) || 50;
-    const send_notification = document.getElementById('pin-notify').checked;
-
-    const btn = document.getElementById('btn-submit-pin');
-    if (btn) btn.disabled = true;
-    try {
-      await api('/admin/pins', {
-        method: 'POST',
-        body: JSON.stringify({
-          category, title, description,
-          lat: coords[0], lon: coords[1],
-          target_count, reward_points, send_notification
-        })
-      });
-      closePinModal();
-      document.getElementById('pin-title').value = '';
-      document.getElementById('pin-desc').value = '';
-      refresh();
-    } catch (err) {
-      alert(err.message || 'هەڵەیەک ڕوویدا لە کاتی تۆمارکردنی پینەکەدا');
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  });
-}
-
-// Global pin deletion handler
-document.addEventListener('click', async e => {
-  const delBtn = e.target.closest('[data-delete-pin]');
-  if (!delBtn) return;
-  if (!confirm('ئایا دڵنیایت لە سڕینەوەی ئەم پینە؟')) return;
-  delBtn.disabled = true;
-  try {
-    await api(`/admin/pins/${delBtn.dataset.deletePin}`, { method: 'DELETE' });
-    refresh();
-  } catch (err) {
-    delBtn.disabled = false;
-    alert(err.message || 'هەڵە لە سڕینەوەی پین');
-  }
-});
-
-// Participants Modal & View handler
-const pmModal = document.getElementById('participants-modal');
-const pmTitle = document.getElementById('pm-pin-title');
-const pmSub = document.getElementById('pm-pin-subtitle');
-const pmContent = document.getElementById('pm-content');
-
-function closeParticipantsModal() {
-  if (pmModal) pmModal.hidden = true;
-}
-
-document.getElementById('close-pm-modal')?.addEventListener('click', closeParticipantsModal);
-document.getElementById('btn-close-pm')?.addEventListener('click', closeParticipantsModal);
-
-async function openParticipantsModal(pinId) {
-  if (!pmModal) return;
-  pmTitle.textContent = 'چاوەڕوانبە...';
-  pmSub.textContent = '';
-  pmContent.innerHTML = '<div style="text-align:center;padding:30px;color:var(--soft)">لە بارکردندایە...</div>';
-  pmModal.hidden = false;
-
-  try {
-    const data = await api(`/admin/pins/${pinId}/participants`);
-    const pin = data.pin;
-    const participants = data.participants || [];
-    const count = data.count || 0;
-    const cfg = PIN_TYPES[pin.category] || PIN_TYPES.tree_planting;
-
-    pmTitle.textContent = `${cfg.icon} ${pin.title}`;
-    pmSub.textContent = `ئامانج: ${toKu(pin.target_count)} | خۆبەخشانی تۆمارکراو: ${toKu(count)} کەس`;
-
-    if (!participants.length) {
-      pmContent.innerHTML = `
-        <div class="empty" style="padding:40px 20px;text-align:center">
-          <p style="font-size:36px;margin:0 0 10px">👥</p>
-          <strong style="display:block;font-size:16px;margin-bottom:6px">هیچ کەسێک خۆی تۆمار نەکردووە</strong>
-          <span style="color:var(--soft);font-size:13px">تا ئێستا هیچ هاوڵاتییەک ناوی خۆی لە ئەپڵیکەیشنی مۆبایلەوە تۆمار نەکردووە بۆ ئەم دەستپێشخەرییە.</span>
-        </div>`;
-      return;
-    }
-
-    pmContent.innerHTML = `
-      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-        <span class="vol-badge">کۆی گشتی: ${toKu(count)} خۆبەخش</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>ناوی هاوڵاتی</th>
-              <th>مۆبایل</th>
-              <th>گەڕەک</th>
-              <th>تێبینی</th>
-              <th>کاتی تۆمارکردن</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${participants.map((u, i) => `
-              <tr>
-                <td>${toKu(i + 1)}</td>
-                <td><strong>${esc(u.user_name)}</strong></td>
-                <td style="direction:ltr;text-align:right">${esc(u.user_phone)}</td>
-                <td>${esc(u.neighbourhood_name || '—')}</td>
-                <td class="desc">${esc(u.notes || '—')}</td>
-                <td style="font-size:12px;color:var(--soft)">${new Date(u.created_at).toLocaleDateString('en-GB')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  } catch (err) {
-    pmContent.innerHTML = `<div class="error" style="padding:20px">${esc(err.message || 'هەڵە لە وەرگرتنی بەشداربووان')}</div>`;
-  }
-}
-
-document.addEventListener('click', e => {
-  const btn = e.target.closest('[data-view-participants]');
-  if (btn) openParticipantsModal(btn.dataset.viewParticipants);
-});
-
-
-// Areas: one blue hue, light to dark, by open spots. Blue keeps them apart from the yellow-red spot
-// markers on top; fixed steps (not "share of the busiest area") so a colour means the same count every refresh.
-const AREA_COLOURS = ['#B7D3F6', '#86B6EF', '#5598E7', '#2A78D6', '#1C5CAB'];
-const AREA_STEPS = [1, 2, 4, 7, 11];            // the open-spot count where each colour starts
-const areaColour = open => AREA_COLOURS[AREA_STEPS.filter(s => open >= s).length - 1];
-const stepLabel = i => i === AREA_STEPS.length - 1 ? toKu(AREA_STEPS[i]) + '+'
-  : AREA_STEPS[i + 1] - 1 === AREA_STEPS[i] ? toKu(AREA_STEPS[i]) : `${toKu(AREA_STEPS[i])}–${toKu(AREA_STEPS[i + 1] - 1)}`;
-const decimal = n => toKu(n).replace('.', '٫');
-
-document.getElementById('legend').innerHTML =
-  LEVEL_COLOURS.map((c, i) => `<span><span class="dot" style="background:${c}"></span>پیسی ${toKu(i + 1)}</span>`).join('') +
-  '<span><span class="dot" style="background:#1E7A4A"></span>پاککراوە</span>' +
-  '<span><span class="dot" style="background:#1E7A4A"></span>🌱 نەمام ناشتن</span>' +
-  '<span><span class="dot" style="background:#D9822B"></span>⚠️ شوێنی پیس</span>' +
-  '<span><span class="dot" style="background:#1E88E5"></span>💧 ئاودان</span>' +
-  '<span><span class="dot" style="background:#10B981"></span>🗑️ تەنەکەی خۆڵ</span>' +
-  `<span id="area-legend" hidden>گەڕەک بەپێی شوێنی کراوە:
-     <span class="step"><span class="swatch none"></span>${toKu(0)}</span>` +
-  AREA_COLOURS.map((c, i) => `<span class="step"><span class="swatch" style="background:${c}"></span>${stepLabel(i)}</span>`).join('') +
-  '</span>';
-
-const levelPill = level => `<span class="level" style="background:${LEVEL_COLOURS[level - 1]}">${toKu(level)}</span>`;
-
-const areaStyle = h => h.open > 0
-  ? { color: '#184F95', weight: 1.5, opacity: .9, fillColor: areaColour(h.open), fillOpacity: .45, dashArray: null }
-  : { color: '#184F95', weight: 1.5, opacity: .9, fillColor: '#184F95', fillOpacity: 0, dashArray: '5 5' };
-
-// one figure per line: a "·" separator next to the Kurdish zero "٠" reads as two zeros
-const areaPopup = h => `<div dir="rtl"><strong>${esc(h.name)}</strong>
-  <table class="figures"><tr><td>خاڵ</td><td>${toKu(h.points)}</td></tr>
-    <tr><td>هاوڵاتی</td><td>${toKu(h.citizens)}</td></tr>
-    <tr><td>شوێنی کراوە</td><td>${toKu(h.open)}</td></tr>
-    <tr><td>پاککراوە</td><td>${toKu(h.cleaned)}</td></tr>${h.avg_dirtiness == null ? ''
-      : `<tr><td title="تێکڕای پلەی پیسیی شوێنە کراوەکان">تێکڕای پیسی</td><td>${decimal(h.avg_dirtiness)}</td></tr>`}</table></div>`;
-
-// id -> {key, layer}. A boundary is rebuilt only when its shape changes, so an open popup survives the refresh.
-const areas = new Map();
-
-function drawAreas(hoods) {
-  const keep = new Set();
-  for (const h of hoods) {
-    if (!h.boundary) continue;
-    const key = JSON.stringify(h.boundary);
-    let area = areas.get(h.id);
-    if (!area || area.key !== key) {
-      if (area) areaLayer.removeLayer(area.layer);
-      area = { key, layer: L.geoJSON(h.boundary).bindPopup('').bindTooltip('', { sticky: true }) };
-      areas.set(h.id, area);
-      areaLayer.addLayer(area.layer);
-    }
-    area.layer.setStyle(areaStyle(h)).setPopupContent(areaPopup(h)).setTooltipContent(esc(h.name));
-    area.layer.bringToBack();                  // spot markers stay on top and clickable
-    keep.add(h.id);
-  }
-  for (const [id, area] of areas) {
-    if (!keep.has(id)) { areaLayer.removeLayer(area.layer); areas.delete(id); }
-  }
-  document.getElementById('area-legend').hidden = !areas.size;
-}
-
-// first load only: zoom to the spots, or to the neighbourhoods while there are no spots yet.
-function fitOnce() {
-  if (fitted) return;
-  const allPoints = [
-    ...lastSpots.map(s => [s.lat, s.lon]),
-    ...customPins.map(p => [p.lat, p.lon]),
-    ...customBins.map(b => [b.lat, b.lon])
-  ];
-  if (allPoints.length) map.fitBounds(allPoints, { maxZoom: 16, padding: [40, 40] });
-  else if (spotsLoaded && areas.size) map.fitBounds(areaLayer.getBounds(), { padding: [20, 20] });
-  else return;
-  fitted = true;
-}
-
-// Markers are kept by spot id and updated in place
-const markers = new Map();
-function renderSpots() {
-  const seen = new Set();
-  const showReports = currentMapFilter === 'all' || currentMapFilter === 'reports';
-  if (showReports) {
-    for (const s of lastSpots) {
-      seen.add(s.id);
-      const clean = s.status === 'clean';
-      const style = { radius: clean ? 7 : 6 + s.dirtiness * 2, weight: 2, color: '#fff',
-                      fillColor: clean ? '#1E7A4A' : LEVEL_COLOURS[s.dirtiness - 1], fillOpacity: .9 };
-      const popup = `<div dir="rtl"><img src="${esc(s.photo_url)}" style="width:180px;border-radius:8px"><br>
-        پلەی پیسی: ${toKu(s.dirtiness)} · پاشماوە: ${toKu(s.litter_count)}<br>${STATUS[s.status] || esc(s.status)}
-        ${s.description ? `<p style="max-width:220px;margin:6px 0 0">${esc(s.description)}</p>` : ''}</div>`;
-      const marker = markers.get(s.id);
-      if (marker) {
-        marker.setLatLng([s.lat, s.lon]).setStyle(style).setRadius(style.radius);
-        if (marker.getPopup().getContent() !== popup) marker.setPopupContent(popup);
-      } else {
-        markers.set(s.id, L.circleMarker([s.lat, s.lon], style).bindPopup(popup).addTo(layer));
-      }
-    }
-  }
-  for (const [id, marker] of markers) {
-    if (!seen.has(id)) { layer.removeLayer(marker); markers.delete(id); }
-  }
-}
-
-// Custom municipality pins markers
-const pinMarkers = new Map();
-function renderCustomPins() {
-  const seen = new Set();
-  for (const p of customPins) {
-    const show = currentMapFilter === 'all' || currentMapFilter === p.category;
-    if (!show) continue;
-    seen.add(p.id);
-
-    const cfg = PIN_TYPES[p.category] || PIN_TYPES.tree_planting;
-    const icon = L.divIcon({
-      className: 'pin-div-icon',
-      html: `<div class="custom-pin-marker ${cfg.cls}" style="width:34px;height:34px"><span class="pin-badge">${cfg.icon}</span></div>`,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17],
-      popupAnchor: [0, -18]
-    });
-
-    const popup = `<div dir="rtl" style="min-width:220px">
-      <span class="pin-cat-pill ${cfg.pill}">${cfg.title}</span>
-      <h4 style="margin:4px 0 6px;font-size:15px;color:var(--forest)">${esc(p.title)}</h4>
-      <p style="margin:0 0 8px;font-size:13px;color:var(--soft);line-height:1.4">${esc(p.description)}</p>
-      <table class="figures" style="margin-bottom:8px">
-        <tr><td>ئامانج</td><td>${toKu(p.target_count)}</td></tr>
-        <tr><td>بەشداربووان</td><td><strong style="color:var(--forest)">👥 ${toKu(p.participant_count || 0)} کەس</strong></td></tr>
-        <tr><td>پاداشت</td><td><strong>+${toKu(p.reward_points)} خاڵ</strong></td></tr>
-        ${p.neighbourhood_name ? `<tr><td>گەڕەک</td><td>${esc(p.neighbourhood_name)}</td></tr>` : ''}
-        <tr><td>ئاگاداری</td><td>${p.send_notification ? '🔔 نێردراوە' : 'نەنێردراوە'}</td></tr>
-      </table>
-      <button class="secondary small" style="width:100%;margin-bottom:6px" data-view-participants="${p.id}">👥 بینینی بەشداربووان (${toKu(p.participant_count || 0)})</button>
-      <button class="danger small" style="width:100%" data-delete-pin="${p.id}">سڕینەوەی پین</button>
-    </div>`;
-
-    let m = pinMarkers.get(p.id);
-    if (m) {
-      m.setLatLng([p.lat, p.lon]);
-      if (m.getPopup().getContent() !== popup) m.setPopupContent(popup);
-    } else {
-      m = L.marker([p.lat, p.lon], { icon }).bindPopup(popup).addTo(pinLayer);
-      pinMarkers.set(p.id, m);
-    }
-  }
-
-  for (const [id, m] of pinMarkers) {
-    if (!seen.has(id)) { pinLayer.removeLayer(m); pinMarkers.delete(id); }
-  }
-}
-
-async function loadMap() {
-  const spots = await api('/reports');
-  lastSpots = spots;
-  spotsLoaded = true;
-  renderSpots();
-  fitOnce();
-}
-
-async function loadAdminPins() {
-  const pins = await api('/admin/pins');
-  customPins = pins;
-  const countBadge = document.getElementById('pin-count-badge');
-  if (countBadge) countBadge.textContent = toKu(pins.length);
-  renderCustomPins();
-  fitOnce();
-
-  const box = document.getElementById('pins-list');
-  if (!box) return;
-  if (!pins.length) {
-    box.innerHTML = '<div class="empty">هیچ کەمپین یان شوێنێکی دیاریکراو دانەنراوە. لەسەر نەخشە کلیک بکە بۆ دانانی پینی نەمام ناشتن یان شوێنی پیس.</div>';
-    return;
-  }
-  box.innerHTML = `<div class="table-wrap"><table><thead><tr>
-    <th>جۆر</th><th>ناونیشان</th><th>وەسف</th><th>ئامانج</th><th>بەشداربووان</th><th>پاداشت</th><th>گەڕەک</th><th>ئاگاداری</th><th>کردار</th>
-  </tr></thead><tbody>` + pins.map(p => {
-    const cfg = PIN_TYPES[p.category] || PIN_TYPES.tree_planting;
-    return `<tr>
-      <td><span class="pin-cat-pill ${cfg.pill}">${cfg.title}</span></td>
-      <td><strong>${esc(p.title)}</strong></td>
-      <td class="desc">${esc(p.description)}</td>
-      <td>${toKu(p.target_count)}</td>
-      <td>
-        <button class="ghost small" data-view-participants="${p.id}" style="font-weight:700;color:var(--forest);white-space:nowrap" title="کلیک بکە بۆ بینینی ناو و زانیاری بەشداربووان">
-          👥 ${toKu(p.participant_count || 0)} کەس
-        </button>
-      </td>
-      <td><strong style="color:var(--green)">+${toKu(p.reward_points)}</strong></td>
-      <td>${esc(p.neighbourhood_name || '—')}</td>
-      <td>${p.send_notification ? '🔔 نێردراوە' : '—'}</td>
-      <td><button class="danger small" data-delete-pin="${p.id}">سڕینەوە</button></td>
-    </tr>`;
-  }).join('') + '</tbody></table></div>';
-}
-
-// ---- trash bins and QR codes management
-const BIN_TYPES_INFO = {
-  general: { title: 'پاشماوەی گشتی', icon: '🗑️', cls: 'bin-type-general', border: '#4B5563' },
-  recycle: { title: 'ڕیسایکڵین', icon: '♻️', cls: 'bin-type-recycle', border: '#2563EB' },
-  organic: { title: 'ئەندامی و خۆراک', icon: '🍏', cls: 'bin-type-organic', border: '#059669' },
-  glass_metal: { title: 'شووشە و کانزا', icon: '🍾', cls: 'bin-type-glass_metal', border: '#D97706' },
-};
-const BIN_STATUS_LABELS = {
-  active: { text: 'چالاک', cls: 'active' },
-  full: { text: 'پڕبووە', cls: 'full' },
-  maintenance: { text: 'چاککردنەوە', cls: 'maintenance' },
-};
-
-const binMarkers = new Map();
-function renderBinMarkers() {
-  const seen = new Set();
-  const showBins = currentMapFilter === 'all' || currentMapFilter === 'bins';
-  if (showBins) {
-    for (const b of customBins) {
-      seen.add(b.id);
-      const typeInfo = BIN_TYPES_INFO[b.bin_type] || BIN_TYPES_INFO.general;
-      const statusLabel = BIN_STATUS_LABELS[b.status] || BIN_STATUS_LABELS.active;
-
-      const icon = L.divIcon({
-        className: 'bin-div-icon',
-        html: `<div class="bin-map-marker ${b.status === 'full' ? 'marker-full' : ''}" style="border-color:${typeInfo.border}">
-          <span style="font-size:16px">${typeInfo.icon}</span>
-        </div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-        popupAnchor: [0, -20]
-      });
-
-      const popup = `<div dir="rtl" style="min-width:240px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span class="bin-code-pill" style="font-size:12px">${esc(b.code)}</span>
-          <span class="bin-status-badge ${statusLabel.cls}">${statusLabel.text}</span>
-        </div>
-        <h4 style="margin:2px 0 6px;font-size:15px;color:var(--forest)">${esc(b.name)}</h4>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          ${(b.qr_data_url || b.qr_code_data) ? `<img src="${b.qr_data_url || b.qr_code_data}" style="width:60px;height:60px;border-radius:6px;border:1px solid var(--line);cursor:pointer;background:#fff;padding:2px" onclick="openBinQrById(${b.id})" title="کلیک بکە بۆ گەورەکردن و چاپ">` : ''}
-          <div style="font-size:12px;color:var(--soft);line-height:1.5">
-            <div>جۆر: <strong>${typeInfo.title}</strong></div>
-            <div>قەبارە: <strong>${toKu(b.capacity_liters)}L</strong></div>
-            <div>فڕێدان: <strong style="color:var(--green)">${toKu(b.disposal_count || 0)} جار</strong></div>
-            ${b.neighbourhood_name ? `<div>گەڕەک: <strong>${esc(b.neighbourhood_name)}</strong></div>` : ''}
+      </section>
+
+      <section class="view" data-view="priority" hidden><div id="priority-list"></div></section>
+      <section class="view" data-view="review" hidden><div id="review-list"></div></section>
+      <section class="view" data-view="log" hidden><div class="chips" id="log-filters"></div><div id="log-list"></div></section>
+
+      <section class="view" data-view="pins" hidden>
+        <div class="toolbar"><div class="grow"></div>
+          <button class="btn btn-primary" type="button" data-action="new-pin"><svg class="icon sm"><use href="#i-plus"/></svg><span data-t="addPin"></span></button></div>
+        <div id="pins-list"></div>
+      </section>
+
+      <section class="view" data-view="bins" hidden>
+        <div class="kpis" id="bin-kpis"></div>
+        <div class="toolbar"><div class="chips grow" id="bin-filters"></div>
+          <button class="btn btn-primary" type="button" data-action="new-bin"><svg class="icon sm"><use href="#i-plus"/></svg><span data-t="addBin"></span></button></div>
+        <div id="bins-list"></div>
+      </section>
+
+      <section class="view" data-view="places" hidden>
+        <div class="toolbar"><div class="chips" id="place-filters"></div></div>
+        <div class="note"><svg class="icon sm"><use href="#i-info"/></svg><span data-t="homesPrivate"></span></div>
+        <div id="places-list"></div>
+      </section>
+
+      <section class="view" data-view="money" hidden>
+        <div class="card card-pad">
+          <div class="toolbar">
+            <label class="field"><span data-t="month"></span><input class="input num" type="month" id="money-month"></label>
+            <label class="field"><span data-t="homeAmount"></span><input class="input num" type="number" min="1" step="1000" id="money-household"></label>
+            <label class="field"><span data-t="businessAmount"></span><input class="input num" type="number" min="1" step="1000" id="money-business"></label>
+            <div class="grow"></div>
+            <button class="btn btn-primary" type="button" data-action="credit-all" style="align-self:flex-end"><svg class="icon sm"><use href="#i-wallet"/></svg><span data-t="creditAll"></span></button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-          <button class="primary small" onclick="openBinQrById(${b.id})">🔍 کۆدی QR</button>
-          <a class="secondary small" href="/admin/bins/${b.id}/sticker" download="sticker-${esc(b.code)}.png" style="text-align:center;text-decoration:none;padding:5px 8px;display:inline-block">📥 ستیکەر</a>
+        <div id="money-list"></div>
+      </section>
+
+      <section class="view" data-view="vouchers" hidden>
+        <div class="toolbar"><div class="search grow"><svg class="icon sm"><use href="#i-search"/></svg>
+          <input class="input" id="voucher-search" type="search" data-t-placeholder="voucherSearch"></div></div>
+        <div id="vouchers-list"></div>
+      </section>
+
+      <section class="view" data-view="league" hidden>
+        <div class="grid-2">
+          <div class="card"><div class="card-head"><h3 data-t="hoodsLeague"></h3></div><div class="card-body" id="league-hoods"></div></div>
+          <div class="card"><div class="card-head"><h3 data-t="topCitizens"></h3></div><div style="padding-top:8px" id="league-people"></div></div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="ghost small" style="flex:1" onclick="toggleBinStatus(${b.id}, '${b.status === 'full' ? 'active' : 'full'}')">
-            ${b.status === 'full' ? '✅ بەتاڵکردنەوە' : '⚠️ دیاریکردن وەک پڕ'}
-          </button>
-          <button class="danger small" data-delete-bin="${b.id}">سڕینەوە</button>
-        </div>
-      </div>`;
+      </section>
+    </main>
+  </div>
+</div>
 
-      let m = binMarkers.get(b.id);
-      if (m) {
-        m.setLatLng([b.lat, b.lon]);
-        if (m.getPopup().getContent() !== popup) m.setPopupContent(popup);
-      } else {
-        m = L.marker([b.lat, b.lon], { icon }).bindPopup(popup).addTo(binLayer);
-        binMarkers.set(b.id, m);
-      }
-    }
-  }
-  for (const [id, m] of binMarkers) {
-    if (!seen.has(id)) { binLayer.removeLayer(m); binMarkers.delete(id); }
-  }
-}
-
-async function loadAdminBins() {
-  const data = await api('/admin/bins');
-  customBins = data.bins || [];
-  const stats = data.stats || {};
-
-  const totalEl = document.getElementById('stat-bin-total');
-  const activeEl = document.getElementById('stat-bin-active');
-  const fullEl = document.getElementById('stat-bin-full');
-  const dispEl = document.getElementById('stat-bin-disposals');
-  const badgeEl = document.getElementById('bin-count');
-
-  if (totalEl) totalEl.textContent = toKu(stats.total || 0);
-  if (activeEl) activeEl.textContent = toKu(stats.active || 0);
-  if (fullEl) fullEl.textContent = toKu(stats.full || 0);
-  if (dispEl) dispEl.textContent = toKu(stats.disposals || 0);
-  if (badgeEl) badgeEl.textContent = toKu(customBins.length);
-
-  renderBinsTable();
-  renderBinMarkers();
-  fitOnce();
-}
-
-function renderBinsTable() {
-  const box = document.getElementById('bins-table-wrap');
-  if (!box) return;
-
-  const filtered = customBins.filter(b => currentBinFilter === 'all' || b.bin_type === currentBinFilter);
-  if (!filtered.length) {
-    box.innerHTML = '<div class="empty">هیچ تەنەکەیەکی خۆڵ نەدۆزرایەوە بەپێی ئەم فلتەرە. دەتوانیت لە ڕێگەی دوگمەی «زیادکردنی تەنەکەی نوێ» یان لەسەر نەخشە تەنەکە دابنێیت.</div>';
-    return;
-  }
-
-  box.innerHTML = `<div class="table-wrap"><table><thead><tr>
-    <th>کۆدی QR</th><th>کۆد</th><th>ناو</th><th>جۆری پاشماوە</th><th>قەبارە</th><th>گەڕەک</th><th>دۆخ</th><th>فڕێدان</th><th>کردارەکان</th>
-  </tr></thead><tbody>` + filtered.map(b => {
-    const typeInfo = BIN_TYPES_INFO[b.bin_type] || BIN_TYPES_INFO.general;
-    const statusLabel = BIN_STATUS_LABELS[b.status] || BIN_STATUS_LABELS.active;
-    return `<tr>
-      <td>
-        <img class="qr-table-thumb" src="${b.qr_data_url || b.qr_code_data}" alt="QR" onclick="openBinQrById(${b.id})" title="کلیک بکە بۆ پیشاندان و چاپکردن">
-      </td>
-      <td><span class="bin-code-pill">${esc(b.code)}</span></td>
-      <td><strong>${esc(b.name)}</strong></td>
-      <td><span class="bin-type-badge ${typeInfo.cls}">${typeInfo.title}</span></td>
-      <td>${toKu(b.capacity_liters)} لیتر</td>
-      <td>${esc(b.neighbourhood_name || '—')}</td>
-      <td>
-        <span class="bin-status-badge ${statusLabel.cls}">${statusLabel.text}</span>
-      </td>
-      <td><strong style="color:var(--green)">${toKu(b.disposal_count || 0)} جار</strong></td>
-      <td>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="secondary small" onclick="openBinQrById(${b.id})" title="پیشاندانی کۆدی QR بۆ چاپ">🔍 بینینی QR</button>
-          <a class="ghost small" href="/admin/bins/${b.id}/sticker" download="sticker-${esc(b.code)}.png" title="داگرتنی ستیکەری فەرمی" style="text-decoration:none;display:inline-flex;align-items:center;padding:4px 8px">📥 ستیکەر</a>
-          <button class="ghost small" onclick="toggleBinStatus(${b.id}, '${b.status === 'full' ? 'active' : 'full'}')" title="گۆڕینی دۆخ">
-            ${b.status === 'full' ? 'بەتاڵکردنەوە' : 'پڕبوون'}
-          </button>
-          <button class="danger small" data-delete-bin="${b.id}" title="سڕینەوە">🗑️</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('') + '</tbody></table></div>';
-}
-
-// Global helpers for bins
-window.openBinQrById = function(id) {
-  const bin = customBins.find(b => b.id === id);
-  if (bin) openQrModal(bin);
-};
-
-window.toggleBinStatus = async function(id, newStatus) {
-  try {
-    await api(`/admin/bins/${id}/status`, {
-      method: 'POST',
-      body: JSON.stringify({ status: newStatus })
-    });
-    loadAdminBins();
-  } catch (err) {
-    alert(err.message || 'هەڵە لە گۆڕینی دۆخی تەنەکە');
-  }
-};
-
-// Filter chips for bins table
-document.querySelectorAll('[data-bin-filter]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-bin-filter]').forEach(b => b.classList.toggle('active', b === btn));
-    currentBinFilter = btn.dataset.binFilter;
-    renderBinsTable();
-  });
-});
-
-// Bin Form & Modals Handling
-const btnOpenAddBin = document.getElementById('btn-open-add-bin');
-if (btnOpenAddBin) {
-  btnOpenAddBin.addEventListener('click', () => {
-    if (!document.getElementById('bin-coords').value) {
-      document.getElementById('bin-coords').value = '35.56130, 45.43730';
-    }
-    if (binModal) binModal.hidden = false;
-  });
-}
-
-function closeBinModal() {
-  if (binModal) binModal.hidden = true;
-  if (tempBinMarker) { map.removeLayer(tempBinMarker); tempBinMarker = null; }
-}
-document.getElementById('close-bin-modal')?.addEventListener('click', closeBinModal);
-document.getElementById('btn-cancel-bin')?.addEventListener('click', closeBinModal);
-
-const binForm = document.getElementById('bin-form');
-if (binForm) {
-  binForm.addEventListener('submit', async e => {
-    e.preventDefault();
-    const name = document.getElementById('bin-name').value.trim();
-    const bin_type = document.getElementById('bin-type').value;
-    const capacity_liters = parseInt(document.getElementById('bin-capacity').value) || 240;
-    const coordsStr = document.getElementById('bin-coords').value;
-    const coords = coordsStr.split(',').map(s => parseFloat(s.trim()));
-    const code = document.getElementById('bin-custom-code').value.trim() || undefined;
-
-    const btn = document.getElementById('btn-submit-bin');
-    if (btn) btn.disabled = true;
-    try {
-      const res = await api('/admin/bins', {
-        method: 'POST',
-        body: JSON.stringify({
-          name, bin_type, capacity_liters,
-          lat: coords[0], lon: coords[1],
-          code
-        })
-      });
-      closeBinModal();
-      document.getElementById('bin-name').value = '';
-      document.getElementById('bin-custom-code').value = '';
-      await refresh();
-      if (res.bin) {
-        openQrModal(res.bin);
-      }
-    } catch (err) {
-      alert(err.message || 'هەڵەیەک ڕوویدا لە کاتی دروستکردنی تەنەکەکە');
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  });
-}
-
-// QR View & Print Modal
-const qrModal = document.getElementById('qr-view-modal');
-const qmImg = document.getElementById('qm-img');
-const qmCode = document.getElementById('qm-code');
-const qmTitle = document.getElementById('qm-title');
-const qmDesc = document.getElementById('qm-desc');
-const qmDownload = document.getElementById('qm-download-sticker');
-const qmPrint = document.getElementById('qm-print');
-
-function closeQrModal() {
-  if (qrModal) qrModal.hidden = true;
-}
-document.getElementById('close-qr-modal')?.addEventListener('click', closeQrModal);
-document.getElementById('btn-close-qr')?.addEventListener('click', closeQrModal);
-
-function openQrModal(bin) {
-  if (!qrModal) return;
-  qmCode.textContent = bin.code;
-  qmTitle.textContent = `کۆدی QR - ${bin.name}`;
-  const typeInfo = BIN_TYPES_INFO[bin.bin_type] || BIN_TYPES_INFO.general;
-  qmDesc.textContent = `${typeInfo.title} · ${toKu(bin.capacity_liters)} لیتر ${bin.neighbourhood_name ? `· ${bin.neighbourhood_name}` : ''}`;
-  qmImg.src = bin.qr_data_url || bin.qr_code_data;
-  qmDownload.href = `/admin/bins/${bin.id}/sticker`;
-  qmDownload.setAttribute('download', `sticker-${bin.code}.png`);
-  qrModal.hidden = false;
-}
-
-if (qmPrint) {
-  qmPrint.addEventListener('click', () => {
-    const w = window.open('', '_blank', 'width=620,height=750');
-    if (!w) { window.print(); return; }
-    w.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl">
-      <head>
-        <title>چاپکردنی کۆدی QR - \${qmCode.textContent}</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 40px; margin: 0; background: #fff; }
-          .sticker { border: 4px dashed #0D5C3A; border-radius: 18px; padding: 32px; display: inline-block; max-width: 420px; box-sizing: border-box; }
-          h2 { margin: 0 0 6px; color: #0D5C3A; font-size: 22px; font-weight: 800; }
-          .subtitle { font-size: 15px; color: #444; margin: 0 0 16px; }
-          .code { font-family: monospace; font-size: 24px; font-weight: 800; background: #E8F5E9; color: #0D5C3A; padding: 8px 18px; border-radius: 8px; display: inline-block; margin: 14px 0; letter-spacing: 1.5px; border: 1px solid #C8E6C9; }
-          img { width: 260px; height: 260px; display: block; margin: 12px auto; }
-          .info { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0; }
-          .instruction { font-size: 13px; color: #666; margin-top: 14px; border-top: 1px solid #E0E0E0; padding-top: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="sticker">
-          <h2>شارەوانی سلێمانی</h2>
-          <div class="subtitle">پڕۆژەی گرین لێگاسی · پشکنینی فڕێدانی پاشماوە</div>
-          <img src="\${qmImg.src}" alt="QR Code">
-          <div class="code">\${qmCode.textContent}</div>
-          <div class="info">\${qmDesc.textContent}</div>
-          <div class="instruction">💡 هاوڵاتی بەڕێز: لە کاتی فڕێدانی پاشماوە لەم تەنەکەیە، ئەم کۆدە بە مۆبایلەکەت سکان بکە بۆ وەرگرتنی خاڵی سەوز (+١٥).</div>
-        </div>
-        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }<\/script>
-      </body>
-      </html>
-    `);
-    w.document.close();
-  });
-}
-
-// Global bin deletion handler
-document.addEventListener('click', async e => {
-  const delBtn = e.target.closest('[data-delete-bin]');
-  if (!delBtn) return;
-  const id = delBtn.dataset.deleteBin;
-  if (!confirm('ئایا دڵنیایت لە سڕینەوەی ئەم تەنەکەی خۆڵە؟ کۆدی QR کەشی لەکاردەکەوێت.')) return;
-  delBtn.disabled = true;
-  try {
-    await api(`/admin/bins/${id}`, { method: 'DELETE' });
-    refresh();
-  } catch (err) {
-    delBtn.disabled = false;
-    alert(err.message || 'هەڵە لە سڕینەوەی تەنەکە');
-  }
-});
-
-// ---- priority list: dirtiest and oldest first
-async function loadPriority() {
-  const rows = await api('/admin/reports');
-  const box = document.getElementById('priority');
-  if (!rows.length) { box.innerHTML = '<div class="empty">هیچ شوێنێکی کراوە نییە</div>'; return; }
-  box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>ڕیز</th><th>وێنە</th><th>پیسی</th><th>پاشماوە</th>
-    <th>تەمەن</th><th>پشتڕاستکردنەوە</th><th>دۆخ</th><th>وەسف</th></tr></thead><tbody>` +
-    rows.map((r, i) => `<tr><td>${toKu(i + 1)}</td><td><img src="${esc(r.photo_url)}" alt=""></td>
-      <td>${levelPill(r.dirtiness)}</td><td>${toKu(r.litter_count)}</td>
-      <td>${toKu(Math.round(r.age_hours))} کاتژمێر</td><td>${toKu(r.confirmations)}</td>
-      <td>${STATUS[r.status] || esc(r.status)}</td><td class="desc">${esc(r.description)}</td></tr>`).join('') +
-    '</tbody></table></div>';
-}
-
-// ---- cleanup log and review queue: before and after side by side
-function cleanupCard(c, withActions) {
-  const when = new Date(c.created_at).toLocaleString('en-GB');
-  const after = c.litter_count_after == null ? '—' : toKu(c.litter_count_after);
-  return `<article class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <strong>شوێنی ${toKu(c.report_id)} · ${esc(c.cleaner)}
-        <span class="trust ${c.cleaner_trust < 0 ? 'low' : ''}" title="متمانەی پاککەرەوە">متمانە ${signed(c.cleaner_trust)}</span></strong>
-      <span class="verdict ${esc(c.verdict)}">${VERDICT[c.verdict] || esc(c.verdict)}</span></div>
-    <div class="pair">
-      <figure><img src="${esc(c.before_url)}" alt="پێش"><figcaption>پێش · ${toKu(c.litter_count_before ?? 0)} پاشماوە</figcaption></figure>
-      <figure><img src="${esc(c.after_url || '')}" alt="دوا"><figcaption>دوا · ${after} پاشماوە</figcaption></figure>
+<!-- ============================================================ dialogs -->
+<dialog class="modal" id="pin-dialog" aria-labelledby="pin-dialog-title">
+  <form>
+    <div class="modal-head"><div><h3 id="pin-dialog-title" data-t="newPin"></h3><p data-t="newPinSub"></p></div>
+      <button class="btn btn-ghost btn-icon btn-sm" type="button" data-close data-t-aria="close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body form-grid">
+      <div class="field"><span data-t="pinType"></span>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="category" value="tree_planting" checked><div><span class="emoji">🌱</span><strong data-t="pinTypes.tree_planting.0"></strong><small data-t="pinTypes.tree_planting.2"></small></div></label>
+          <label class="choice"><input type="radio" name="category" value="cleanup_target"><div><span class="emoji">⚠️</span><strong data-t="pinTypes.cleanup_target.0"></strong><small data-t="pinTypes.cleanup_target.2"></small></div></label>
+          <label class="choice"><input type="radio" name="category" value="watering_point"><div><span class="emoji">💧</span><strong data-t="pinTypes.watering_point.0"></strong><small data-t="pinTypes.watering_point.2"></small></div></label>
+        </div></div>
+      <label class="field"><span data-t="pinTitle"></span><input class="input" name="title" required maxlength="160" data-t-placeholder="pinTitleHint"></label>
+      <label class="field"><span data-t="pinDesc"></span><textarea class="textarea" name="description" required maxlength="1000" data-t-placeholder="pinDescHint"></textarea></label>
+      <div class="form-row">
+        <label class="field"><span data-t="coords"></span><input class="input num" name="coords" readonly></label>
+        <label class="field"><span data-t="target"></span><input class="input num" name="target" type="number" min="1" value="20"></label>
+        <label class="field"><span data-t="reward"></span><input class="input num" name="reward" type="number" min="5" step="5" value="50"></label>
+      </div>
+      <input type="hidden" name="lat"><input type="hidden" name="lon">
+      <label class="check"><input type="checkbox" name="notify" checked><span data-t="notify"></span></label>
     </div>
-    <div class="muted">${esc(c.reason)}</div>
-    <div class="muted" style="direction:ltr;text-align:right;font-size:12px">${esc(when)}</div>
-    ${withActions ? `<div class="actions"><button class="primary" data-review="${c.id}" data-decision="approve">پەسەندکردن</button>
-       <button class="danger" data-review="${c.id}" data-decision="reject">ڕەتکردنەوە</button></div>` : ''}
-  </article>`;
-}
+    <div class="modal-foot"><button class="btn btn-secondary" type="button" data-close data-t="cancel"></button>
+      <button class="btn btn-primary" type="submit" data-t="publish"></button></div>
+  </form>
+</dialog>
 
-async function loadLog() {
-  const rows = await api('/admin/cleanups');
-  document.getElementById('log').innerHTML = rows.length
-    ? `<div class="cards">${rows.map(c => cleanupCard(c, false)).join('')}</div>`
-    : '<div class="empty">هێشتا هیچ پاککردنەوەیەک نییە</div>';
-}
+<dialog class="modal" id="bin-dialog" aria-labelledby="bin-dialog-title">
+  <form>
+    <div class="modal-head"><div><h3 id="bin-dialog-title" data-t="newBin"></h3><p data-t="newBinSub"></p></div>
+      <button class="btn btn-ghost btn-icon btn-sm" type="button" data-close data-t-aria="close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body form-grid">
+      <label class="field"><span data-t="binName"></span><input class="input" name="name" required maxlength="120" data-t-placeholder="binNameHint"></label>
+      <div class="form-row">
+        <label class="field"><span data-t="binType"></span><select class="select" name="bin_type">
+          <option value="general" data-t="binTypes.general.0"></option><option value="recycle" data-t="binTypes.recycle.0"></option>
+          <option value="organic" data-t="binTypes.organic.0"></option><option value="glass_metal" data-t="binTypes.glass_metal.0"></option></select></label>
+        <label class="field"><span data-t="capacity"></span><select class="select" name="capacity">
+          <option value="240">٢٤٠</option><option value="660">٦٦٠</option><option value="1100">١١٠٠</option></select></label>
+      </div>
+      <div class="form-row">
+        <label class="field"><span data-t="coords"></span><input class="input num" name="coords" readonly></label>
+        <div class="field"><span>&nbsp;</span><button class="btn btn-secondary" type="button" data-pick><svg class="icon sm"><use href="#i-pin"/></svg><span data-t="pickOnMap"></span></button></div>
+      </div>
+      <label class="field"><span data-t="customCode"></span><input class="input num" name="code" maxlength="40" data-t-placeholder="customCodeHint" style="text-transform:uppercase"></label>
+      <input type="hidden" name="lat"><input type="hidden" name="lon">
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" type="button" data-close data-t="cancel"></button>
+      <button class="btn btn-primary" type="submit" data-t="saveQr"></button></div>
+  </form>
+</dialog>
 
-async function loadReview() {
-  const rows = (await api('/admin/cleanups?verdict=review')).filter(c => !c.reviewed_at);
-  document.getElementById('review-count').textContent = toKu(rows.length);
-  document.getElementById('review').innerHTML = rows.length
-    ? `<div class="cards">${rows.map(c => cleanupCard(c, true)).join('')}</div>`
-    : '<div class="empty">هیچ شتێک چاوەڕوانی پشکنین نییە</div>';
-}
+<dialog class="modal" id="qr-dialog" aria-labelledby="qr-title">
+  <div class="modal-head"><div><h3 id="qr-title"></h3><p data-t="qr"></p></div>
+    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-close data-t-aria="close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <div class="modal-body qr-view">
+    <img id="qr-img" alt="QR">
+    <span class="code" id="qr-code" style="font-size:18px"></span>
+    <p class="muted small" id="qr-desc"></p>
+    <p class="note green"><svg class="icon sm"><use href="#i-info"/></svg><span data-t="qrPrintHint"></span></p>
+  </div>
+  <div class="modal-foot"><button class="btn btn-secondary" type="button" data-close data-t="close"></button>
+    <button class="btn btn-secondary" type="button" data-action="qr-print"><svg class="icon sm"><use href="#i-printer"/></svg><span data-t="print"></span></button>
+    <button class="btn btn-primary" type="button" data-action="qr-sticker"><svg class="icon sm"><use href="#i-download"/></svg><span data-t="stickerDownload"></span></button></div>
+</dialog>
 
-document.getElementById('review').addEventListener('click', async e => {
-  const btn = e.target.closest('[data-review]');
-  if (!btn) return;
-  btn.disabled = true;
-  await api(`/admin/cleanups/${btn.dataset.review}/review`, { method: 'POST',
-    body: JSON.stringify({ decision: btn.dataset.decision }) });
-  refresh();
-});
+<dialog class="modal wide" id="participants-dialog" aria-labelledby="pm-title">
+  <div class="modal-head"><div><h3 id="pm-title"></h3><p id="pm-sub"></p></div>
+    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-close data-t-aria="close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <div class="modal-body" id="pm-body"></div>
+  <div class="modal-foot"><button class="btn btn-secondary" type="button" data-close data-t="close"></button></div>
+</dialog>
 
-// ---- points shop vouchers: staff check the code, then mark the reward as handed over. A voucher works
-// once, so the same code (or a screenshot of it) shown again is refused.
-const stamp = iso => `<span class="voucher">${esc(new Date(iso).toLocaleString('en-GB'))}</span>`;
+<dialog class="modal" id="confirm-dialog" aria-labelledby="confirm-title">
+  <form method="dialog">
+    <div class="modal-head"><h3 id="confirm-title"></h3></div>
+    <div class="modal-body"><p id="confirm-message"></p></div>
+    <div class="modal-foot"><button class="btn btn-secondary" value="cancel" data-t="cancel"></button><button id="confirm-ok" value="ok"></button></div>
+  </form>
+</dialog>
 
-async function loadVouchers() {
-  const rows = await api('/admin/redemptions');
-  document.getElementById('vouchers').innerHTML = rows.length
-    ? `<div class="table-wrap"><table><thead><tr><th>کۆد</th><th>خەڵات</th><th>خاڵ</th><th>هاوڵاتی</th>
-        <th>مۆبایل</th><th>کات</th><th>ڕادەستکردن</th></tr></thead><tbody>` +
-      rows.map(r => `<tr><td><span class="voucher">${esc(r.voucher)}</span></td><td>${esc(r.reward_name)}</td>
-        <td>${toKu(r.cost)}</td><td>${esc(r.name)}</td><td><span class="voucher">${esc(r.phone)}</span></td>
-        <td>${stamp(r.created_at)}</td>
-        <td>${r.honoured_at ? `<span class="verdict verified">ڕادەستکرا</span> ${stamp(r.honoured_at)}`
-          : `<button class="primary small" data-honour="${esc(r.id)}" data-voucher="${esc(r.voucher)}">ڕادەستکردن</button>`}</td>
-        </tr>`).join('') +
-      '</tbody></table></div>'
-    : '<div class="empty">هێشتا کەس خەڵاتی وەرنەگرتووە</div>';
-}
+<dialog class="modal wide lightbox" id="image-dialog">
+  <div class="modal-head"><p id="image-dialog-caption"></p>
+    <button class="btn btn-ghost btn-icon btn-sm" type="button" data-close data-t-aria="close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <div class="modal-body"><img id="image-dialog-img" alt=""></div>
+</dialog>
 
-document.getElementById('vouchers').addEventListener('click', async e => {
-  const btn = e.target.closest('[data-honour]');
-  if (!btn) return;
-  btn.disabled = true;                      // a double tap sends one request
-  const note = document.getElementById('voucher-note');
-  let data;
-  try {
-    data = await api(`/admin/redemptions/${btn.dataset.honour}/honour`, { method: 'POST' });
-  } catch (err) { btn.disabled = false; return; }   // the login form opens on auth errors
-  // 409 voucher_used: already handed over, e.g. from another screen; the server's message says so
-  note.innerHTML = `<span class="voucher">${esc(btn.dataset.voucher)}</span> — ` +
-    esc(data.ok ? 'خەڵاتەکە ڕادەستکرا' : (data.message || data.error));
-  note.classList.toggle('bad', !data.ok);
-  loadVouchers().catch(() => {});
-});
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
-// ---- households and businesses: staff check each one before it counts (a rejection's reason shows in
-// the owner's app), then credit verified ones a monthly amount. The 10-second refresh redraws these two
-// tables only when their data changed and nobody is typing in them, so a reason or an amount being
-// typed is never wiped.
-const KIND = { household: 'ماڵ', business: 'شوێنی بازرگانی' };
-const PLACE_STATUS = { pending: ['چاوەڕێی پەسەندکردن', 'review'], verified: ['پەسەندکراو', 'verified'],
-                       rejected: ['ڕەتکراوە', 'rejected'] };
-const dinar = n => toKu(Number(n).toLocaleString('en-US')) + ' دینار';
-const typing = box => (box.contains(document.activeElement) && document.activeElement.matches('input, select'))
-  || !!box.querySelector('[data-dirty]') || !!box.querySelector('.reject-form:not([hidden])');
-const osm = p => `https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}`;
-
-function say(id, message, bad) {
-  const note = document.getElementById(id);
-  note.textContent = message || '';
-  note.classList.toggle('bad', !!bad);
-}
-
-let lastPlaces = '';
-async function loadPlaces() {
-  const box = document.getElementById('places');
-  const status = document.getElementById('places-filter').value;
-  const rows = await api(`/admin/places?status=${status}`);
-  const key = status + JSON.stringify(rows);
-  if (key === lastPlaces || typing(box)) return;
-  lastPlaces = key;
-  box.innerHTML = rows.length
-    ? `<div class="table-wrap"><table><thead><tr><th>جۆر</th><th>ناو</th><th>وردەکاری</th><th>گەڕەک</th>
-        <th>خاوەن</th><th>مۆبایل</th><th>مۆڵەت</th><th>تۆمارکراو</th><th>شوێن</th><th>دۆخ</th></tr></thead><tbody>` +
-      rows.map(p => {
-        const [text, cls] = PLACE_STATUS[p.verification_status];
-        const detail = p.kind === 'household' ? `${toKu(p.residents_count)} کەس` : esc(p.category_name);
-        const buttons = (p.verification_status !== 'verified'
-            ? `<button class="primary small" data-decide="verify">پەسەندکردن</button>` : '') +
-          (p.verification_status !== 'rejected' ? `<button class="danger small" data-decide="reject">ڕەتکردنەوە</button>` : '');
-        return `<tr data-place="${esc(p.id)}" data-updated="${esc(p.updated_at)}">
-          <td>${KIND[p.kind]}</td>
-          <td><strong>${esc(p.name)}</strong>${p.address ? `<small>${esc(p.address)}</small>` : ''}</td>
-          <td>${detail}</td><td>${esc(p.neighbourhood || '—')}</td>
-          <td>${esc(p.owner_name)}${p.owner_email ? `<small class="voucher">${esc(p.owner_email)}</small>` : ''}</td>
-          <td><span class="voucher">${esc(p.owner_phone)}</span></td>
-          <td>${p.license_number ? `<span class="voucher">${esc(p.license_number)}</span>` : '—'}</td>
-          <td>${stamp(p.created_at)}</td>
-          <td><a href="${osm(p)}" target="_blank" rel="noopener noreferrer">نەخشە</a></td>
-          <td><span class="verdict ${cls}">${text}</span>
-            ${p.rejection_reason ? `<small>${esc(p.rejection_reason)}</small>` : ''}
-            <div class="row-actions">${buttons}</div>
-            <form class="row-form reject-form" hidden>
-              <input name="reason" maxlength="500" placeholder="هۆکار (خاوەنەکەی دەیبینێت)" required>
-              <button class="danger small">ناردن</button><button type="button" class="small" data-cancel>پاشگەزبوونەوە</button>
-            </form></td></tr>`;
-      }).join('') + '</tbody></table></div>'
-    : '<div class="empty">هیچ ماڵ یان شوێنێکی بازرگانی لەم بەشەدا نییە</div>';
-}
-
-async function decide(row, decision, reason) {
-  const data = await api(`/admin/places/${row.dataset.place}/review`, { method: 'POST',
-    body: JSON.stringify({ decision, reason, updated_at: row.dataset.updated }) });
-  say('places-note', data.error ? data.message : (decision === 'verify' ? 'پەسەندکرا' : 'ڕەتکرایەوە'), !!data.error);
-  lastPlaces = '';
-  row.querySelector('.reject-form').hidden = true;
-  await Promise.all([loadPlaces(), loadStats(), loadMoney()]);
-}
-
-document.getElementById('places-filter').addEventListener('change', () => { lastPlaces = ''; loadPlaces().catch(() => {}); });
-document.getElementById('places').addEventListener('click', e => {
-  const row = e.target.closest('[data-place]');
-  if (!row) return;
-  if (e.target.matches('[data-decide="verify"]')) { e.target.disabled = true; decide(row, 'verify').catch(() => {}); }
-  if (e.target.matches('[data-decide="reject"]')) {
-    const form = row.querySelector('.reject-form');
-    form.hidden = false;
-    form.reason.focus();
-  }
-  if (e.target.matches('[data-cancel]')) {
-    const form = row.querySelector('.reject-form');
-    form.reset();
-    form.hidden = true;
-  }
-});
-document.getElementById('places').addEventListener('submit', e => {
-  e.preventDefault();
-  const reason = e.target.reason.value.trim();
-  if (!reason) return;
-  e.target.querySelector('button').disabled = true;
-  decide(e.target.closest('[data-place]'), 'reject', reason).catch(() => {});
-});
-
-// monthly money: one row per verified place; already credited months show the amount instead of a field
-const monthField = document.getElementById('money-month');
-let lastMoney = '';
-async function loadMoney() {
-  const box = document.getElementById('money');
-  const data = await api('/admin/payments' + (monthField.value ? `?month=${monthField.value}` : ''));
-  if (data.error) { say('money-note', data.message, true); return; }
-  if (!monthField.value) { monthField.value = data.month; monthField.max = data.month; }   // the server's month
-  for (const kind of ['household', 'business']) {
-    const field = document.getElementById(`money-${kind}`);
-    if (!field.value) field.value = data.defaults[kind];
-  }
-  const key = JSON.stringify(data);
-  if (key === lastMoney || typing(box)) return;
-  lastMoney = key;
-  box.innerHTML = data.places.length
-    ? `<div class="table-wrap"><table><thead><tr><th>جۆر</th><th>ناو</th><th>خاوەن</th><th>مۆبایل</th><th>گەڕەک</th>
-        <th>پارەی ئەم مانگە</th></tr></thead><tbody>` +
-      data.places.map(p => `<tr data-place="${esc(p.id)}"><td>${KIND[p.kind]}</td><td>${esc(p.name)}</td>
-        <td>${esc(p.owner_name)}</td><td><span class="voucher">${esc(p.owner_phone)}</span></td>
-        <td>${esc(p.neighbourhood || '—')}</td>
-        <td>${p.paid_iqd !== null ? `<span class="verdict verified">${dinar(p.paid_iqd)}</span>`
-          : `<div class="row-form"><input type="number" min="1" step="1000" value="${esc(data.defaults[p.kind])}">
-             <button class="primary small" data-credit>تۆمارکردن</button></div>`}</td></tr>`).join('') +
-      `<tr><td colspan="5"><strong>کۆی ئەم مانگە</strong></td><td><strong>${dinar(data.total_iqd)}</strong></td></tr>` +
-      '</tbody></table></div>'
-    : '<div class="empty">هێشتا هیچ ماڵ یان شوێنێکی پەسەندکراو نییە</div>';
-}
-
-async function afterMoney(data, done) {
-  say('money-note', data.error ? data.message : done, !!data.error);
-  lastMoney = '';
-  await loadMoney();
-}
-
-monthField.addEventListener('change', () => { lastMoney = ''; say('money-note', ''); loadMoney().catch(() => {}); });
-document.getElementById('money').addEventListener('input', e => e.target.setAttribute('data-dirty', ''));
-document.getElementById('money').addEventListener('click', async e => {
-  if (!e.target.matches('[data-credit]')) return;
-  const row = e.target.closest('[data-place]');
-  e.target.disabled = true;
-  const amount = parseInt(row.querySelector('input').value, 10);
-  row.querySelector('input').removeAttribute('data-dirty');
-  try {
-    const data = await api(`/admin/places/${row.dataset.place}/payments`, { method: 'POST',
-      body: JSON.stringify({ month: monthField.value, amount_iqd: amount }) });
-    await afterMoney(data, `${dinar(amount)} تۆمارکرا`);
-  } catch (err) { e.target.disabled = false; }
-});
-document.getElementById('money-all').addEventListener('click', async e => {
-  const household = parseInt(document.getElementById('money-household').value, 10);
-  const business = parseInt(document.getElementById('money-business').value, 10);
-  if (!confirm(`پارەی ${toKu(monthField.value)} بۆ هەموو ماڵ و شوێنە پەسەندکراوەکان کە هێشتا وەریان نەگرتووە تۆمار بکرێت؟\n` +
-               `ماڵ: ${dinar(household)} · بازرگانی: ${dinar(business)}`)) return;
-  e.target.disabled = true;
-  try {
-    const data = await api('/admin/payments', { method: 'POST',
-      body: JSON.stringify({ month: monthField.value, household_iqd: household, business_iqd: business }) });
-    await afterMoney(data, `بۆ ${toKu(data.credited)} شوێن تۆمارکرا`);
-  } finally { e.target.disabled = false; }
-});
-
-// ---- league: neighbourhoods by points (the app's /leaderboard rule), spots counted inside each boundary
-const rankOf = (rows, i) => 1 + rows.filter(r => r.points > rows[i].points).length;   // equal points, equal rank
-
-function renderLeague(hoods) {
-  const box = document.getElementById('league-hoods');
-  if (!hoods.length) { box.innerHTML = '<div class="empty">هیچ گەڕەکێک تۆمار نەکراوە</div>'; return; }
-  const top = Math.max(0, ...hoods.map(h => h.points));
-  // without a boundary the spot counts are unknown, not zero
-  const count = (h, n) => h.boundary ? toKu(n) : '<span class="muted" title="سنووری ئەم گەڕەکە بارنەکراوە">—</span>';
-  box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>ڕیز</th><th>گەڕەک</th><th>خاڵ</th><th>هاوڵاتی</th>
-    <th>ماڵ</th><th>شوێنی کراوە</th><th>پاککراوە</th></tr></thead><tbody>` +
-    hoods.map((h, i) => {
-      const rank = rankOf(hoods, i);
-      return `<tr><td><span class="rank ${rank === 1 && h.points > 0 ? 'first' : ''}">${toKu(rank)}</span></td>
-        <td>${esc(h.name)}</td>
-        <td class="pts-cell"><strong>${toKu(h.points)}</strong>${h.points > 0
-          ? `<div class="bar" style="width:${(100 * h.points / top).toFixed(1)}%"></div>` : ''}</td>
-        <td>${toKu(h.citizens)}</td><td>${toKu(h.households)}</td><td>${count(h, h.open)}</td>
-        <td>${count(h, h.cleaned)}</td></tr>`;
-    }).join('') +
-    '</tbody></table></div>' +
-    (hoods.some(h => !h.boundary)
-      ? '<p class="note">شوێنەکان بەپێی سنووری گەڕەک دەژمێردرێن؛ «—» واتە سنووری ئەو گەڕەکە هێشتا بارنەکراوە.</p>' : '');
-}
-
-async function loadHoods() {
-  const hoods = await api('/admin/neighbourhoods');
-  drawAreas(hoods);
-  fitOnce();
-  renderLeague(hoods);
-}
-
-async function loadPeople() {
-  const people = (await api('/leaderboard')).citizens.filter(p => p.points > 0);
-  document.getElementById('league-people').innerHTML = people.length
-    ? '<ol class="people">' + people.map((p, i) => {
-        const rank = rankOf(people, i);
-        return `<li><span class="rank ${rank === 1 ? 'first' : ''}">${toKu(rank)}</span>
-          <span class="who">${esc(p.name)}${p.neighbourhood ? `<small>${esc(p.neighbourhood)}</small>` : ''}</span>
-          <span class="pts">${toKu(p.points)} خاڵ</span></li>`;
-      }).join('') + '</ol>'
-    : '<div class="empty">هێشتا هیچ هاوڵاتییەک خاڵی وەرنەگرتووە</div>';
-}
-
-// ---- totals
-async function loadStats() {
-  const s = await api('/admin/stats');
-  const tiles = [['reported', 'شوێنی ڕاپۆرتکراو'], ['open', 'کراوە'], ['cleaned', 'پاککراوە'],
-                 ['litter_removed', 'پاشماوەی لابراو'], ['needs_review', 'چاوەڕوانی پشکنین'], ['citizens', 'هاوڵاتی'],
-                 ['households', 'ماڵی پەسەندکراو'], ['businesses', 'بازرگانیی پەسەندکراو'],
-                 ['pending_places', 'ماڵ و بازرگانیی چاوەڕێ']];
-  document.getElementById('stats').innerHTML = tiles.map(([k, label]) =>
-    `<div class="stat"><div class="num">${toKu(s[k])}</div><div class="label">${label}</div></div>`).join('');
-  document.getElementById('places-count').textContent = toKu(s.pending_places);
-}
-
-async function refresh() {
-  if (!token) { showLogin(); return; }
-  try {
-    await Promise.all([loadStats(), loadMap(), loadAdminPins(), loadAdminBins(), loadHoods(), loadPeople(), loadPriority(), loadLog(),
-                       loadReview(), loadVouchers(), loadPlaces(), loadMoney()]);
-  }
-  catch (e) { /* the login form opens on auth errors */ }
-}
-
-refresh();
-setInterval(refresh, 10000);
-</script>
+<script src="/static/leaflet/leaflet.js"></script>
+<script type="module" src="/static/dashboard/app.js"></script>
 </body>
 </html>

@@ -80,7 +80,7 @@ def review(cleanup_id):
     decision = (request.get_json(silent=True) or {}).get("decision")
     cleanup = query("SELECT * FROM cleanups WHERE id = %s", (cleanup_id,), one=True)
     if cleanup is None or cleanup["verdict"] != "review" or cleanup["reviewed_at"] is not None:
-        return jsonify({"error": "not_reviewable"}), 409
+        return error("not_reviewable", 409)
     if decision == "approve":
         query("""UPDATE cleanups SET verdict = 'verified', reason_code = 'approved_by_staff',
                  reason = %s, reviewed_by = %s, reviewed_at = now() WHERE id = %s""",
@@ -98,7 +98,7 @@ def review(cleanup_id):
         points.revoke_cleanup(cleanup_id)
         points.adjust_trust(cleanup["cleaner_id"], "rejected_by_staff")
     else:
-        return jsonify({"error": "bad_decision"}), 400
+        return error("bad_decision", 400)
     return jsonify({"ok": True, "decision": decision})
 
 
@@ -117,7 +117,11 @@ def stats():
              (SELECT count(*) FROM users WHERE role = 'citizen') AS citizens,
              (SELECT count(*) FROM places WHERE kind = 'household' AND verification_status = 'verified') AS households,
              (SELECT count(*) FROM places WHERE kind = 'business' AND verification_status = 'verified') AS businesses,
-             (SELECT count(*) FROM places WHERE verification_status = 'pending') AS pending_places""",
+             (SELECT count(*) FROM places WHERE verification_status = 'pending') AS pending_places,
+             (SELECT count(*) FROM trash_bins) AS bins_total,
+             (SELECT count(*) FROM trash_bins WHERE status = 'full') AS bins_full,
+             (SELECT count(*) FROM pins WHERE status = 'active') AS pins_active,
+             (SELECT count(*) FROM point_ledger WHERE kind = 'redeem' AND honoured_at IS NULL) AS vouchers_waiting""",
         one=True))
 
 
@@ -275,7 +279,7 @@ def list_admin_pins():
 def get_pin_participants(pin_id):
     pin = query("SELECT id, title, category, target_count FROM pins WHERE id = %s", (pin_id,), one=True)
     if not pin:
-        return jsonify({"error": "not_found"}), 404
+        return error("not_found", 404)
     rows = query(
         """SELECT pr.id, pr.user_id, pr.notes, pr.status, pr.created_at,
                   u.name AS user_name, u.phone AS user_phone,
@@ -312,7 +316,7 @@ def delete_pin(pin_id):
 def toggle_pin(pin_id):
     pin = query("SELECT status FROM pins WHERE id = %s", (pin_id,), one=True)
     if not pin:
-        return jsonify({"error": "not_found"}), 404
+        return error("not_found", 404)
     new_status = "completed" if pin["status"] == "active" else "active"
     query("UPDATE pins SET status = %s WHERE id = %s", (new_status, pin_id))
     return jsonify({"ok": True, "status": new_status})
@@ -422,7 +426,7 @@ def download_bin_sticker(bin_id):
            WHERE b.id = %s""",
         (bin_id,), one=True)
     if not b:
-        return jsonify({"error": "not_found"}), 404
+        return error("not_found", 404)
 
     png_bytes = generate_sticker_png(
         b["code"],
@@ -451,7 +455,7 @@ def update_bin_status(bin_id):
     data = request.get_json(silent=True) or {}
     new_status = data.get("status")
     if new_status not in ("active", "full", "maintenance"):
-        return jsonify({"error": "invalid_status"}), 400
+        return error("invalid_status", 400)
     query("UPDATE trash_bins SET status = %s WHERE id = %s", (new_status, bin_id))
     return jsonify({"ok": True, "status": new_status})
 

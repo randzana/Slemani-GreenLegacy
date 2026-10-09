@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../data/plant_data.dart';
+import '../location.dart';
 import '../notification_service.dart';
 import '../strings.dart';
 import '../theme.dart';
@@ -194,7 +195,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (_) {}
 
     if (!mounted) return;
-    final codeCtrl = TextEditingController(text: bins.isNotEmpty ? bins.first['code'] : 'GL-BIN-001');
     bool busy = false;
     String? errorMsg;
 
@@ -230,16 +230,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: const Color(0xFF10B981).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF059669), size: 28),
+                    child: const Icon(Icons.delete_sweep_rounded, color: Color(0xFF059669), size: 28),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('فڕێدانی پاشماوە و سکانی تەنەکە',
+                        Text('فڕێدانی پاشماوە و خاڵی خێرا',
                             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                        Text('پشکنینی کۆدی سەر تەنەکەی شارەوانی',
+                        Text('بێ پێویستی بە کۆدی QR؛ پاشماوەکە بسەلمێنە و خاڵ وەربگرە',
                             style: TextStyle(color: Colors.grey, fontSize: 13)),
                       ],
                     ),
@@ -255,52 +255,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              const Text('کۆدی QR ی سەر تەنەکەکە:',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: codeCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  hintText: 'نموونە: GL-BIN-001',
-                  prefixIcon: const Icon(Icons.qr_code_rounded, color: Color(0xFF10B981)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                ),
-              ),
-              if (bins.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('تەنەکەکانی نزیکت:',
-                    style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+              const SizedBox(height: 20),
+
+              // Option 1: Take Photo with AI
+              InkWell(
+                onTap: busy
+                    ? null
+                    : () {
+                        Navigator.of(ctx).pop();
+                        widget.onOpenReport();
+                      },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
                   child: Row(
                     children: [
-                      for (final b in bins)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: ActionChip(
-                            avatar: const Icon(Icons.delete_outline_rounded, size: 16),
-                            label: Text('${b['code']} (${b['name']})'),
-                            onPressed: () {
-                              setSheetState(() {
-                                codeCtrl.text = b['code'] ?? '';
-                              });
-                            },
-                          ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'گرتنی وێنەی پاشماوە بە کامێرا',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'ژیریی دەستکرد پاشماوەکە دەناسێتەوە و یەکسەر خاڵت پێدەدات',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF10B981)),
                     ],
                   ),
                 ),
-              ],
-              if (errorMsg != null) ...[
-                const SizedBox(height: 10),
-                Text(errorMsg!, style: const TextStyle(color: Colors.red, fontSize: 13)),
-              ],
-              const SizedBox(height: 20),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Option 2: Quick Disposal
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -310,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('پشکنین و وەرگرتنی خاڵ (+١٥)',
+                      : const Text('فڕێدانی خێرا لە نزیکترین تەنەکە (+١٥ خاڵ)',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
@@ -321,7 +329,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onPressed: busy
                       ? null
                       : () async {
-                          final code = codeCtrl.text.trim();
                           final messenger = ScaffoldMessenger.of(context);
                           final navigator = Navigator.of(ctx);
                           setSheetState(() {
@@ -329,13 +336,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             errorMsg = null;
                           });
                           try {
-                            final res = await Api.instance.verifyDisposal(code);
+                            double? lat;
+                            double? lon;
+                            try {
+                              final pos = await currentPosition();
+                              lat = pos.latitude;
+                              lon = pos.longitude;
+                            } catch (_) {}
+
+                            final res = await Api.instance.verifyDisposal(lat: lat, lon: lon);
                             navigator.pop();
                             widget.refresh.value++;
                             _load();
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text(res['message']?.toString() ?? 'فڕێدانی پاشماوە بە سەرکەوتوویی پشکنرا!'),
+                                content: Text(res['message']?.toString() ?? 'فڕێدانی پاشماوە بە سەرکەوتوویی تۆمارکرا!'),
                                 backgroundColor: const Color(0xFF10B981),
                                 duration: const Duration(seconds: 4),
                               ),
@@ -349,6 +364,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         },
                 ),
               ),
+
+              if (errorMsg != null) ...[
+                const SizedBox(height: 10),
+                Text(errorMsg!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ],
+
+              if (bins.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Text('تەنەکەکانی نزیکت لە گەڕەک:',
+                    style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final b in bins)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Chip(
+                            avatar: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFF059669)),
+                            label: Text('${b['name'] ?? b['code']}'),
+                            backgroundColor: Colors.grey.shade100,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -367,19 +411,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pending = (_user?['pending'] as num?)?.toInt() ?? 0;
     final totalPoints = points + pending;
 
-    String levelName = S.levelSeed;
     double progress = (totalPoints / 200).clamp(0.0, 1.0);
     int nextGoal = 200;
     if (totalPoints >= 1000) {
-      levelName = S.levelEarthGuardian;
       progress = 1.0;
       nextGoal = 1000;
     } else if (totalPoints >= 500) {
-      levelName = S.levelEcoTeacher;
       progress = ((totalPoints - 500) / 500).clamp(0.0, 1.0);
       nextGoal = 1000;
     } else if (totalPoints >= 200) {
-      levelName = S.levelGreenWarrior;
       progress = ((totalPoints - 200) / 300).clamp(0.0, 1.0);
       nextGoal = 500;
     }
@@ -534,18 +574,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              S.levelOf(levelName),
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                            Text(
-                              '${S.digits(totalPoints)} / ${S.digits(nextGoal)}',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: Text(
+                            '${S.digits(totalPoints)} / ${S.digits(nextGoal)}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         ClipRRect(
@@ -655,7 +689,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 28),
+                            child: const Icon(Icons.delete_sweep_rounded, color: Colors.white, size: 28),
                           ),
                           const SizedBox(width: 14),
                           const Expanded(
@@ -665,7 +699,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      'فڕێدانی پاشماوە و سکانی QR',
+                                      'فڕێدانی پاشماوە و خاڵی خێرا',
                                       style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                                     ),
                                     SizedBox(width: 8),
@@ -681,7 +715,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'کۆدی سەر تەنەکەی خۆڵ سکان بکە بۆ وەرگرتنی خاڵ',
+                                  'وێنەی پاشماوە بگرە یان فڕێی بدە؛ بێ کۆدی QR خاڵەکەت یەکسەر وەربگرە',
                                   style: TextStyle(color: Colors.white70, fontSize: 12),
                                 ),
                               ],

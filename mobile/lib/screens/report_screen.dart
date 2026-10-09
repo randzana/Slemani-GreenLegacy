@@ -213,8 +213,8 @@ class _ResultCard extends StatelessWidget {
                   ),
                   Divider(color: Colors.grey.withValues(alpha: 0.2), height: 24),
                   _Row(
-                    S.pendingPoints,
-                    '+${S.digits(result['points_pending'] ?? 0)}',
+                    'خاڵی بەدەستهاتوو',
+                    '+${S.digits(result['points_awarded'] ?? result['points_pending'] ?? 0)}',
                     icon: Icons.stars_rounded,
                     highlight: true,
                   ),
@@ -244,11 +244,12 @@ class _ResultCard extends StatelessWidget {
               const SizedBox(height: 10),
             ],
             Text(
-              S.pendingNote,
+              'پاشماوەکە بە ژیریی دەستکرد پشکنرا و خاڵەکانت یەکسەر پێبەخشرا!',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: isDark ? Colors.white60 : kTextSecondary,
+                color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                 fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 28),

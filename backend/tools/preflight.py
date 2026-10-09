@@ -175,12 +175,19 @@ def load_model(cfg):
     return (OK, "بارکردنی مۆدێل", f"loaded and warmed up in {warm:.1f} s, then {photo * 1000:.0f} ms per photo")
 
 
+DASHBOARD_FILES = ("app.js", "core.js", "views.js", "map.js", "strings.js", "dashboard.css")
+
+
 def check_files():
     leaflet = ROOT / "app" / "static" / "leaflet"
     gone = [name for name in ("leaflet.js", "leaflet.css") if not (leaflet / name).is_file()]
+    dashboard = ROOT / "app" / "static" / "dashboard"
+    missing = [name for name in DASHBOARD_FILES if not (dashboard / name).is_file()]
     stickers = ROOT / "qr_stickers.png"
     return [(FAIL, "Leaflet", f"missing {', '.join(gone)} in {leaflet}: the dashboard map will not load")
             if gone else (OK, "Leaflet", "app/static/leaflet (works without internet)"),
+            (FAIL, "فایلەکانی داشبۆرد", f"missing {', '.join(missing)} in {dashboard}: the dashboard will not load")
+            if missing else (OK, "فایلەکانی داشبۆرد", "app/static/dashboard (works without internet)"),
             (OK, "ستیکەری QR", "qr_stickers.png") if stickers.is_file() else
             (WARN, "ستیکەری QR", "no qr_stickers.png: python tools/make_qr_stickers.py, then print it")]
 
@@ -284,6 +291,7 @@ def check_server(url, cfg, rehearsal=False):
         hoods = requests.get(f"{url}/neighbourhoods", timeout=5)      # /health does not touch the database
         dashboard = requests.get(f"{url}/dashboard", timeout=5)
         leaflet = requests.get(f"{url}/static/leaflet/leaflet.js", timeout=5)
+        dashboard_js = requests.get(f"{url}/static/dashboard/app.js", timeout=5)
         sim = requests.get(f"{url}/sim/report-photo", timeout=10)
     except requests.RequestException as exc:
         return [(FAIL, "سێرڤەر", f"{url}: {type(exc).__name__}, is run.py running?")]
@@ -299,8 +307,9 @@ def check_server(url, cfg, rehearsal=False):
                                                "with the server's DATABASE_URL (wipes the database)"))
     else:
         out.append((OK, "داتابەیسی سێرڤەر", f"GET /neighbourhoods 200, {len(listed)} neighbourhoods"))
-    out.append((OK if dashboard.status_code == 200 and leaflet.status_code == 200 else FAIL, "داشبۆرد",
-                f"GET /dashboard {dashboard.status_code}, leaflet.js {leaflet.status_code}"))
+    out.append((OK if dashboard.status_code == leaflet.status_code == dashboard_js.status_code == 200 else FAIL,
+                "داشبۆرد", f"GET /dashboard {dashboard.status_code}, leaflet.js {leaflet.status_code}, "
+                          f"dashboard/app.js {dashboard_js.status_code}"))
     # the server may have been started with other variables than this terminal has
     info = health.json() if healthy else {}
     if info.get("detector") == "colorblob":
