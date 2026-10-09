@@ -30,7 +30,6 @@ mobile/ios/
 # boilerplate that `flutter create` (setup_android.py / setup_ios.py) adds
 mobile/.gitignore
 mobile/README.md
-mobile/test/widget_test.dart
 mobile/*.iml
 .idea/
 .vscode/
