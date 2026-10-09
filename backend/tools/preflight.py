@@ -227,6 +227,29 @@ def check_email_codes(cfg):
     return out
 
 
+def check_google(cfg, http_get=requests.get):
+    """Sign in with Google: off, or set up so Android tokens are accepted and Google's keys reachable."""
+    from app.google_auth import CERTS_URL
+    ids, web = cfg["GOOGLE_CLIENT_IDS"], cfg["GOOGLE_SERVER_CLIENT_ID"]
+    if not ids:
+        return [(OK, "Google", "off (GOOGLE_CLIENT_IDS is empty): the app hides the Google button")]
+    if not web:
+        out = [(WARN, "Google", "GOOGLE_SERVER_CLIENT_ID is empty: Android cannot get a token for this server")]
+    elif web not in ids:
+        out = [(FAIL, "Google", "GOOGLE_SERVER_CLIENT_ID is not in GOOGLE_CLIENT_IDS: tokens issued for it "
+                                "would be refused")]
+    else:
+        out = [(OK, "Google", f"{len(ids)} client IDs accepted")]
+    try:
+        reachable = http_get(CERTS_URL, timeout=5).status_code == 200
+    except requests.RequestException:
+        reachable = False
+    out.append((OK, "کلیلەکانی Google", "reachable") if reachable else
+               (WARN, "کلیلەکانی Google", "cannot reach Google's keys: Google sign-in needs this laptop's "
+                                          "internet; email and password sign-up still work"))
+    return out
+
+
 def lan_addresses():
     """IPv4 addresses the phones can reach. The UDP connect sends nothing: it only asks the system
     which interface it would use, which on a hotspot is the hotspot one."""
@@ -314,7 +337,7 @@ def main(argv=None):
 
     checks = [lambda: check_database(cfg["DATABASE_URL"]), lambda: check_uploads(cfg["UPLOAD_DIR"]),
               lambda: check_detector(cfg, args.rehearsal, args.model), check_files,
-              lambda: check_settings(cfg, args.rehearsal), lambda: check_email_codes(cfg),
+              lambda: check_settings(cfg, args.rehearsal), lambda: check_email_codes(cfg), lambda: check_google(cfg),
               lambda: check_network(port)]
     if args.server:
         checks.append(lambda: check_server(args.server, cfg, args.rehearsal))

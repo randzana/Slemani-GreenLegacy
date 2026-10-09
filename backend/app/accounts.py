@@ -29,7 +29,8 @@ REVIEWED_FIELDS = {"household": ("name", "residents_count", "location"),
                    "business": ("name", "category", "license_number", "location")}
 NAME_MAX = 80
 MAX_ID = 2**31 - 1
-TAKEN = {"users_phone_key": "phone_taken", "users_email_key_unique": "email_taken"}
+TAKEN = {"users_phone_key": "phone_taken", "users_email_key_unique": "email_taken",
+         "user_identities_provider_subject_key": "google_already_linked"}
 
 PLACE_COLUMNS = """p.id, p.kind, p.name, p.address, p.residents_count, p.category, p.license_number,
     p.neighbourhood_id, n.name AS neighbourhood, p.verification_status, p.rejection_reason,
@@ -143,9 +144,11 @@ def validate_signup(data):
 
 # ---------------------------------------------------------------- writing
 
-def create_account(name, phone, password_hash, neighbourhood_id=None, email=None, email_key=None, places=()):
-    """Write a checked person and their checked places. (user, None), or (None, 'phone_taken' /
-    'email_taken') with nothing written at all."""
+def create_account(name, phone, password_hash, neighbourhood_id=None, email=None, email_key=None, places=(),
+                   google_sub=None):
+    """Write a checked person, their checked places and (signing up with Google) their Google identity.
+    (user, None), or (None, 'phone_taken' / 'email_taken' / 'google_already_linked') with nothing
+    written at all."""
     try:
         with savepoint():
             user = query(
@@ -156,6 +159,9 @@ def create_account(name, phone, password_hash, neighbourhood_id=None, email=None
                    RETURNING *""",
                 {"name": name, "phone": phone, "hash": password_hash, "hood": neighbourhood_id,
                  "email": email, "key": email_key}, one=True)
+            if google_sub:
+                query("""INSERT INTO user_identities (user_id, provider, subject, email, last_login_at)
+                         VALUES (%s, 'google', %s, %s, now())""", (user["id"], google_sub, email))
             for place in places:
                 _insert_place(user["id"], place)
             if user["neighbourhood_id"] is None and places:

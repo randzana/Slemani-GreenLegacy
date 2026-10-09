@@ -12,7 +12,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import accounts, emails, phones
 from .db import query
-from .strings import reason
+from .strings import CATEGORY_NAMES, reason
 
 bp = Blueprint("auth", __name__)
 
@@ -149,16 +149,41 @@ def find_login(who):
     return None
 
 
+def password_user(who, password):
+    """The account for this login and password, else None. A Google-only account has no password, so
+    no password opens it."""
+    user = find_login(who)
+    if user is None or not user["password_hash"] or not check_password_hash(user["password_hash"],
+                                                                               str(password or "")):
+        return None
+    return user
+
+
 @bp.post("/auth/login")
 def login():
     """{login, password}; old builds send {phone, password}."""
     data = json_body()
-    user = find_login(data.get("login") or data.get("email") or data.get("phone"))
-    # a Google-only account has no password, so no password opens it
-    if user is None or not user["password_hash"] or not check_password_hash(user["password_hash"],
-                                                                               str(data.get("password", ""))):
+    user = password_user(data.get("login") or data.get("email") or data.get("phone"), data.get("password"))
+    if user is None:
         return error("bad_login", 401)
     return jsonify({"token": make_token(user), "user": public_user(user)})
+
+
+@bp.get("/auth/config")
+def auth_config():
+    """What the app needs to draw sign-in and sign-up for this server; asked once the server address is
+    set. Nothing secret: a Google client ID is public by design (it ships inside every app build)."""
+    cfg = current_app.config
+    return jsonify({
+        "google": {"enabled": current_app.google_verifier is not None,
+                   "server_client_id": cfg["GOOGLE_SERVER_CLIENT_ID"] or None},
+        "otp": {"required": cfg["OTP_REQUIRED"], "length": cfg["OTP_LENGTH"],
+                "ttl_seconds": cfg["OTP_TTL_SECONDS"], "resend_seconds": cfg["OTP_RESEND_SECONDS"]},
+        "place_kinds": list(accounts.KINDS),
+        "business_categories": [{"code": c, "name": CATEGORY_NAMES[c]} for c in accounts.CATEGORIES],
+        "service_area": list(cfg["SERVICE_AREA_BBOX"]),          # min_lat, min_lon, max_lat, max_lon
+        "map_center": list(cfg["MAP_CENTER"]),
+    })
 
 
 @bp.get("/neighbourhoods")

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+import requests
 from werkzeug.serving import make_server
 
 from app import create_app
@@ -185,6 +186,24 @@ def test_email_code_settings():
         assert found["کۆدی ئیمەیڵ"][0] == FAIL, broken
     found = marks(preflight.check_email_codes({**smtp, "OTP_SENDER": "smtp", "OTP_PEPPER": "x", "OTP_REQUIRED": False}))
     assert found["ئیمەیڵی پێویست"][0] == WARN and "rehearsal" in found["ئیمەیڵی پێویست"][1]
+
+
+def test_google_settings():
+    def answers(status):
+        def get(url, timeout):
+            if status is None:
+                raise requests.ConnectionError("offline")
+            return type("Answer", (), {"status_code": status})()
+        return get
+    web, android = "web.apps.googleusercontent.com", "android.apps.googleusercontent.com"
+    found = marks(preflight.check_google({"GOOGLE_CLIENT_IDS": (), "GOOGLE_SERVER_CLIENT_ID": ""}, answers(None)))
+    assert found == {"Google": (OK, found["Google"][1])} and "off" in found["Google"][1]   # no network needed
+    ready = {"GOOGLE_CLIENT_IDS": (web, android), "GOOGLE_SERVER_CLIENT_ID": web}
+    assert {m for m, _ in marks(preflight.check_google(ready, answers(200))).values()} == {OK}
+    found = marks(preflight.check_google(ready, answers(None)))
+    assert found["کلیلەکانی Google"][0] == WARN and "internet" in found["کلیلەکانی Google"][1]
+    assert marks(preflight.check_google({**ready, "GOOGLE_SERVER_CLIENT_ID": "x"}, answers(200)))["Google"][0] == FAIL
+    assert marks(preflight.check_google({**ready, "GOOGLE_SERVER_CLIENT_ID": ""}, answers(200)))["Google"][0] == WARN
 
 
 def test_phone_url_uses_the_port():

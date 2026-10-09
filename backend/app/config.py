@@ -49,6 +49,11 @@ class Config:
     # A new account needs a verified email. 0 lets old app builds sign up without one: an offline
     # rehearsal only (preflight warns).
     OTP_REQUIRED = os.environ.get("OTP_REQUIRED", "1") != "0"
+    # Sign in with Google (app/google_auth.py); off while GOOGLE_CLIENT_IDS is empty. The IDs are the
+    # OAuth clients whose tokens are accepted (Web, Android, iOS; comma-separated). GOOGLE_SERVER_CLIENT_ID
+    # is the Web one: the app gets it from /auth/config and asks Google for tokens issued to it.
+    GOOGLE_CLIENT_IDS = tuple(c.strip() for c in os.environ.get("GOOGLE_CLIENT_IDS", "").split(",") if c.strip())
+    GOOGLE_SERVER_CLIENT_ID = os.environ.get("GOOGLE_SERVER_CLIENT_ID", "")
     # Households and businesses must be inside this box (min_lat,min_lon,max_lat,max_lon): roughly
     # Sulaimani governorate, so a pin dropped in the sea or a simulator's Cupertino is caught.
     SERVICE_AREA_BBOX = tuple(float(v) for v in os.environ.get("SERVICE_AREA_BBOX", "34.3,44.3,36.6,46.4").split(","))

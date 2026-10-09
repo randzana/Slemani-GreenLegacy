@@ -41,6 +41,13 @@ REASONS = {
     "email_not_verified": "سەرەتا ئیمەیڵەکەت پشتڕاست بکەرەوە؛ ئەگەر کاتی زۆری برد، کۆدێکی نوێ داوا بکە",
     "email_taken": "ئەم ئیمەیڵە پێشتر تۆمار کراوە",
     "invalid_profile": "هەندێک زانیاری هەڵەیە یان کەمە؛ خانە دیاریکراوەکان بپشکنە",
+    # Google
+    "google_token_invalid": "چوونەژوورەوە بە Google سەرکەوتوو نەبوو",
+    "google_email_unverified": "ئیمەیڵی هەژمارە Google ەکەت پشتڕاست نەکراوەتەوە",
+    "google_unavailable": "ناتوانرێت پەیوەندی بە Google بکرێت؛ ئینتەرنێتەکەت بپشکنە",
+    "google_disabled": "چوونەژوورەوە بە Google لەم سێرڤەرەدا چالاک نییە",
+    "google_signup_expired": "کاتی خۆتۆمارکردنەکە بەسەرچوو؛ دووبارە بە Google بچۆرە ژوورەوە",
+    "google_already_linked": "ئەم هەژمارە Google ە پێشتر بە هەژمارێکەوە بەستراوە",
     "missing_fields": "هەموو خانەکان پڕ بکەرەوە",
     "unauthorized": "کاتی چوونەژوورەوەکەت بەسەرچووە؛ دووبارە بچۆرە ژوورەوە",
     "forbidden": "ئەم بەشە تەنها بۆ شارەوانییە",
@@ -66,6 +73,12 @@ EMAIL_CODE_BODY = """سڵاو،
 
 GreenLegacy سلێمانی
 """
+
+# Kinds of business a person can register (codes in accounts.CATEGORIES)
+CATEGORY_NAMES = {
+    "restaurant": "چێشتخانە", "cafe": "کافێ", "shop": "دوکان", "supermarket": "سوپەرمارکێت",
+    "bakery": "نانەواخانە", "hotel": "هوتێل", "workshop": "وەرشە", "other": "هی تر",
+}
 
 # Points shop: names and one-line descriptions (costs are in config.REWARDS)
 REWARDS = {
