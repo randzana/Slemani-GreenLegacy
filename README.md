@@ -100,7 +100,12 @@ AI دەیسەلمێنێت ← شوێنەکە سەوز دەبێت و خاڵ دە�
 ```
 backend/                 Flask API + YOLOv8 + PostgreSQL/PostGIS (یەک پرۆسە، لەسەر لاپتۆپ)
   app/
-    routes.py            ڕاپۆرت، claim، cleanup، leaderboard، me (ڕیزبەندی و متمانەش)
+    routes.py            ڕاپۆرت، claim، cleanup، leaderboard، me (ڕیزبەندی و متمانەش)، /me/places
+    auth.py              خۆتۆمارکردن، چوونەژوورەوە (ئیمەیڵ یان ژمارە)، تۆکنەکان، /auth/config
+    accounts.py          هەژمار، ماڵ و شوێنی بازرگانی، پارەی مانگانە (بەشی ١٠)
+    otp.py, emails.py    کۆدی ئیمەیڵ (console / smtp)، یەک هەژمار بۆ هەر ئیمەیڵێک
+    google_auth.py       چوونەژوورەوە بە Google (تۆکنەکە لەسەر سێرڤەر دەپشکنرێت)
+    phones.py            ژمارەی مۆبایل بە یەک شێوە (+9647…)
     rewards.py           فرۆشگای خاڵ و ئەرکی ڕۆژانە
     admin.py             کۆتاییەکانی شارەوانی + لاپەڕەی داشبۆرد
     points.py            یاساکانی خاڵ (ledger، ٢٤ کاتژمێر ڕاگرتن، سنووری ڕۆژانە، متمانە، ڕیزبەندی)
@@ -109,8 +114,8 @@ backend/                 Flask API + YOLOv8 + PostgreSQL/PostGIS (یەک پرۆ�
     ai/describe.py       وەسفی کوردیی وێنەی ڕاپۆرت (قاڵب بێ ئینتەرنێت؛ Claude بە ئارەزوو)
     simulator.py         کامێرای ساختە بۆ سیمولەیتەر (تەنها لەگەڵ colorblob)
     strings.py           هەموو دەقە کوردییەکان
-    templates/dashboard.html   داشبۆردی شارەوانی (نەخشە، ئەولەویەت، تۆمار، پشکنین، خەڵات، لیگ)
-  schema.sql             شەش خشتە
+    templates/dashboard.html   داشبۆردی شارەوانی (نەخشە، ئەولەویەت، تۆمار، پشکنین، ماڵ و بازرگانی، پارەی مانگانە، خەڵات، لیگ)
+  schema.sql             هەموو خشتەکان (بۆ داتابەیسی نوێ؛ seed.py دەیسڕێتەوە)
   migrations/            بۆ داتابەیسێکی کۆن بێ سڕینەوەی داتا
   tests/                 تاقیکردنەوەکان بەسەر PostGIS ی ڕاستەقینەدا (python -m pytest tests -q)
   tools/rehearse.py      هەموو خولەکە لەسەر سێرڤەرێکی کاراوە تاقی دەکاتەوە
@@ -123,6 +128,8 @@ backend/                 Flask API + YOLOv8 + PostgreSQL/PostGIS (یەک پرۆ�
   tools/preflight.py     پشکنینی پێش شانۆ (✓/⚠/✗)
   notebooks/finetune_colab.ipynb  ڕاهێنانی مۆدێل لەسەر Colab
 mobile/                  ئەپی Flutter ی هاوڵاتی (کوردی، ڕاست بۆ چەپ؛ هەموو دەقەکان لە lib/strings.dart)
+  lib/screens/registration/  خۆتۆمارکردن: جۆر ← فۆرم و نەخشە ← کۆدی ئیمەیڵ؛ بەستنەوەی Google
+  integration_test/      خولی خۆتۆمارکردن و چوونەژوورەوە لەسەر سیمولەیتەر، دژی سێرڤەرێکی تاقیکردنەوە
 docs/DEMO.md             ڕێنمایی ڕۆژی دیمۆ: ئامادەکاری، سیناریۆی سەر شانۆ، چارەسەری کێشەکان
 docs/VERIFICATION.md     زنجیرەی سەلماندن، ئەنجامی تاقیکردنەوەی فێڵ و سنوورەکانی
 ```
@@ -184,17 +191,20 @@ python run.py                         # http://0.0.0.0:5000
 ئەگەر PostgreSQL ەکەت لەسەر پۆرتێکی ترە (بۆ نموونە 5433) یان ناوی داتابەیسەکە جیاوازە، پێش هەموو فەرمانێک:
 `export DATABASE_URL=postgresql://gl:gl@localhost:5433/greenlegacy` (لە ڕۆژی دیمۆدا لە `.env` دایە، `docs/DEMO.md`).
 
-داتابەیسێکی کۆنت هەیە و ناتەوێت بیسڕیتەوە؟ لە جیاتی `seed.py`، بە ڕیز:
+داتابەیسێکی کۆنت هەیە و ناتەوێت بیسڕیتەوە؟ لە جیاتی `seed.py`، بە ڕیز (`-v ON_ERROR_STOP=1` لە یەکەم هەڵەدا دەوەستێت):
 ```bash
-psql "$DATABASE_URL" -f migrations/001_shop_tasks_description.sql
-psql "$DATABASE_URL" -f migrations/002_neighbourhood_boundaries.sql
-psql "$DATABASE_URL" -f migrations/003_voucher_honoured.sql
-psql "$DATABASE_URL" -f migrations/004_custom_pins_and_notifications.sql
-psql "$DATABASE_URL" -f migrations/005_pin_registrations.sql
-psql "$DATABASE_URL" -f migrations/006_trash_bins.sql
-psql "$DATABASE_URL" -f migrations/007_accounts_email_google.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/001_shop_tasks_description.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/002_neighbourhood_boundaries.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/003_voucher_honoured.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/004_custom_pins_and_notifications.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/005_pin_registrations.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/006_trash_bins.sql
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f migrations/007_accounts_email_google.sql
 ```
-`python tools/preflight.py` پێت دەڵێت کامیان ماوە.
+`python tools/preflight.py` پێت دەڵێت کامیان ماوە. هەر فایلێک دووبارە کارپێکردنی بێمەترسییە.
+`007` ژمارەی مۆبایلە کۆنەکان دەکات بە `+9647…`؛ ئەگەر دوو هەژمار هەمان ژمارە بن بە دوو شێوەی نووسین (`0750…` و `+964750…`)،
+دەوەستێت، ناویان دەبات و هیچ ناگۆڕێت: یەکێکیان بە دەست چاک بکە و دووبارە کاری پێبکە. ژمارەیەک کە مۆبایلی عێراقی نییە
+وەک خۆی دەمێنێتەوە و ئەو کەسە بە هەمان نووسین دەچێتە ژوورەوە.
 
 ## ٢. تاقیکردنەوەکان
 
@@ -210,11 +220,38 @@ python -m pytest tests -q
 (ئەپ دووبارەی دەکاتەوە کاتێک یەکەمیان هێشتا شی دەکرێتەوە) تەنها یەک جار خاڵ دەدات، دوو «من پاکی دەکەمەوە»ی هاوکات
 یەک ڕێنمایی دەدەن، و کۆدی خەڵات تەنها یەک جار ڕادەست دەکرێت.
 
+هەژمار و کۆد: `test_otp.py` (هاش لە جیاتی کۆد، ٥ هەوڵ تەنانەت ئەگەر ٢٠ پێکەوە بنێردرێن، سنوورەکان، ناردنی SMTP بە سێرڤەرێکی ساختە)،
+`test_tokens.py` (تۆکنی هەنگاو هەرگیز وەک چوونەژوورەوە قبووڵ ناکرێت)، `test_accounts.py` و `test_places_admin.py` (ماڵ و بازرگانی،
+پشکنینی شارەوانی، پارەی مانگانە، و هیچ لاپەڕەیەکی گشتی شوێنی ماڵ پیشان نادات)، `test_google_auth.py` (تۆکنی Google بە کلیلێکی
+دروستکراو و endpoint ێکی ساختە؛ هیچ تاقیکردنەوەیەک قسە لەگەڵ Google ناکات)، `test_migrations.py` (داتابەیسی کۆن + `007` = هەمان
+schema ی `seed.py`).
+
+ئەپ:
+
+```bash
+cd mobile && flutter analyze && flutter test       # تاقیکردنەوەی ویجێت
+```
+
+خولی تەواو لەسەر سیمولەیتەر، دژی سێرڤەرێکی تاقیکردنەوە (کۆدی ئیمەیڵ لە لۆگی سێرڤەرەکە دەخوێنرێتەوە، وەک ڕۆژی دیمۆ):
+
+```bash
+# پەنجەرەی یەکەم، لە backend/ (داتابەیسی test: هەر جارێک هەژمارێکی نوێ دروست دەکات)
+DATABASE_URL=postgresql://gl:gl@localhost:5432/greenlegacy_test OTP_SENDER=console DETECTOR_KIND=colorblob \
+    PORT=5055 python run.py 2> /tmp/gl_server.log
+# پەنجەرەی دووەم، لە mobile/
+flutter test integration_test/flows_test.dart -d <سیمولەیتەر> \
+    --dart-define=SERVER_URL=http://localhost:5055 --dart-define=SERVER_LOG=/tmp/gl_server.log
+```
+
+`flows_test.dart` هەژمارێکی نوێ بە ماڵەوە دروست دەکات، شارەوانی ڕەتی دەکاتەوە و کەسەکە چاکی دەکات، پاشان بە ئیمەیڵ و بە ژمارە
+دەچێتە ژوورەوە. `google_not_set_up_test.dart` (سێرڤەرێک بە `GOOGLE_CLIENT_IDS` و `GOOGLE_SERVER_CLIENT_ID`، و تەنها `SERVER_URL`) دڵنیا
+دەبێتەوە کە بیلدێک بێ ڕێکخستنی Google ی iOS ڕوونی دەکاتەوە، نەک دابخرێت.
+
 ## ٣. ڕاهێنانی هەموو خولەکە بێ مۆبایل
 
 ```bash
-DETECTOR_KIND=colorblob python run.py     # پەنجەرەی یەکەم
-python tools/rehearse.py                  # پەنجەرەی دووەم
+OTP_REQUIRED=0 DETECTOR_KIND=colorblob python run.py     # پەنجەرەی یەکەم (خەڵکەکەی بێ کۆدی ئیمەیڵ تۆمار دەبن)
+python tools/rehearse.py                                  # پەنجەرەی دووەم
 ```
 
 ئەنجام: ڕاپۆرت ← خۆت پاکی ناکەیتەوە (٤٠٣) ← ڕیزبەندیی هەڵە ڕەت دەکرێتەوە ← ڤیدیۆی دروست دەسەلمێنرێت ←
@@ -230,6 +267,10 @@ flutter run                  # مۆبایلی ئەندرۆید بە USB
 ```
 
 لە شاشەی چوونەژوورەوەدا ناونیشانی سێرڤەر بنووسە: `http://<IP ی لاپتۆپ>:5000` (لاپتۆپ و مۆبایل لەسەر هەمان هۆتسپۆت).
+
+هەژماری نوێ: «هەژماری نوێ» ← هاوڵاتی، و ئەگەر هەیە ماڵ و/یان شوێنی بازرگانی ← فۆرم (شوێن لەسەر نەخشە) ← کۆدی ئیمەیڵ.
+چوونەژوورەوە بە ئیمەیڵ یان ژمارە. دوگمەی Google تەنها کاتێک دەردەکەوێت کە سێرڤەرەکە Google ی چالاک کردبێت (بەشی ١٠).
+بیلدی کۆنی ئەپ (پێش ئیمەیڵ) دەتوانێت بچێتە ژوورەوە، بەڵام تەنها بە `OTP_REQUIRED=0` هەژماری نوێ دروست دەکات.
 
 ### سیمولەیتەری iOS (Mac)
 
@@ -350,7 +391,90 @@ python tools/import_boundaries.py slemani.geojson --add-missing       # گەڕە
 - `GET /admin/neighbourhoods` (تەنها شارەوانی): خاڵ، ژمارەی هاوڵاتی، شوێنی کراوە و پاککراوە لەناو هەر سنوورێکدا.
 - داشبۆرد: سنوورەکان لەژێر شوێنەکان بە شین (شوێنی کراوەی زیاتر = تۆختر)؛ تابی «لیگ» گەڕەکەکان و باشترین هاوڵاتییان.
 
-## ١٠. پێش چوونە سەر شانۆ
+## ١٠. هەژمار: ئیمەیڵ، Google، ماڵ و شوێنی بازرگانی
+
+هەر هەژمارێک یەک کەسە و ناسنامەکەی **ئیمەیڵێکی پشتڕاستکراوە**: یەک هەژمار بۆ هەر ئیمەیڵێک (لە Gmail خاڵ و `+tag` هەمان
+سندوقن). ژمارەی مۆبایل پێویستە و تاکە (`+9647…`)، بەڵام پشتڕاست ناکرێتەوە؛ هەژمارە کۆنەکان (پێش ئیمەیڵ) هێشتا بە ژمارە دەچنە
+ژوورەوە. هەر کەسێک دەتوانێت **ماڵ** و/یان **شوێنی بازرگانی** زیاد بکات؛ شارەوانی هەردووکیان دەپشکنێت (چاوەڕێ ← پەسەندکراو،
+یان ڕەتکراوە بە هۆکارێک کە کەسەکە لە ئەپدا دەیبینێت). خاڵ تەنها بۆ کاری خودی کەسەکەیە (ڕاپۆرت، پاککردنەوەی سەلمێنراو)، بۆیە لیگ
+وەک پێشووە. ماڵ و بازرگانیی پەسەندکراو **پارەی مانگانە** وەردەگرن کە کارمەند لە داشبۆرد تۆماری دەکات: ئێستا تەنها ژمارەیەکە لە
+پرۆفایلدا، دواتر بانکی دیجیتاڵی دەیدات. شوێنی ماڵ نهێنییە: تەنها خاوەنەکەی و شارەوانی دەیبینن، و لەسەر نەخشەی داشبۆرد نییە
+(تەنها ژمارەی ماڵ لە هەر گەڕەکێکدا).
+
+| Endpoint | کێ | چی دەکات |
+| --- | --- | --- |
+| `GET /auth/config` | ئەپ | ئایا Google چالاکە، ڕێکخستنی کۆد، جۆرەکانی بازرگانی، سنووری خزمەتگوزاری؛ هیچ نهێنییەک تێدا نییە |
+| `POST /auth/otp/request` | ئەپ | `{email}`: کۆدێکی ٦ ژمارەیی؛ وەڵامەکە یەکسانە چ ئیمەیڵەکە هەژماری هەبێت چ نا. ٦٠ چرکە چاوەڕوانی (`retry_after`) |
+| `POST /auth/otp/verify` | ئەپ | `{email, code}`: تۆکنی هەنگاو (١٠ خولەک)؛ ٥ هەوڵ (`attempts_left`)، پاشان `429 otp_locked` |
+| `POST /auth/signup` | ئەپ | ناو، ژمارە، وشەی نهێنی، تۆکنی ئیمەیڵ، گەڕەک، و `household` / `business` (ئارەزوومەندانە). ئیمەیڵ تەنها لە تۆکنەکەوە دێت؛ هەڵەی خانەکان لە `fields` دا |
+| `POST /auth/login` | ئەپ، داشبۆرد | `{login, password}`: ئیمەیڵ یان ژمارە بە هەر شێوەیەک (بیلدی کۆن `{phone}` دەنێرێت) |
+| `POST /auth/google` | ئەپ | ID token ی Google: هەژماری ناسراو دەچێتە ژوورەوە؛ نوێ تۆکنی `google_signup` وەردەگرێت و هێشتا هیچ ڕیزێک دروست نابێت |
+| `POST /auth/google/register` | ئەپ | هەژماری نوێ بە ئیمەیڵی Google (بێ کۆد و بێ وشەی نهێنی)؛ ژمارە یان ئیمەیڵێکی گیراو ← `409` لەگەڵ `can_link` |
+| `POST /auth/google/link` | ئەپ | Google بە هەژمارێکی هەبووەوە دەبەستێتەوە؛ وشەی نهێنیی ئەو هەژمارە پێویستە. هەژماری شارەوانی نابەسترێتەوە |
+| `GET /me` | ئەپ | ئێستا `email`، `auth_methods`، `places` (لەگەڵ شوێن، تەنها بۆ خاوەنەکەی) و `money` یشی تێدایە |
+| `POST /me/places` | ئەپ | ماڵ یان بازرگانی زیاد یان دەستکاری دەکات؛ گۆڕینی ئەوەی شارەوانی پشکنیویەتی (ناو، شوێن، دانیشتووان، جۆر، مۆڵەت) دەیگەڕێنێتەوە بۆ چاوەڕێ |
+| `GET /admin/places` | داشبۆرد | ڕیزی پشکنین: `?status=pending` (بنەڕەت)، `verified`، `rejected`، `all` |
+| `POST /admin/places/<id>/review` | داشبۆرد | `verify` یان `reject` + هۆکار؛ ئەگەر خاوەنەکەی دوای بینینت گۆڕیبێتی ← `409 place_changed`. هەموو بڕیارێک لە `place_reviews` دا دەمێنێتەوە |
+| `GET /admin/payments` | داشبۆرد | پارەی مانگێک (`?month=YYYY-MM`) بۆ هەموو شوێنە پەسەندکراوەکان و کۆی گشتی |
+| `POST /admin/places/<id>/payments` | داشبۆرد | پارەی یەک مانگ بۆ یەک شوێنی پەسەندکراو، یەک جار |
+| `POST /admin/payments` | داشبۆرد | پارەی مانگێک بۆ هەموو ئەوانەی هێشتا وەریان نەگرتووە؛ دووجار داگرتن کەس دووجار پارە نادات |
+
+### کۆدی ئیمەیڵ
+
+- **دیمۆ:** `OTP_SENDER=console` (بنەڕەت). کۆدەکە لە پەنجەرەی سێرڤەردا دەردەکەوێت، بۆ نموونە
+  `EMAIL CODE for ra***@gmail.com: 123456`؛ ئینتەرنێت و هەژماری ئیمەیڵ پێویست نین (`docs/DEMO.md`).
+- **ئیمەیڵی ڕاستەقینە:** هەر هەژمارێکی SMTP. بۆ Gmail، «App Password» دروست بکە (نەک وشەی نهێنیی هەژمارەکە). لە `.env`:
+
+  ```bash
+  export OTP_SENDER=smtp SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=<هەژمار>@gmail.com
+  export SMTP_PASSWORD='<App Password>'
+  export OTP_PEPPER=$(python -c 'import secrets; print(secrets.token_hex(32))')   # یەک جار، و مەیگۆڕە
+  ```
+
+### چوونەژوورەوە بە Google
+
+١. Google Cloud Console ← پرۆجێکتێک ← OAuth consent screen: تەنها `openid`، `email`، `profile`. تا کاتێک لە «Testing» دایە،
+   تەنها ئەو هەژمارانەی وەک test user زیاد کراون دەتوانن بچنە ژوورەوە: هەژماری تیمەکە زیاد بکەن.
+٢. Credentials ← Create OAuth client ID، سێ دانە:
+   - **Web application**: ناسنامەکەی `GOOGLE_SERVER_CLIENT_ID` ە.
+   - **Android**: package `krd.greenlegacy.slemani_green_legacy` و SHA-1 ی کلیلی واژووکردن؛ `python setup_android.py` فەرمانی
+     `keytool` ەکەی چاپ دەکات. `google-services.json` پێویست نییە.
+   - **iOS**: bundle ID `krd.greenlegacy.slemaniGreenLegacy`، پاشان
+     `GOOGLE_IOS_CLIENT_ID=<ناسنامەی iOS> python3 setup_ios.py` (GIDClientID و URL scheme لە Info.plist زیاد دەکات).
+٣. لە `.env` ی سێرڤەر (تۆکنی iOS بۆ ناسنامەی iOS دەردەچێت، بۆیە هەر سێکیان):
+
+   ```bash
+   export GOOGLE_CLIENT_IDS=<web>,<android>,<ios>
+   export GOOGLE_SERVER_CLIENT_ID=<web>
+   ```
+
+٤. `python tools/preflight.py`: «Google ✓» و «کلیلەکانی Google ✓». Google پێویستی بە ئینتەرنێتە لەسەر مۆبایل و لاپتۆپ؛
+   ئەگەر نەبوو، ئیمەیڵ و وشەی نهێنی هەر کار دەکەن. سێرڤەر خۆی تۆکنەکە دەپشکنێت (واژوو، `aud`، `iss`، کات، `email_verified`)
+   و تەنها `sub` ی Google هەڵدەگرێت، نەک هیچ access token ێک.
+
+### ئاسایش و سنوورەکان
+
+- **HTTPS:** سێرڤەری لاپتۆپ `http://` ی سادەیە؛ وشەی نهێنی، تۆکنەکان و ID token ی Google بێ شفرە دەڕۆن. بۆ دیمۆ لەسەر هۆتسپۆتی
+  خۆتان باشە؛ پێش هەر pilot ێک HTTPS پێویستە.
+- سنوورەکانی کۆد (هەر ئیمەیڵێک، هەر IP یەک، هەمووان) لە PostgreSQL دان، چونکە یەک پرۆسەیە. بۆ چەند سێرڤەرێک: Redis یان Flask-Limiter.
+- ژمارەی مۆبایل پشتڕاست ناکرێتەوە بەڵام تاکەیە: کەسێک دەتوانێت ژمارەی کەسێکی تر بگرێت و ئەو کەسە `phone_taken` وەردەگرێت.
+  شارەوانی بە دەست چاکی دەکات.
+- ئیمەیڵ لە ژمارەی مۆبایل لاوازترە دژی چەند هەژمارێکی یەک کەس (Gmail ی نوێ ئاسانە)؛ سنووری ڕۆژانە و سەلماندنی AI ی خاڵەکان
+  هێشتا سنوورداری دەکەن.
+
+### دواتر (لەم بەشەدا نەکراون)
+
+- خێزان: چەند هەژمار بۆ یەک ماڵ.
+- Sign in with Apple (App Store ئەگەر Google هەبێت داوای دەکات؛ Guideline 4.8).
+- چوونەژوورەوە تەنها بە کۆدی ئیمەیڵ، و گۆڕینی وشەی نهێنیی لەبیرچوو بە کۆدی ئیمەیڵ.
+- بانکی دیجیتاڵی بۆ پارەی مانگانە، و چاککردنەوەی پارەیەکی هەڵە لە داشبۆرد.
+- لیستی گشتیی بازرگانییە پەسەندکراوەکان.
+- `flutter_secure_storage` بۆ تۆکن، HTTPS، سنووری هەوڵی چوونەژوورەوە.
+- شاشەی سڕینەوەی هەژمار (FK ەکان پێشتر `ON DELETE CASCADE` ن).
+- پشتڕاستکردنەوەی ئیمەیڵ بۆ هەژمارە کۆنەکان (ئێستا بە ژمارە دەچنە ژوورەوە).
+- endpoint ە کۆنەکان (pins، bins...) هێشتا بۆ JSON ی نا-object `500` دەدەن، و هەندێک پەیامی کوردییان لە `strings.py` دا نییە.
+
+## ١١. پێش چوونە سەر شانۆ
 
 ```bash
 cd backend
@@ -360,11 +484,12 @@ DETECTOR_KIND=colorblob python tools/preflight.py --rehearsal --server http://lo
 
 هەر پشکنینێک یەک هێڵە: ✓ باشە، ⚠ سەیری بکە، ✗ پێش دیمۆ چاکی بکە (exit code 1): داتابەیس و migration ەکان، هەژماری شارەوانی
 (و ئایا هێشتا `staff1234` ە)، گەڕەکەکان، فۆڵدەری وێنە، ناسەر و مۆدێل (`--model` باری دەکات و کاتەکەی دەپێوێت)، Leaflet، ستیکەری QR،
-`SECRET_KEY`، `SIM_CAMERA`، وەسفی Claude، IP ی لاپتۆپ و ئەو ناونیشانەی لە مۆبایل دەنووسرێت؛ بە `--server` سێرڤەری کاراوەش: ئایا
+`SECRET_KEY`، `SIM_CAMERA`، وەسفی Claude، کۆدی ئیمەیڵ (`console` ⚠ دەدات: لە دیمۆدا ئاساییە، بۆ pilot نا)، `OTP_PEPPER`،
+`OTP_REQUIRED`، Google (ڕێکخستن و ئایا کلیلەکانی Google دەگەنە لاپتۆپ)، IP ی لاپتۆپ و ئەو ناونیشانەی لە مۆبایل دەنووسرێت؛ بە `--server` سێرڤەری کاراوەش: ئایا
 داتابەیسەکەی دەخوێنێتەوە (`/neighbourhoods`)، کام ناسەر بەکاردێنێت، ئایا هەمان مۆدێلی ئەم پەنجەرەیە بەکاردێنێت (نەک فایلێکی تر)،
 و ئایا `/sim` کراوەیە. هەموو هەنگاوەکانی ڕۆژی دیمۆ و سیناریۆی سەر شانۆ: `docs/DEMO.md`.
 
-## ١١. چی فێربوون (لەم ڕاهێنانەدا دۆزرانەوە)
+## ١٢. چی فێربوون (لەم ڕاهێنانەدا دۆزرانەوە)
 
 - وێنەی «دوا»ی هەمان شوێن زۆر لە وێنەی «پێش» دەچێت؛ پشکنینی دووبارە دەبێت وێنەکانی هەمان ڕاپۆرت لاببات.
 - ستیکەری QR ی هەمان زبڵدان لە هەموو پاککردنەوەیەکدا یەکسانە؛ تەنها فریمەکانی شوێنەکە بۆ دووبارە بپشکنن.
