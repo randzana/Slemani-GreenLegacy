@@ -26,7 +26,7 @@ def step(title, response):
 
 
 def signup(name):
-    phone = "07" + "".join(random.choice("0123456789") for _ in range(9))
+    phone = "07" + random.choice("5789") + "".join(random.choice("0123456789") for _ in range(8))
     r = requests.post(f"{BASE}/auth/signup", json={"name": name, "phone": phone,
                                                     "password": "secret123", "neighbourhood_id": 2})
     r.raise_for_status()

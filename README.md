@@ -163,6 +163,8 @@ python run.py                         # http://0.0.0.0:5000
 | `LEVEL_COUNT_BANDS` | `2,5,10,20` | سنووری ژمارەی پاشماوە بۆ پلەی ١، ٢، ٣، ٤ (زیاتر = ٥) |
 | `DESCRIBE_WITH_CLAUDE` | `0` | `1` = Claude وێنەکە دەبینێت و وەسفی کوردی دەنووسێت (پێویستی بە `ANTHROPIC_API_KEY` و ئینتەرنێتە) |
 | `DESCRIBE_MODEL` | `claude-opus-5-5` | مۆدێلی وەسفکردن |
+| `PHONE_REGION` | `IQ` | ژمارەیەک بێ کۆدی وڵات (`0750…`) وەک ژمارەی ئەم وڵاتە دەخوێندرێتەوە؛ هەموو ژمارەکان بە شێوەی `+9647…` هەڵدەگیرێن |
+| `PHONE_ALLOWED_COUNTRY_CODES` | `964` | کۆدی ئەو وڵاتانەی ژمارەکانیان قبووڵ دەکرێت، بە کۆما جیا دەکرێنەوە |
 
 فەرمانەکانی سەرەوە بەبێ `DATABASE_URL` کار دەکەن، چونکە بنەڕەتەکەی هەمان `localhost:5432/greenlegacy` ە.
 ئەگەر PostgreSQL ەکەت لەسەر پۆرتێکی ترە (بۆ نموونە 5433) یان ناوی داتابەیسەکە جیاوازە، پێش هەموو فەرمانێک:
@@ -176,6 +178,7 @@ psql "$DATABASE_URL" -f migrations/003_voucher_honoured.sql
 psql "$DATABASE_URL" -f migrations/004_custom_pins_and_notifications.sql
 psql "$DATABASE_URL" -f migrations/005_pin_registrations.sql
 psql "$DATABASE_URL" -f migrations/006_trash_bins.sql
+psql "$DATABASE_URL" -f migrations/007_accounts_email_google.sql
 ```
 `python tools/preflight.py` پێت دەڵێت کامیان ماوە.
 

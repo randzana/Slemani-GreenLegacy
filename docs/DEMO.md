@@ -140,7 +140,7 @@ with psycopg.connect(Config.DATABASE_URL) as db:
                       "WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
 if not done or not spot:
     sys.exit("need one verified cleanup and one open spot")
-phone = "07" + "".join(random.choices("0123456789", k=9))
+phone = "07" + random.choice("5789") + "".join(random.choices("0123456789", k=8))
 auth = {"Authorization": "Bearer " + requests.post(f"{base}/auth/signup", json={
     "name": "فێڵباز", "phone": phone, "password": "secret123", "neighbourhood_id": 1}).json()["token"]}
 challenge = requests.post(f"{base}/reports/{spot[0]}/claim", headers=auth).json()

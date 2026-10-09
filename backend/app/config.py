@@ -19,6 +19,12 @@ class Config:
     UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(BASE_DIR / "uploads"))
     JWT_DAYS = _int("JWT_DAYS", 7)
 
+    # Accounts. Phones are stored in E.164 (app/phones.py); a number without a country code is
+    # read as PHONE_REGION's, and only these country calling codes are accepted.
+    PHONE_REGION = os.environ.get("PHONE_REGION", "IQ")
+    PHONE_ALLOWED_COUNTRY_CODES = tuple(
+        c.strip().lstrip("+") for c in os.environ.get("PHONE_ALLOWED_COUNTRY_CODES", "964").split(",") if c.strip())
+
     # AI
     # "yolo" for real use; "colorblob" counts red paper as litter (rehearsal without a model)
     DETECTOR_KIND = os.environ.get("DETECTOR_KIND", "yolo")

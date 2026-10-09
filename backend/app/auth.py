@@ -7,6 +7,7 @@ import psycopg
 from flask import Blueprint, current_app, g, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from . import phones
 from .db import query
 from .strings import reason
 
@@ -67,6 +68,9 @@ def signup():
     name, phone, password = (data.get(k, "").strip() for k in ("name", "phone", "password"))
     if not (name and phone and len(password) >= 6):
         return error("missing_fields", 400)
+    phone, problem = phones.normalise(phone)
+    if problem:
+        return error(problem, 400)
     try:
         user = query(
             """INSERT INTO users (name, phone, password_hash, neighbourhood_id)
@@ -82,8 +86,14 @@ def signup():
 @bp.post("/auth/login")
 def login():
     data = request.get_json(silent=True) or {}
-    user = query("SELECT * FROM users WHERE phone = %s", (data.get("phone", "").strip(),), one=True)
-    if user is None or not check_password_hash(user["password_hash"], data.get("password", "")):
+    user = None
+    for phone in phones.login_candidates(data.get("phone")):
+        user = query("SELECT * FROM users WHERE phone = %s", (phone,), one=True)
+        if user:
+            break
+    # a Google-only account has no password, so no password opens it
+    if user is None or not user["password_hash"] or not check_password_hash(user["password_hash"],
+                                                                               str(data.get("password", ""))):
         return error("bad_login", 401)
     return jsonify({"token": make_token(user), "user": public_user(user)})
 

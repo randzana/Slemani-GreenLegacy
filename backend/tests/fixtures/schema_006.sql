@@ -1,10 +1,11 @@
+-- schema.sql as it was after migration 006 (commit cf511df). tests/test_migrations.py builds an
+-- old database from it to check that 007 brings it to exactly what a fresh seed has.
 -- GreenLegacy Slemani (practice build) — PostgreSQL + PostGIS schema
 -- Six tables, as in the build plan. Locations are PostGIS geography points (metres for distances).
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
-DROP TABLE IF EXISTS otp_codes, place_payments, place_reviews, places, user_identities,
-    bin_disposals, trash_bins, pin_registrations, notifications, pins, point_ledger, cleanups, challenges, reports, users, neighbourhoods CASCADE;
+DROP TABLE IF EXISTS bin_disposals, trash_bins, pin_registrations, notifications, pins, point_ledger, cleanups, challenges, reports, users, neighbourhoods CASCADE;
 
 CREATE TABLE neighbourhoods (
     id          SERIAL PRIMARY KEY,
@@ -18,32 +19,12 @@ CREATE INDEX neighbourhoods_boundary_idx ON neighbourhoods USING GIST (boundary)
 CREATE TABLE users (
     id               SERIAL PRIMARY KEY,
     name             TEXT NOT NULL,
-    phone            TEXT NOT NULL UNIQUE,         -- E.164 (app/phones.py); not verified, one account per number
-    password_hash    TEXT,                         -- NULL: signs in with Google only
+    phone            TEXT NOT NULL UNIQUE,         -- one account per phone number
+    password_hash    TEXT NOT NULL,
     neighbourhood_id INTEGER REFERENCES neighbourhoods(id),
     role             TEXT NOT NULL DEFAULT 'citizen' CHECK (role IN ('citizen', 'staff')),
     trust_level      INTEGER NOT NULL DEFAULT 0,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- the verified email: the identity of every new account (NULL for older accounts and staff)
-    email            TEXT,                         -- as written, lower case
-    email_key        TEXT,                         -- canonical mailbox (app/emails.py)
-    email_verified_at TIMESTAMPTZ,
-    CONSTRAINT users_email_check CHECK ((email IS NULL) = (email_key IS NULL)
-                                        AND (email IS NULL OR email_verified_at IS NOT NULL))
-);
-CREATE UNIQUE INDEX users_email_key_unique ON users (email_key);   -- one account per mailbox
-
--- sign-in with Google (Apple later): keyed on the provider's stable subject, never on the email
-CREATE TABLE user_identities (
-    id            BIGSERIAL PRIMARY KEY,
-    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    provider      TEXT NOT NULL CHECK (provider IN ('google')),
-    subject       TEXT NOT NULL,                     -- Google's "sub"
-    email         TEXT,                              -- what Google said at the last sign-in
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_login_at TIMESTAMPTZ,
-    UNIQUE (provider, subject),
-    UNIQUE (user_id, provider)                       -- one Google account per person
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE reports (
@@ -184,78 +165,4 @@ CREATE TABLE bin_disposals (
 CREATE INDEX bin_disposals_bin_idx ON bin_disposals (bin_id);
 CREATE INDEX bin_disposals_user_idx ON bin_disposals (user_id);
 
--- A person's household and business: optional, at most one of each, checked by staff before they
--- count. A household's location is private: only its owner and staff ever see it.
-CREATE TABLE places (
-    id                  SERIAL PRIMARY KEY,
-    owner_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    kind                TEXT NOT NULL CHECK (kind IN ('household', 'business')),
-    name                TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 2 AND 120),
-    address             TEXT CHECK (char_length(address) <= 300),
-    location            GEOGRAPHY(POINT, 4326) NOT NULL,
-    neighbourhood_id    INTEGER REFERENCES neighbourhoods(id),     -- from the location when boundaries are loaded
-    residents_count     SMALLINT CHECK (residents_count BETWEEN 1 AND 30),   -- household only
-    category            TEXT CHECK (category IN ('restaurant', 'cafe', 'shop', 'supermarket', 'bakery',
-                                                 'hotel', 'workshop', 'other')),   -- business only
-    license_number      TEXT CHECK (char_length(license_number) <= 64),      -- business only, optional
-    verification_status TEXT NOT NULL DEFAULT 'pending'
-                        CHECK (verification_status IN ('pending', 'verified', 'rejected')),
-    verified_by         INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    verified_at         TIMESTAMPTZ,
-    rejection_reason    TEXT,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (owner_id, kind),
-    CONSTRAINT places_household_fields CHECK (kind <> 'household'
-        OR (residents_count IS NOT NULL AND category IS NULL AND license_number IS NULL)),
-    CONSTRAINT places_business_fields CHECK (kind <> 'business'
-        OR (category IS NOT NULL AND residents_count IS NULL)),
-    CONSTRAINT places_rejection_reason CHECK (verification_status <> 'rejected' OR rejection_reason IS NOT NULL)
-);
-CREATE INDEX places_location_idx ON places USING GIST (location);
-CREATE INDEX places_status_idx ON places (verification_status);
 
--- every change of a place's status, oldest first (places keeps only the latest): staff verifying or
--- rejecting it, and the owner sending it back to the queue by changing its name, category or location
-CREATE TABLE place_reviews (
-    id         SERIAL PRIMARY KEY,
-    place_id   INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
-    status     TEXT NOT NULL CHECK (status IN ('pending', 'verified', 'rejected')),
-    reason     TEXT,
-    changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX place_reviews_place_idx ON place_reviews (place_id);
-
--- The monthly money for a verified household or business, one row per place and month. Only a
--- number in the app for now; a digital bank can pay these rows out later.
-CREATE TABLE place_payments (
-    id         SERIAL PRIMARY KEY,
-    place_id   INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
-    month      DATE NOT NULL CHECK (extract(day FROM month) = 1),       -- the first day of the month
-    amount_iqd INTEGER NOT NULL CHECK (amount_iqd > 0),
-    note       TEXT,
-    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (place_id, month)
-);
-
--- Email codes: only a keyed hash of the code is stored, never the code
-CREATE TABLE otp_codes (
-    id            BIGSERIAL PRIMARY KEY,
-    email_key     TEXT NOT NULL,                     -- canonical mailbox (app/emails.py)
-    purpose       TEXT NOT NULL CHECK (purpose IN ('verify_email')),
-    code_hash     TEXT NOT NULL,                     -- HMAC-SHA256(OTP_PEPPER, email_key|purpose|code)
-    attempts      SMALLINT NOT NULL DEFAULT 0,
-    expires_at    TIMESTAMPTZ NOT NULL,
-    consumed_at   TIMESTAMPTZ,
-    superseded_at TIMESTAMPTZ,                       -- a newer code was sent
-    request_ip    INET,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX otp_codes_email_idx ON otp_codes (email_key, created_at DESC);
-CREATE INDEX otp_codes_ip_idx ON otp_codes (request_ip, created_at DESC);
-CREATE INDEX otp_codes_created_idx ON otp_codes (created_at);
--- at most one live code per mailbox: a resend supersedes the old one in the same transaction
-CREATE UNIQUE INDEX otp_codes_one_live ON otp_codes (email_key, purpose)
-    WHERE consumed_at IS NULL AND superseded_at IS NULL;

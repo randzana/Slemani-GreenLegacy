@@ -13,6 +13,7 @@ import psycopg
 from werkzeug.security import generate_password_hash
 
 from app.config import Config
+from app.phones import normalise
 
 NEIGHBOURHOODS = ["سەرچنار", "بەختیاری", "ئازادی", "ڕاپەڕین", "کانی ئاسکان", "زەرگەتە"]
 DEFAULT_STAFF_PHONE, DEFAULT_STAFF_PASSWORD = "07500000000", "staff1234"
@@ -20,6 +21,10 @@ DEFAULT_STAFF_PHONE, DEFAULT_STAFF_PASSWORD = "07500000000", "staff1234"
 
 def seed(database_url=None, staff_phone=None, staff_password=None):
     url = database_url or Config.DATABASE_URL
+    raw_phone = staff_phone or os.environ.get("STAFF_PHONE") or DEFAULT_STAFF_PHONE
+    phone, problem = normalise(raw_phone)
+    if problem:
+        raise ValueError(f"STAFF_PHONE {raw_phone!r} is not a usable phone number ({problem})")
     schema = (Path(__file__).parent / "schema.sql").read_text(encoding="utf-8")
     with psycopg.connect(url) as conn:
         conn.execute(schema)
@@ -28,7 +33,7 @@ def seed(database_url=None, staff_phone=None, staff_password=None):
         conn.execute(
             """INSERT INTO users (name, phone, password_hash, role)
                VALUES ('شارەوانیی سلێمانی', %s, %s, 'staff')""",
-            (staff_phone or os.environ.get("STAFF_PHONE") or DEFAULT_STAFF_PHONE,
+            (phone,
              # an empty STAFF_PASSWORD (a broken .env line) falls back too, never to an empty password
              generate_password_hash(staff_password or os.environ.get("STAFF_PASSWORD") or DEFAULT_STAFF_PASSWORD)),
         )

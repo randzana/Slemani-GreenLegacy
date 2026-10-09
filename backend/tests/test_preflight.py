@@ -18,6 +18,7 @@ MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
 # what the demo laptop has: the model and staff password from .env, not the public defaults
 TERMINAL = {"MODEL_PATH": "models/slemani.pt"}
 STAFF_PASSWORD = "from-the-env-file"
+STAFF_PHONE = "+9647500000000"     # seed.py stores STAFF[0] in E.164 (app/phones.py)
 
 
 def marks(results):
@@ -40,7 +41,7 @@ def test_seeded_database_is_ready(db):
     results = preflight.check_database(db)
     assert {mark for mark, _, _ in results} == {OK}
     found = marks(results)
-    assert STAFF[0] in found["هەژماری شارەوانی"][1]
+    assert STAFF_PHONE in found["هەژماری شارەوانی"][1]
     assert found["گەڕەکەکان"][1].startswith("6 neighbourhoods")
 
 
@@ -96,7 +97,7 @@ def test_public_default_staff_password_warns(db):
     assert marks(preflight.check_database(db))["وشەی نهێنیی شارەوانی"][0] == OK
     seed(db, *STAFF)
     mark, detail = marks(preflight.check_database(db))["وشەی نهێنیی شارەوانی"]
-    assert mark == WARN and STAFF[0] in detail and "STAFF_PASSWORD" in detail
+    assert mark == WARN and STAFF_PHONE in detail and "STAFF_PASSWORD" in detail
 
 
 def test_polygon_boundaries_name_migration_002(db):
