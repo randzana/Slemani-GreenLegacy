@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'api.dart';
@@ -34,7 +35,14 @@ class GoogleAuth {
       return token;
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
-      throw ApiException(S.googleFailed, 'google_failed');
+      // Android: no OAuth client for this package and signing key (setup_android.py says how)
+      final notSetUp = e.code == GoogleSignInExceptionCode.clientConfigurationError ||
+          e.code == GoogleSignInExceptionCode.providerConfigurationError;
+      throw notSetUp ? ApiException(S.googleNotSetUp, 'google_not_set_up') : ApiException(S.googleFailed, 'google_failed');
+    } on PlatformException catch (e) {
+      // iOS without GIDClientID in Info.plist: "No active configuration. Make sure GIDClientID is set"
+      final notSetUp = '${e.message}'.contains('GIDClientID') || '${e.message}'.contains('configuration');
+      throw notSetUp ? ApiException(S.googleNotSetUp, 'google_not_set_up') : ApiException(S.googleFailed, 'google_failed');
     }
   }
 

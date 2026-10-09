@@ -1,22 +1,26 @@
 // The sign-up and sign-in flows on a real device or simulator, against a running server whose email
 // codes go to its log (OTP_SENDER=console), the way the demo laptop runs. From mobile/:
 //
-//   cd ../backend && OTP_SENDER=console PORT=5001 python run.py 2> /tmp/gl_server.log   # another terminal
-//   flutter test integration_test/flows_test.dart -d <simulator> --dart-define=SERVER_LOG=/tmp/gl_server.log
+//   cd ../backend && OTP_SENDER=console PORT=5055 python run.py 2> /tmp/gl_server.log   # another terminal
+//   flutter test integration_test/flows_test.dart -d <simulator> \
+//       --dart-define=SERVER_URL=http://localhost:5055 --dart-define=SERVER_LOG=/tmp/gl_server.log
 //
-// The app must reach the server at its default address (S.serverHint, http://localhost:5001), which is
-// the laptop itself for the iOS Simulator. Each run makes a new account (a new email and phone).
+// Use a test database: each run makes a new account (a new email and phone). localhost is the laptop
+// itself for the iOS Simulator. The app's saved login and server address are replaced.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:slemani_green_legacy/main.dart' as app;
 import 'package:slemani_green_legacy/strings.dart';
 
+const serverUrl = String.fromEnvironment('SERVER_URL');
 const serverLog = String.fromEnvironment('SERVER_LOG');
 
 /// Real time passes (the app talks to a real server), then a frame.
@@ -25,19 +29,46 @@ Future<void> wait(WidgetTester t, [int ms = 600]) async {
   await t.pump();
 }
 
+bool shows(Finder f) {
+  try {
+    return f.evaluate().isNotEmpty;
+  } on StateError {
+    return false;                                       // .first / .last of nothing
+  }
+}
+
 Future<void> until(WidgetTester t, Finder f, {int seconds = 20}) async {
   for (var i = 0; i < seconds * 5; i++) {
     await t.pump();
-    if (f.evaluate().isNotEmpty) return;
+    if (shows(f)) return;
     await Future<void>.delayed(const Duration(milliseconds: 200));
   }
-  fail('did not appear within $seconds s: $f');
+  // what is on screen instead, so a failure says where the app actually is
+  final shown = find.byType(Text).evaluate().map((e) => (e.widget as Text).data).whereType<String>().toSet();
+  String described;
+  try {
+    described = '$f';
+  } on StateError {
+    described = 'a .first/.last of nothing';
+  }
+  fail('did not appear within $seconds s: $described\non screen: ${shown.join(' | ')}');
+}
+
+Future<void> untilGone(WidgetTester t, Finder f, {int seconds = 10}) async {
+  for (var i = 0; i < seconds * 5; i++) {
+    await t.pump();
+    if (!shows(f)) return;
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+  fail('still on screen after $seconds s');
 }
 
 Future<void> tapOn(WidgetTester t, Finder f) async {
   await until(t, f);
-  await t.ensureVisible(f.first);
-  await t.pump();
+  await wait(t, 700);                                   // a page may still be sliding in
+  // to the middle of the screen: at the bottom edge the round report button covers it
+  await Scrollable.ensureVisible(t.element(f.first), alignment: 0.5);
+  await wait(t, 300);
   await t.tap(f.first);
   await wait(t);
 }
@@ -64,7 +95,28 @@ Future<String> codeFromLog(int before) async {
 /// The bottom bar's tab, not another text that happens to say the same.
 Finder tab(String label) => find.descendant(of: find.byType(BottomAppBar), matching: find.text(label));
 
+/// What the municipality does on its dashboard: reject this person's household, with a reason.
+/// The staff login is seed.py's practice default (a test database).
+Future<void> staffRejectsHome(String ownerPhone, String reason) async {
+  Future<dynamic> call(String method, String path, [Map<String, dynamic>? body, String? token]) async {
+    final headers = {'Content-Type': 'application/json', if (token != null) 'Authorization': 'Bearer $token'};
+    final uri = Uri.parse('$serverUrl$path');
+    final res = method == 'GET'
+        ? await http.get(uri, headers: headers)
+        : await http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+    return jsonDecode(utf8.decode(res.bodyBytes));
+  }
+
+  final staff = (await call('POST', '/auth/login', {'login': '07500000000', 'password': 'staff1234'}))['token'];
+  final queue = List<Map<String, dynamic>>.from(await call('GET', '/admin/places', null, staff));
+  final home = queue.firstWhere((p) => p['owner_phone'] == '+964${ownerPhone.substring(1)}');
+  final answer = await call('POST', '/admin/places/${home['id']}/review',
+      {'decision': 'reject', 'reason': reason, 'updated_at': home['updated_at']}, staff);
+  expect(answer['verification_status'], 'rejected');
+}
+
 Future<void> signOut(WidgetTester t) async {
+  await untilGone(t, find.byType(SnackBar));            // a snackbar lifts the report button over the page
   await tapOn(t, tab(S.profile));
   await tapOn(t, find.text(S.logoutOfAccount));
   await until(t, find.text(S.welcomeBack));
@@ -73,14 +125,17 @@ Future<void> signOut(WidgetTester t) async {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('A: sign up with a household and an email code; C/D: sign in with the email or the phone',
+  testWidgets('A: sign up with a household and an email code; the municipality rejects it and the '
+      'person fixes it; C/D: sign in with the email or the phone',
       (t) async {
-    expect(serverLog, isNotEmpty, reason: 'pass --dart-define=SERVER_LOG=<the server log>');
+    expect(serverUrl, isNotEmpty, reason: 'pass --dart-define=SERVER_URL=<the test server>');
+    expect(serverLog, isNotEmpty, reason: 'pass --dart-define=SERVER_LOG=<its log>');
     final run = DateTime.now().millisecondsSinceEpoch;
     final email = 'flow$run@example.com';
     final phone = '0770${(run % 10000000).toString().padLeft(7, '0')}';
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();                                // no saved login, the default server address
+    await prefs.clear();                                // no saved login
+    await prefs.setString('baseUrl', serverUrl);        // what the server field would hold
 
     await app.main();
     await until(t, find.text(S.welcomeBack));
@@ -94,7 +149,12 @@ void main() {
     await type(t, S.name, 'ڕەند');
     await type(t, S.phone, phone);
     await type(t, S.password, 'secret123');
-    await tapOn(t, find.widgetWithText(DropdownButtonFormField<int>, S.neighbourhood));
+    // the neighbourhood list arrives from the server: open the menu until it has them
+    final hoods = find.widgetWithText(DropdownButtonFormField<int>, S.neighbourhood);
+    for (var i = 0; i < 10 && !shows(find.text('بەختیاری')); i++) {
+      await tapOn(t, hoods);
+      await wait(t, 500);
+    }
     await tapOn(t, find.text('بەختیاری').last);
     await type(t, S.householdName, 'ماڵی ڕەند');
     await tapOn(t, find.byIcon(Icons.add_circle_outline));          // two residents
@@ -127,11 +187,27 @@ void main() {
     expect(find.text(email), findsOneWidget);
     await signOut(t);
 
-    // C: sign in with the email, in another spelling
+    // the municipality rejects the home, with a reason
+    const reason = 'ناونیشانەکە ناتەواوە';
+    await staffRejectsHome(phone, reason);
+
+    // C: sign in with the email, in another spelling; the reason is on the profile
     await type(t, S.loginField, email.toUpperCase());
     await type(t, S.password, 'secret123');
     await tapOn(t, find.widgetWithText(ElevatedButton, S.signIn));
     await until(t, tab(S.home));
+    await tapOn(t, tab(S.profile));
+    await until(t, find.text(S.rejectedBecause(reason)));
+    expect(find.text(S.placeStatuses['rejected']!), findsOneWidget);
+
+    // fixing it resubmits it: the edit screen shows the reason, saving puts it back in the queue
+    await tapOn(t, find.text('ماڵی ڕەند'));
+    await until(t, find.text(S.fixAndResend));
+    await type(t, S.address, 'سەرچنار، کۆڵانی ٧');
+    await tapOn(t, find.widgetWithText(ElevatedButton, S.save));
+    await untilGone(t, find.text(S.fixAndResend));             // the edit screen has closed
+    await until(t, find.text(S.placeStatuses['pending']!));
+    expect(find.text(S.rejectedBecause(reason)), findsNothing);
     await signOut(t);
 
     // D: sign in with the phone, written the international way (old accounts only have a phone)
