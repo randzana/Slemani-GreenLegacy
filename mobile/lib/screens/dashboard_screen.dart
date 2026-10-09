@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
-import '../data/plant_data.dart';
-import '../location.dart';
 import '../notification_service.dart';
 import '../strings.dart';
 import '../theme.dart';
@@ -38,7 +36,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    GardenManager.instance.init();
     _load();
     widget.refresh.addListener(_load);
   }
@@ -188,217 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _showDisposalDialog() async {
-    List<Map<String, dynamic>> bins = [];
-    try {
-      bins = await Api.instance.trashBins();
-    } catch (_) {}
 
-    if (!mounted) return;
-    bool busy = false;
-    String? errorMsg;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.delete_sweep_rounded, color: Color(0xFF059669), size: 28),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('فڕێدانی پاشماوە و خاڵی خێرا',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                        Text('بێ پێویستی بە کۆدی QR؛ پاشماوەکە بسەلمێنە و خاڵ وەربگرە',
-                            style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('+١٥ خاڵ',
-                        style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.bold, fontSize: 13)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Option 1: Take Photo with AI
-              InkWell(
-                onTap: busy
-                    ? null
-                    : () {
-                        Navigator.of(ctx).pop();
-                        widget.onOpenReport();
-                      },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'گرتنی وێنەی پاشماوە بە کامێرا',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF065F46)),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'ژیریی دەستکرد پاشماوەکە دەناسێتەوە و یەکسەر خاڵت پێدەدات',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF10B981)),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Option 2: Quick Disposal
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.check_circle_rounded),
-                  label: busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('فڕێدانی خێرا لە نزیکترین تەنەکە (+١٥ خاڵ)',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: busy
-                      ? null
-                      : () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final navigator = Navigator.of(ctx);
-                          setSheetState(() {
-                            busy = true;
-                            errorMsg = null;
-                          });
-                          try {
-                            double? lat;
-                            double? lon;
-                            try {
-                              final pos = await currentPosition();
-                              lat = pos.latitude;
-                              lon = pos.longitude;
-                            } catch (_) {}
-
-                            final res = await Api.instance.verifyDisposal(lat: lat, lon: lon);
-                            navigator.pop();
-                            widget.refresh.value++;
-                            _load();
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(res['message']?.toString() ?? 'فڕێدانی پاشماوە بە سەرکەوتوویی تۆمارکرا!'),
-                                backgroundColor: const Color(0xFF10B981),
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
-                          } catch (err) {
-                            setSheetState(() {
-                              busy = false;
-                              errorMsg = err.toString();
-                            });
-                          }
-                        },
-                ),
-              ),
-
-              if (errorMsg != null) ...[
-                const SizedBox(height: 10),
-                Text(errorMsg!, style: const TextStyle(color: Colors.red, fontSize: 13)),
-              ],
-
-              if (bins.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                const Text('تەنەکەکانی نزیکت لە گەڕەک:',
-                    style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final b in bins)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: Chip(
-                            avatar: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFF059669)),
-                            label: Text('${b['name'] ?? b['code']}'),
-                            backgroundColor: Colors.grey.shade100,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -660,22 +447,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Waste Disposal & QR Scan Banner
+                  // Neighbourhood Rankings Banner (ڕیزبەندی گەڕەکەکان)
                   GestureDetector(
-                    onTap: _showDisposalDialog,
+                    onTap: widget.onOpenLeague,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF047857), Color(0xFF10B981)],
+                          colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF047857).withValues(alpha: 0.32),
+                            color: const Color(0xFFD97706).withValues(alpha: 0.32),
                             blurRadius: 10,
                             offset: const Offset(0, 6),
                           ),
@@ -689,33 +476,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.delete_sweep_rounded, color: Colors.white, size: 28),
+                            child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 28),
                           ),
                           const SizedBox(width: 14),
                           const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'فڕێدانی پاشماوە و خاڵی خێرا',
-                                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      '+١٥ خاڵ',
-                                      style: TextStyle(
-                                        color: Color(0xFFFEF08A),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  'ڕیزبەندی گەڕەکەکان',
+                                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'وێنەی پاشماوە بگرە یان فڕێی بدە؛ بێ کۆدی QR خاڵەکەت یەکسەر وەربگرە',
+                                  'کێبڕکێی گەڕەکە سەوزەکان و خاوێنترین شوێنەکانی سلێمانی',
                                   style: TextStyle(color: Colors.white70, fontSize: 12),
                                 ),
                               ],
@@ -781,157 +555,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 24),
                   DailyTasksCard(refresh: widget.refresh),
 
-                  // Digital Garden Preview
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Text(
-                            S.myGarden,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(width: 8),
-                          AnimatedBuilder(
-                            animation: GardenManager.instance,
-                            builder: (context, _) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: kPrimaryGreen.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                S.plantCount(GardenManager.instance.myPlants.length),
-                                style: const TextStyle(
-                                  color: kPrimaryGreen,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: widget.onOpenGarden,
-                        child: const Text(S.seeGarden, style: TextStyle(color: kPrimaryGreen, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  AnimatedBuilder(
-                    animation: GardenManager.instance,
-                    builder: (context, _) {
-                      final plants = GardenManager.instance.myPlants;
-                      if (plants.isEmpty) {
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isDark ? kDarkCard : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.eco_outlined, color: kPrimaryGreen, size: 28),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(S.gardenEmpty),
-                              ),
-                              ElevatedButton(
-                                onPressed: widget.onOpenGarden,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: kPrimaryGreen,
-                                  foregroundColor: Colors.white,
-                                  minimumSize: Size.zero,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                child: const Text(S.plantFirst, style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return SizedBox(
-                        height: 128,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: plants.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            final p = plants[index];
-                            final color = Color(p['colorValue'] as int? ?? kPrimaryGreen.toARGB32());
-                            final icon = plantIcon(p['iconCode']);
-                            final needsWater = p['status'] == S.plantThirsty;
 
-                            return GestureDetector(
-                              onTap: widget.onOpenGarden,
-                              child: Container(
-                                width: 110,
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: isDark ? kDarkCard : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: needsWater ? Border.all(color: Colors.orange.withValues(alpha: 0.6)) : null,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 24,
-                                          backgroundColor: color.withValues(alpha: 0.12),
-                                          child: Icon(icon, color: color, size: 26),
-                                        ),
-                                        if (needsWater)
-                                          const Positioned(
-                                            top: -2,
-                                            right: -2,
-                                            child: CircleAvatar(
-                                              radius: 7,
-                                              backgroundColor: Colors.orange,
-                                              child: Icon(Icons.water_drop, size: 9, color: Colors.white),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      p['name']?.toString() ?? '',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      p['level']?.toString() ?? '',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: isDark ? Colors.white60 : kTextSecondary,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
 
                   // Recent Reports Header
                   Row(
